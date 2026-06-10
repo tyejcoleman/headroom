@@ -29,7 +29,11 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 | `src/hook.mjs` | UserPromptSubmit stamp · PreCompact snapshot/guard · SessionStart re-inject · PostCompact log | session-scoping (ADR-7); age disclosure; silence > lying; guard fail-open (ADR-13) |
 | `src/handoff.mjs` | ground-truth snapshot capture/render + transcript extracts | facts not prose (ADR-8); 6h staleness guard; pointer not payload (ADR-11) |
 | `src/pins.mjs` | must-survive-verbatim facts, re-injected after compaction | capped + TTL'd (ADR-12) |
-| `src/events.mjs` | compaction event log + silent-cliff detection | best-effort only; never breaks tap/hooks (ADR-5) |
+| `src/events.mjs` | compaction event log + silent-cliff detection + `audit` renderer | best-effort only; never breaks tap/hooks (ADR-5) |
+| `src/checkpoint.mjs` | model-authored survival note (save/take/render) | facts from hooks, judgment from models (ADR-15); capped, 6h staleness |
+| `src/flow.mjs` | velocity engine: transcript flow sampling, calibration, burn enrichment | learned tokens-per-% labeled ≈; idle suppresses warnings; enrichment never breaks base state |
+| `src/arm.mjs` | armed resume: launchd scheduling of deferred work | consent-first (ADR-16); files-before-unload in self-disarm; fail loud to log |
+| `src/doctor.mjs` | install diagnosis | flags foreign hooks sharing events; exit 1 on problems |
 | `src/resume.mjs` | deferred-work plan lifecycle | 24h expiry; single file |
 | `src/fit.mjs` | fit_check + estimate_remaining verdict logic | context = real tokens; window = labeled heuristic |
 | `src/mcp.mjs` | stdio MCP server (newline JSON-RPC) | read-only + one write surface (ADR-6); version from package.json (ADR-10) |
