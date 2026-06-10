@@ -20,12 +20,16 @@ const plistPath = () => join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.pli
 const logPath = () => join(headroomDir(), 'resume-run.log');
 
 export function buildPrompt(plan) {
+  // Field lesson (first armed flight, 2026-06-10): a --max-turns death gives no final
+  // turn — so the trail must be built incrementally, never saved for the end.
   return (
     `You are resuming deferred work; the rate-limit window has reset and this run was explicitly armed by the user (headroom resume --arm). ` +
     `Deferred plan: "${plan.summary}". ` +
-    `Start by reading docs/PLAN.md and docs/DECISIONS.md if present. Do the work autonomously with clean commits. ` +
-    `If anything is ambiguous or risky, do NOT guess: write what you found and what you need to NOTES-FOR-USER.md and stop. ` +
-    `When the deferred work is done, run \`node bin/headroom.mjs resume --clear\` and summarize what you did at the end of NOTES-FOR-USER.md.`
+    `You run under a hard turn cap that can cut you off WITHOUT WARNING, so work incrementally: ` +
+    `FIRST create NOTES-FOR-USER.md with your plan, update it after every milestone, and commit completed pieces immediately — never batch commits for the end. ` +
+    `Start by reading docs/PLAN.md and docs/DECISIONS.md if present. ` +
+    `If anything is ambiguous or risky, do NOT guess: record it in NOTES-FOR-USER.md and stop. ` +
+    `Only when the deferred work is fully done, run \`node bin/headroom.mjs resume --clear\`.`
   );
 }
 
@@ -120,6 +124,15 @@ export function resumeRun() {
     const child = spawn(arm.cmd[0], arm.cmd.slice(1), { cwd: arm.cwd, stdio: ['ignore', 'inherit', 'inherit'] });
     child.on('exit', (code) => {
       appendFileSync(logPath(), `\n--- armed resume finished, exit ${code} ---\n`);
+      if (code !== 0) {
+        // the morning user's first question is "what did it leave behind?" — answer in the log
+        try {
+          const status = execFileSync('git', ['status', '--porcelain'], { cwd: arm.cwd, encoding: 'utf8' });
+          appendFileSync(logPath(), `non-zero exit; working tree left behind:\n${status || '(clean)'}\nThe resume plan was kept — re-arm with a bigger --max-turns or finish interactively.\n`);
+        } catch {
+          // not a git repo — nothing to snapshot
+        }
+      }
       disarmResume();
     });
   } catch {
