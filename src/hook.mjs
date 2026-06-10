@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readState } from './state.mjs';
-import { readConfig, fmtClock, fmtTokens, headroomDir, readJSON, atomicWriteJSON, ensureDir } from './util.mjs';
+import { readConfig, modeProfile, fmtClock, fmtTokens, headroomDir, readJSON, atomicWriteJSON, ensureDir } from './util.mjs';
 import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
 import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
@@ -61,29 +61,30 @@ export async function hookPreCompact() {
 // Mid-turn awareness (T2.11/ADR-14): stamps fire only at UserPromptSubmit, so a long
 // autonomous turn burns blind while state.json stays fresh on disk. PostToolUse
 // re-stamps ONLY when a budget crosses a WORSENING band — first sight silent (the
-// turn-start stamp covered it), improvements silent, ≥120s between re-stamps.
-const FH_BANDS = [25, 10, 5]; // % left
-const CTX_BANDS = [25, 10]; // points left to the compact ceiling
-const RESTAMP_THROTTLE_SEC = 120;
+// turn-start stamp covered it), improvements silent, throttled between re-stamps.
+// Band thresholds, receipt floors, and the throttle come from the governor profile
+// (T2.4): the mode shifts when headroom speaks, never what it says.
 const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
 
 export async function hookPostToolUse() {
   const p = await readStdin();
   try {
     sampleFlow(p.transcript_path, p.session_id); // velocity engine's FAST signal (T2.1)
-    if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) return;
+    const cfg = readConfig();
+    if (process.env.HEADROOM_DISABLE === '1' || !cfg.stamp_enabled) return;
+    const prof = modeProfile(cfg.mode);
     const s = readState();
     const now = Date.now() / 1000;
     if (!s || now - s.updated_at > 5 * 60) return;
     const mySession = p.session_id ?? 'unknown';
 
     const fhLeft = s.windows?.five_hour?.used_pct != null ? 100 - s.windows.five_hour.used_pct : null;
-    const fhBand = fhLeft != null ? bandOf(fhLeft, FH_BANDS) : 0;
+    const fhBand = fhLeft != null ? bandOf(fhLeft, prof.fh_bands) : 0;
     // context is session-scoped (ADR-7): ignore another session's numbers
     const foreign = s.session_id && p.session_id && s.session_id !== p.session_id;
     const ctx = foreign ? null : s.context;
     const ctxLeft = ctx?.used_pct != null ? Math.max(0, (ctx.compact_ceiling_pct ?? 80) - ctx.used_pct) : null;
-    const ctxBand = ctxLeft != null ? bandOf(ctxLeft, CTX_BANDS) : 0;
+    const ctxBand = ctxLeft != null ? bandOf(ctxLeft, prof.ctx_bands) : 0;
     const exh = !!(s.burn?.projected_exhaustion && s.windows?.five_hour?.resets_at && s.burn.projected_exhaustion < s.windows.five_hour.resets_at);
 
     const bandsPath = join(headroomDir(), 'bands.json');
@@ -106,10 +107,10 @@ export async function hookPostToolUse() {
     const receipts = [];
     const du = fhUsed != null && prev.u != null ? fhUsed - prev.u : null;
     const dc = cost != null && prev.c != null ? cost - prev.c : null;
-    if ((du != null && du >= 2) || (dc != null && dc >= 1)) {
+    if ((du != null && du >= prof.receipt_pct_floor) || (dc != null && dc >= prof.receipt_cost_floor)) {
       let r = `receipt: that ${p.tool_name ?? 'operation'} cost ≈`;
-      r += du != null && du >= 2 ? `${Math.round(du)}% of the 5h window` : `$${dc.toFixed(2)}`;
-      if (du != null && du >= 2 && dc != null && dc >= 0.01) r += ` (+$${dc.toFixed(2)})`;
+      r += du != null && du >= prof.receipt_pct_floor ? `${Math.round(du)}% of the 5h window` : `$${dc.toFixed(2)}`;
+      if (du != null && du >= prof.receipt_pct_floor && dc != null && dc >= 0.01) r += ` (+$${dc.toFixed(2)})`;
       if (fhLeft != null) r += ` — ${Math.round(fhLeft)}% left`;
       receipts.push(r);
       logEvent({ type: 'receipt', session_id: p.session_id ?? null, tool: p.tool_name ?? null, dpct: du != null ? Math.round(du * 10) / 10 : null, dcost: dc != null ? Math.round(dc * 100) / 100 : null });
@@ -123,7 +124,7 @@ export async function hookPostToolUse() {
       );
 
     const worsened = fhBand > prev.fh || ctxBand > prev.ctx || (exh && !prev.exh);
-    const throttled = now - (prev.at ?? 0) < RESTAMP_THROTTLE_SEC;
+    const throttled = now - (prev.at ?? 0) < prof.throttle_sec;
     if (throttled) {
       if (worsened) logEvent({ type: 'band_change', session_id: p.session_id ?? null, held: true, fh_left: fhLeft != null ? Math.round(fhLeft) : null });
       // record improvements so a later re-worsening re-triggers; hold worsenings for retry
@@ -134,7 +135,8 @@ export async function hookPostToolUse() {
 
     const parts = [];
     if (fhLeft != null && fhBand > prev.fh) {
-      const advice = fhBand >= 3 ? 'stop new work; checkpoint and defer' : fhBand === 2 ? 'finish at a clean boundary; defer heavy work (plan_resume)' : 're-check that remaining work fits; defer what does not';
+      // advice keyed to the absolute level, not the band index — bands vary by mode
+      const advice = fhLeft <= 5 ? 'stop new work; checkpoint and defer' : fhLeft <= 10 ? 'finish at a clean boundary; defer heavy work (plan_resume)' : 're-check that remaining work fits; defer what does not';
       parts.push(`5h window now ${Math.round(fhLeft)}% left${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
     if (exh && !prev.exh) {

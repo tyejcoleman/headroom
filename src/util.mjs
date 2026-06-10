@@ -52,6 +52,23 @@ export function fmtDelta(sec) {
   return h ? `${h}h ${m}m` : `${m}m`;
 }
 
+/**
+ * Governor profiles (T2.4): the mode shifts WHEN headroom speaks up, never what it says.
+ * powersave = early and often (thrift); performance = only when nearly too late
+ * (minimal interruptions); ondemand = the shipped defaults. Read per-event from config,
+ * so a mode change applies without restarting anything.
+ */
+export function modeProfile(mode) {
+  switch (mode) {
+    case 'performance':
+      return { fh_bands: [10, 5], ctx_bands: [10], receipt_pct_floor: 5, receipt_cost_floor: 3, throttle_sec: 300 };
+    case 'powersave':
+      return { fh_bands: [40, 25, 10, 5], ctx_bands: [40, 25, 10], receipt_pct_floor: 1, receipt_cost_floor: 0.5, throttle_sec: 60 };
+    default:
+      return { fh_bands: [25, 10, 5], ctx_bands: [25, 10], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
+  }
+}
+
 export function readConfig() {
   return {
     stamp_enabled: true,

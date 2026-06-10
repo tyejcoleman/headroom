@@ -394,3 +394,47 @@ test('T2.14: launch gate denies expensive launches only when window says defer �
   writeFileSync(join(dir, 'state.json'), 'garbage'); // broken state → fail open
   assert.equal(pre('Task'), '');
 });
+
+test('T2.4: governor mode shifts when headroom speaks — powersave early, performance late, no restart', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-gov-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = () => Math.round(Date.now() / 1000);
+  const write = (usedPct) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now(),
+        session_id: 'gv1',
+        windows: { five_hour: { used_pct: usedPct, resets_at: now() + 3600 } },
+        context: null,
+        burn: {},
+        session: {},
+      })
+    );
+  const post = () => run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'gv1' }), env }).stdout;
+  const mode = (m) => writeFileSync(join(dir, 'config.json'), JSON.stringify({ mode: m }));
+
+  // powersave: 35% left crosses the 40-band → speaks where ondemand would stay silent
+  mode('powersave');
+  write(55);
+  assert.equal(post(), ''); // baseline
+  write(65);
+  assert.match(post(), /35% left/);
+
+  // performance (config change only, no restart): 20% left is inside ondemand's 25-band
+  // but outside performance's 10-band → silent
+  mode('performance');
+  write(70); // improvement first, resets stored bands
+  post();
+  write(74); // small steps stay under performance's 5%-receipt floor
+  assert.equal(post(), '');
+  write(78); // 22% left — inside ondemand's 25-band, outside performance's 10-band
+  assert.equal(post(), '');
+  // ...but 8% left crosses performance's 10-band; age the throttle (performance = 300s)
+  const bands = JSON.parse(readFileSync(join(dir, 'bands.json'), 'utf8'));
+  bands.gv1.at = 0;
+  writeFileSync(join(dir, 'bands.json'), JSON.stringify(bands));
+  write(92);
+  assert.match(post(), /8% left.*clean boundary/);
+});

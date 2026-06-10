@@ -27,6 +27,9 @@
   a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
   — long autonomous turns no longer burn blind.
 
+- **Governor modes (T2.4):** `mode: performance | ondemand | powersave` in config —
+  shifts band thresholds, receipt floors, and the re-stamp throttle (when headroom
+  speaks, never what it says). Applies without restart.
 - **Velocity engine (T2.1):** hooks sample exact token flow from the transcript usage
   records (incremental cursor, cheap); the tap cross-calibrates flow against %-steps to
   LEARN tokens-per-percent. Unlocks: `≈230k` tokens-left on the quota (HUD + stamp,
