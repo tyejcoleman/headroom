@@ -39,6 +39,30 @@ Conventions: every task carries acceptance criteria (AC). Hard rule across all p
 - [x] **T2.12 Model-authored checkpoint (the "meta" layer).** *(shipped 2026-06-10, ADR-15; wording in eval queue)* Hooks have no model, so today's handoff is facts-only (ADR-8); the missing half is judgment: when context runs LOW, the AGENT decides what must survive. `checkpoint` MCP tool (third write surface — needs ADR-15 amending ADR-8: facts from hooks, judgment from models): agent saves a structured survival note — task state, decisions + why, rejected approaches (prevents re-trying dead ends), exact next steps, key values — capped ~2k tokens, session-scoped, 6h staleness, latest-wins. Trigger loop: ctx band crossings (T2.11) change advice to "write a checkpoint NOW via the checkpoint tool"; skill gets a "when ~25 points to ceiling, checkpoint" rule. SessionStart(source=compact) re-injects facts first, then the model's note. AC: lifecycle unit-tested; continuity eval v3 measures resume quality checkpoint+handoff vs handoff-only (ADR-9 before publish).
 - [x] **T2.10 Compact guard.** *(shipped 2026-06-10)* Opt-in `compact_guard_min`: blocks AUTO compaction only when the 5h reset is ≤N minutes away (post-reset `/clear` beats compacting into a dying window); never blocks manual `/compact`; fail-open (ADR-13). AC: auto-only, near-reset-only, and allow-path all unit-tested.
 
+## Phase 2.5 — Free-tier wow wave (post-launch; single-dev features stay free forever)
+
+Rule: free = everything one dev on one machine feels; paid = the organizational plane
+only. Every feature here doubles as a Pro demo — never gate it.
+
+- [ ] **T2.16 `headroom recap`.** End-of-session / `--week` story from existing data
+  (events, flow, receipts, history): duration, cost, tokens out, windows consumed,
+  compactions survived, top-N expensive operations — and the headline nobody has seen:
+  **tokens expired unused at resets**. Shareable text block (screenshot-friendly). AC:
+  zero new collectors; numbers tie to evidence files; renders in <100ms.
+- [ ] **T2.17 `headroom drill`.** Compaction preview: render exactly what would survive
+  if compaction hit NOW (fact snapshot, checkpoint or its absence flagged, pins,
+  transcript anchor). AC: pure read; uses the shipped renderers; warns when the
+  checkpoint is missing or stale.
+- [ ] **T2.18 Multi-session watch.** Per-session state retention (state-<session>.json
+  alongside last-writer state.json) so `headroom watch` shows every live session's
+  context/cost side by side — "who's eating my window". AC: ADR for the state layout
+  change; concurrent-session fixture test; ADR-7 scoping preserved.
+- [ ] **T2.19 `headroom brief`.** Morning block: deferred-ready, pins, last recap line,
+  calibration state, weekly shape. AC: composes T2.16 internals; no new state.
+- [ ] **T2.20 Context-hygiene signals (design first).** Re-read churn / edit-thrash
+  detection from flow samples — the "tired agent" beyond budgets. Eval-gated (ADR-9)
+  before any injection wording ships.
+
 ## Phase 3 — Beyond one harness (month 2)
 
 - [ ] **T3.1 Programmatic-credit meter.** Track the post–June 15 2026 Agent SDK / `claude -p` credit pool: spend at API rates, budget config, dollar-denominated ResourceState mode. AC: matches console billing within rounding on test runs.
