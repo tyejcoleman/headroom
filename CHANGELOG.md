@@ -34,6 +34,12 @@
   warning rephrased `⚠ empty by ~00:34` — a clock time that can no longer be misread as
   a duration; deferred-work segment compressed to `⏲ queued` → `✓ deferred work ready`
   (the duplicate reset clock is gone).
+- HUD v3 (same session, second field pass): primary quota unlabeled (`58% left ↻03:30`
+  — leading position + reset clock say what it is); weekly shown as `week N% left` only
+  when binding; ctx shows both views `ctx 57% (570k)`; a WAITING deferred plan is hidden
+  entirely (not actionable — `headroom resume` shows it), only `✓ deferred work ready`
+  surfaces. Quota tokens-left deliberately absent: the payload has no token denominator
+  — estimation lands with T2.1 burn priors rather than fake precision.
 
 ### Notes
 - New skill/stamp wording (pins section, transcript-anchor guidance, cliff disclosure)

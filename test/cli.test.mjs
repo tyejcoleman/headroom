@@ -17,9 +17,9 @@ test('tap: full payload → HUD + valid state.json', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'headroom-tap-'));
   const r = run(['tap'], { input: fixture('statusline-full.json'), env: { HEADROOM_DIR: dir } });
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /5h 58% left ↻/); // remaining-first, reset clock attached
-  assert.doesNotMatch(r.stdout, /7d/); // healthy weekly window is hidden — not a binding constraint
-  assert.match(r.stdout, /ctx 38k/); // tokens are the actionable unit when known
+  assert.match(r.stdout, /⛶ 58% left ↻/); // remaining-first, unlabeled primary, reset clock attached
+  assert.doesNotMatch(r.stdout, /week/); // healthy weekly window is hidden — not a binding constraint
+  assert.match(r.stdout, /ctx 19% \(38k\)/); // both views: points to ceiling + tokens
   const state = JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8'));
   const { validateResourceState } = await import('../src/schema.mjs');
   assert.deepEqual(validateResourceState(state), []);

@@ -98,9 +98,9 @@ test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in sta
   assert.equal(rec.recorded, true);
   assert.equal(rec.resume_at, 1781304000);
 
-  // countdown in HUD while waiting
+  // a waiting plan is deliberately absent from the HUD (not actionable yet)
   const hud = run(['tap'], { input: fixture('statusline-full.json'), env }).stdout;
-  assert.match(hud, /⏲ queued/);
+  assert.doesNotMatch(hud, /⏲|deferred/);
 
   // flip the plan to "ready" and check stamp + session-start + HUD
   const planPath = join(dir, 'resume.json');

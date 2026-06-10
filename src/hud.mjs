@@ -14,23 +14,25 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   const sd = state.windows?.seven_day;
   const ctx = state.context;
 
+  // primary quota needs no label — leading position + the ↻ reset clock say what it is
   if (fh?.used_pct != null) {
-    parts.push(`5h ${Math.round(100 - fh.used_pct)}% left${fh.resets_at ? ` ↻${fmtClock(fh.resets_at)}` : ''}`);
+    parts.push(`${Math.round(100 - fh.used_pct)}% left${fh.resets_at ? ` ↻${fmtClock(fh.resets_at)}` : ''}`);
   }
   // weekly window is only news when it's the binding constraint
-  if (sd?.used_pct != null && 100 - sd.used_pct < 30) parts.push(`7d ${Math.round(100 - sd.used_pct)}% left`);
+  if (sd?.used_pct != null && 100 - sd.used_pct < 30) parts.push(`week ${Math.round(100 - sd.used_pct)}% left`);
   if (ctx?.used_pct != null) {
     const left = Math.max(0, Math.round((ctx.compact_ceiling_pct ?? 80) - ctx.used_pct));
-    let s = ctx.tokens_to_ceiling != null ? `ctx ${fmtTokens(ctx.tokens_to_ceiling)}` : `ctx ${left}%`;
+    let s = `ctx ${left}%${ctx.tokens_to_ceiling != null ? ` (${fmtTokens(ctx.tokens_to_ceiling)})` : ''}`;
     if (left < 10) s += ' ⚠compact soon';
     parts.push(s);
   }
   // Raw %/h confused everyone in the field; surface burn only when it predicts trouble.
+  // Clock, not countdown: the statusline re-renders on Claude Code's schedule, and a
+  // frozen "in 25m" lies — "by ~00:39" stays true. Live countdowns: headroom watch/line.
   const exh = state.burn?.projected_exhaustion;
   if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠ empty by ~${fmtClock(exh)}`);
-  if (resume?.resume_at) {
-    parts.push(nowSec >= resume.resume_at ? '✓ deferred work ready' : '⏲ queued');
-  }
+  // deferred work appears only when actionable — a waiting plan is noise (headroom resume shows it)
+  if (resume?.resume_at && nowSec >= resume.resume_at) parts.push('✓ deferred work ready');
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
 
   return parts.length ? `⛶ ${parts.join(' · ')}` : '⛶ headroom: awaiting data';
