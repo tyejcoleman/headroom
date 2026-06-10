@@ -1,0 +1,21 @@
+# dependencies / build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# local runtime state (never commit machine-specific captures)
+.headroom/
+*.local.json
+
+# spike captures
+**/raw-sample.json
+
+# logs / env
+*.log
+.env
+.env.*
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/
