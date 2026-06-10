@@ -202,6 +202,13 @@ docs/            ONE-PAGER · PLAN · VALIDATION · ARCHITECTURE · DECISIONS
 .claude/         repo agent harness: gates hook + procedure commands
 ```
 
+## Teams & orgs
+
+Running coding agents against shared seat quota or org API keys? A team/org layer
+(fleet visibility, org budgets fed to every agent, policy push) is being explored —
+see [docs/PRO.md](docs/PRO.md). If that's you, [open an issue](../../issues) tagged
+`org` and describe your setup; design partners shape what gets built.
+
 ## License
 
 [Apache-2.0](LICENSE).
