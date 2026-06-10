@@ -54,7 +54,8 @@ State lives at `~/.headroom/state.json` (atomic temp-file + rename writes only).
 installer; CI on node 18/20/22). A2 (the behavioral bet) is **directionally validated**
 via the simulated evals in `eval/` and `eval/v1/` (see their `results/`). Adopted lessons:
 stamps lead with *remaining* + absolute tokens; eval prompts never offer deferral slots.
-A1 (real `rate_limits` data on a live account) remains to be confirmed: run
-`headroom install`, use Claude Code normally, check `headroom status` — the
-`tap --capture` flag records raw payloads for debugging. Next build targets: Phase 2
-(burn modeling hardening, PreCompact checkpointing, reset scheduler) per `docs/PLAN.md`.
+**A1 confirmed on a live Max account (2026-06-09)**: real `rate_limits` (both windows)
+and `context_window` (1M-token window — size varies by model, never hardcode) flowed
+through the shipped tap on first render. Both validation gates are green. Next build
+targets: Phase 2 (burn-model hardening, PreCompact checkpointing, reset scheduler) per
+`docs/PLAN.md`, npm publish, launch post.

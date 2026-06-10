@@ -33,6 +33,13 @@ for a few prompts across a session, then inspect the captured samples.
 cat ~/.headroom/raw-sample.json | tail -3
 ```
 
+**Status (2026-06-09): ✅ CONFIRMED on a live Max account, Claude Code v2.1.170.** The
+shipped tap (which subsumed this spike via `headroom tap --capture`) produced a valid
+ResourceState from real statusline payloads on first render: both `rate_limits` windows
+with sane percentages and future `resets_at`, `auth: subscription`, and `context_window`
+reporting a 1M window. Gate **G0 passes**; note `context_window_size` varies by model
+(200k vs 1M) — never hardcode it.
+
 **Success:** `rate_limits` and `context_window` are present, with sane `used_percentage`
 (0–100) and a future `resets_at`, on this Pro/Max account at v2.1.170.
 **Watch for:** field absent on first prompt then appearing; epoch values leaking into
