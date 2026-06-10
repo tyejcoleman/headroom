@@ -87,6 +87,24 @@ The highest-value, hardest feature (PLAN T2.2). Worth a dedicated continuity eva
 S0/S1 pass, but it is not a go/no-go gate for the project — it's the headline feature
 *if* the foundation holds.
 
+**G2 real-world exercise (2026-06-09, live Max account, `/compact` mid-session): PASS.**
+Probe protocol: plant an untracked `COMPACTION-PROBE.md` (distinctive dirty-tree
+fingerprint), confirm `~/.headroom/handoffs/` absent, then compact and verify both halves.
+
+- PreCompact fired and wrote `handoffs/<session>.json` — `trigger: "manual"` (correctly
+  distinguishes user `/compact` from auto-compaction), correct `cwd`, `branch: main`,
+  dirty list containing exactly the probe file, 5 recent commits, budget snapshot
+  (5h 52% left + reset epoch). Every field correct.
+- SessionStart(source=compact) re-injected the full ground-truth block into the
+  post-compaction context — the agent saw the probe file in the dirty list and resumed
+  the in-flight task from it.
+- Notable: the hooks were registered **mid-session** and still fired at compaction —
+  Claude Code reads hook config live, not snapshotted at session start.
+- One field gotcha: the UI showed "SessionStart:compact hook error", which was a
+  *different* (third-party) SessionStart hook failing with command-not-found; headroom's
+  hook exited 0 with valid JSON. Lesson for docs/FAQ: hook errors in the UI are not
+  attributed per-hook — users with multiple SessionStart hooks may misattribute failures.
+
 ## Decision gates
 
 | Gate | Pass → | Fail → |
