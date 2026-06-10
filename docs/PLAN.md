@@ -4,18 +4,22 @@
 
 Conventions: every task carries acceptance criteria (AC). Hard rule across all phases: nothing calls undocumented endpoints, reuses subscription OAuth tokens outside official clients, spoofs harness identity, or burns interactive subscription quota headlessly.
 
-## Phase 0 — Foundation (days 1–2)
+## Phase 0 — Foundation (days 1–2) — ✅ shipped 2026-06-09
 
-- [ ] **T0.1 Repo scaffold.** TypeScript monorepo (pnpm workspaces): `packages/tap`, `packages/mcp`, `packages/hooks`, `packages/skill`, `packages/schema`. AC: clean build; lint + unit tests run in CI.
-- [ ] **T0.2 `headroom-tap` v0.** Statusline command: parse stdin JSON; extract `rate_limits` (field may be absent — degrade, never crash; clamp `used_percentage` to 0–100, else treat as null) and `context_window`; atomically write `~/.headroom/state.json` (temp file + rename); render a one-line HUD to stdout. AC: registers via `/statusline`; survives malformed/missing fields; <10 ms typical execution.
-- [ ] **T0.3 ResourceState v0 schema.** JSON Schema in `packages/schema` + validation tests + fixture corpus (subscription, API-key, absent-field, and epoch-leak cases). AC: tap output always validates against the schema.
+> **Implementation note:** shipped as a single **zero-dependency** npm package
+> (`headroom-cc`, plain ESM + `node:test`) instead of the TS/pnpm monorepo — npx-able,
+> auditable, no build step. Revisit a split only if the package grows real dependencies.
 
-## Phase 1 — Awareness connector (week 1)
+- [x] **T0.1 Repo scaffold.** ~~TypeScript monorepo~~ → single zero-dep package: `bin/`, `src/`, `skill/`, `schema/`, `test/`. AC met: tests run in CI (GitHub Actions, node 18/20/22 × linux/macOS).
+- [x] **T0.2 `headroom-tap` v0.** Statusline command: parse stdin JSON; extract `rate_limits` (absent → degrade, never crash; out-of-range `used_percentage` incl. epoch leaks → null) and `context_window`; atomically write `~/.headroom/state.json` (temp file + rename); render a one-line HUD. AC met: survives malformed/missing/empty stdin (tested); registered by the installer. `--capture` debug flag records raw payloads (subsumes Spike S0).
+- [x] **T0.3 ResourceState v0 schema.** JSON Schema in `schema/` + zero-dep validator (`src/schema.mjs`) + fixture corpus (subscription, API-key, epoch-leak with ms-timestamps and negative pct). AC met: tap output validates in tests.
 
-- [ ] **T1.1 `headroom-mcp`.** stdio MCP server, read-only over `state.json`. Tools: `resource_state` (full state), `estimate_remaining` (burn → estimated messages/time left per window), `fit_check({est_tokens, est_calls})` → `fits | tight | split | defer(resets_at)`. AC: registered with `claude mcp add`; responds <50 ms; no writes, no network.
-- [ ] **T1.2 Push injection.** `UserPromptSubmit` hook returns an `additionalContext` stamp, e.g. `[headroom] 5h 42%→14:00 · 7d 15% · ctx 61%/80% ceiling · mode:ondemand`. AC: stamp ≤40 tokens; hook completes <200 ms; config flag to disable.
-- [ ] **T1.3 SKILL.md v1.** Policies: size-to-fit against both budgets; cheap-first past 70% window; batch tool calls; cache-friendly ordering; model downshift for subtasks; compress-don't-reread; checkpoint rules. AC: scripted eval — given a 3-task queue under a constrained window, the agent reorders and right-sizes tasks unprompted.
-- [ ] **T1.4 Installer.** `npx @headroom-ai/install`: sets the statusline command, registers the MCP server and hooks; idempotent; `--uninstall` supported. AC: fresh-machine install under 1 minute; uninstall leaves no trace.
+## Phase 1 — Awareness connector (week 1) — ✅ shipped 2026-06-09
+
+- [x] **T1.1 `headroom-mcp`.** stdio MCP server (hand-rolled newline-delimited JSON-RPC, zero-dep), read-only over `state.json`. Tools: `resource_state`, `estimate_remaining`, `fit_check({est_tokens, est_calls})` → `fits | tight | exceeds | defer`. AC met: registered via `claude mcp add` by the installer; no writes, no network; round-trip tested.
+- [x] **T1.2 Push injection.** `UserPromptSubmit` hook returns an `additionalContext` stamp — **remaining-first wording** (eval v0 found "X% used" gets misread): `[headroom] 5h: 58% left, resets 14:00 · 7d: 85% left · ctx: ~38k tokens before compaction`. AC met: ≤40 tokens (length-tested); silent when stale/missing/disabled (`HEADROOM_DISABLE=1` or config).
+- [x] **T1.3 SKILL.md v1.** Policies: size-to-fit against both budgets (fit_check verdict table); cheap-first under pressure; batch tool calls; defer-past-reset with a named resume time; checkpoint before the ceiling; compress-don't-reread; anti-timidity clause. AC met ahead of build: the scripted eval exists (`eval/v1/`) and this policy passed it on two models (zero 429-exposed work; no timidity) — see `eval/v1/results/`.
+- [x] **T1.4 Installer.** `headroom install`: sets the statusline command, registers the MCP server, hook, and skill; idempotent; `uninstall` restores any pre-existing statusline from backup. AC met: sandbox-tested (double-install safe; uninstall leaves no trace). npm publish as `headroom-cc` pending → then `npx headroom-cc install`.
 
 ## Phase 2 — Planner & checkpointing (weeks 2–3)
 

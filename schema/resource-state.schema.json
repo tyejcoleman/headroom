@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/tyejcoleman/headroom/blob/main/schema/resource-state.schema.json",
+  "title": "ResourceState v0",
+  "type": "object",
+  "required": ["schema", "updated_at", "provider", "windows"],
+  "properties": {
+    "schema": { "const": "resource-state/v0" },
+    "updated_at": { "type": "integer", "minimum": 0 },
+    "provider": { "type": "string" },
+    "auth": { "enum": ["subscription", "api_key", "unknown"] },
+    "windows": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "five_hour": { "$ref": "#/definitions/window" },
+        "seven_day": { "$ref": "#/definitions/window" }
+      }
+    },
+    "context": {
+      "type": ["object", "null"],
+      "properties": {
+        "window_size": { "type": ["integer", "null"], "minimum": 1 },
+        "used_pct": { "$ref": "#/definitions/pct" },
+        "compact_ceiling_pct": { "type": "number", "minimum": 1, "maximum": 100 },
+        "tokens_to_ceiling": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "burn": {
+      "type": "object",
+      "properties": {
+        "pct_per_hour": { "type": ["number", "null"] },
+        "projected_exhaustion": { "type": ["integer", "null"] }
+      }
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "cost_usd": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "mode": { "type": "string" }
+  },
+  "definitions": {
+    "pct": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "window": {
+      "type": "object",
+      "properties": {
+        "used_pct": { "$ref": "#/definitions/pct" },
+        "resets_at": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}

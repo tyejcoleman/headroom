@@ -1,0 +1,8 @@
+{
+  "hook_event_name": "Status",
+  "session_id": "def456",
+  "model": { "id": "claude-fable-5", "display_name": "Fable 5" },
+  "version": "2.1.170",
+  "cost": { "total_cost_usd": 1.02 },
+  "context_window": { "context_window_size": 200000, "used_percentage": 12.0 }
+}

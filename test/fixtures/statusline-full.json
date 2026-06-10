@@ -1,0 +1,13 @@
+{
+  "hook_event_name": "Status",
+  "session_id": "abc123",
+  "model": { "id": "claude-fable-5", "display_name": "Fable 5" },
+  "workspace": { "current_dir": "/tmp/x", "project_dir": "/tmp/x" },
+  "version": "2.1.170",
+  "cost": { "total_cost_usd": 0.47, "total_duration_ms": 120000 },
+  "context_window": { "context_window_size": 200000, "used_percentage": 61.2 },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 42.5, "resets_at": 1781304000 },
+    "seven_day": { "used_percentage": 15.3, "resets_at": 1781800000 }
+  }
+}

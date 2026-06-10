@@ -43,13 +43,18 @@ If a task seems to require crossing one of these lines, stop and surface it — 
 
 ## Stack
 
-TypeScript monorepo, pnpm workspaces: `packages/{tap,mcp,hooks,skill,schema}`.
+Single **zero-dependency** npm package (`headroom-cc`): plain ESM under `bin/` + `src/`,
+`node:test` suites, skill in `skill/`, JSON Schema in `schema/`. No build step — this is
+deliberate (auditability + npx-ability); don't add dependencies without strong cause.
 State lives at `~/.headroom/state.json` (atomic temp-file + rename writes only).
 
 ## Current status
 
-A2 (the behavioral bet) is **directionally validated** via simulated evals — see
-`eval/` (v0 planning probes) and `eval/v1/` (execution-level, live-burn sim, artifact
-grading) and their `results/`. Two adopted lessons: stamps lead with *remaining* +
-absolute tokens; eval prompts never offer deferral slots. A1 (real data exists) is still
-unverified. **Next actions: run Spike S0** (`docs/VALIDATION.md`), then Phase 0.
+**P0 + P1 are built and tested** (tap, schema+fixtures, hook stamp, MCP server, skill,
+installer; CI on node 18/20/22). A2 (the behavioral bet) is **directionally validated**
+via the simulated evals in `eval/` and `eval/v1/` (see their `results/`). Adopted lessons:
+stamps lead with *remaining* + absolute tokens; eval prompts never offer deferral slots.
+A1 (real `rate_limits` data on a live account) remains to be confirmed: run
+`headroom install`, use Claude Code normally, check `headroom status` — the
+`tap --capture` flag records raw payloads for debugging. Next build targets: Phase 2
+(burn modeling hardening, PreCompact checkpointing, reset scheduler) per `docs/PLAN.md`.

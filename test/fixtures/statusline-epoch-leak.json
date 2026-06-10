@@ -1,0 +1,11 @@
+{
+  "hook_event_name": "Status",
+  "session_id": "ghi789",
+  "model": { "id": "claude-fable-5", "display_name": "Fable 5" },
+  "version": "2.1.170",
+  "context_window": { "context_window_size": 200000, "used_percentage": 33.0 },
+  "rate_limits": {
+    "five_hour": { "used_percentage": 1781304000, "resets_at": 1781304000 },
+    "seven_day": { "used_percentage": -3, "resets_at": 1781800000000 }
+  }
+}
