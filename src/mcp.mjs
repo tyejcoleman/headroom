@@ -6,6 +6,7 @@ import { readState } from './state.mjs';
 import { fitCheck, estimateRemaining } from './fit.mjs';
 import { planResume } from './resume.mjs';
 import { addPin } from './pins.mjs';
+import { logEvent } from './events.mjs';
 
 // package.json is the single source of truth for the version (see /release procedure)
 const pkg = JSON.parse(readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json'), 'utf8'));
@@ -121,6 +122,12 @@ export function mcpServe() {
       } else {
         result = fitCheck(state, args);
       }
+      // every consult is a steering signal — audit it (headroom audit)
+      logEvent({
+        type: 'mcp_call',
+        tool: name,
+        verdict: result?.overall ?? (result?.recorded != null ? 'recorded' : null) ?? (result?.pinned != null ? 'pinned' : null),
+      });
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify(result, null, 1) }] } });
     } else if (id !== undefined && method) {
       send({ jsonrpc: '2.0', id, result: {} }); // ping & friends

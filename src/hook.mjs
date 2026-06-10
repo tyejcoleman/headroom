@@ -94,8 +94,10 @@ export async function hookPostToolUse() {
     };
     if (!prev) return save({ fh: fhBand, ctx: ctxBand, exh, at: 0 });
 
+    const worsened = fhBand > prev.fh || ctxBand > prev.ctx || (exh && !prev.exh);
     const throttled = now - (prev.at ?? 0) < RESTAMP_THROTTLE_SEC;
     if (throttled) {
+      if (worsened) logEvent({ type: 'band_change', session_id: p.session_id ?? null, held: true, fh_left: fhLeft != null ? Math.round(fhLeft) : null });
       // record improvements so a later re-worsening re-triggers; hold worsenings for retry
       return save({ fh: Math.min(prev.fh, fhBand), ctx: Math.min(prev.ctx, ctxBand), exh: prev.exh && exh, at: prev.at });
     }
@@ -113,6 +115,15 @@ export async function hookPostToolUse() {
     }
 
     save({ fh: fhBand, ctx: ctxBand, exh, at: parts.length ? now : prev.at });
+    if (fhBand !== prev.fh || ctxBand !== prev.ctx || exh !== prev.exh) {
+      logEvent({
+        type: 'band_change',
+        session_id: p.session_id ?? null,
+        emitted: parts.length > 0,
+        fh_left: fhLeft != null ? Math.round(fhLeft) : null,
+        exh,
+      });
+    }
     if (!parts.length) return;
     process.stdout.write(
       JSON.stringify({
@@ -168,9 +179,15 @@ export async function hookUserPromptSubmit() {
   const payload = await readStdin();
   const mySession = payload.session_id ?? null;
 
-  if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) return;
+  if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) {
+    logEvent({ type: 'stamp_skipped', session_id: mySession, reason: 'disabled' });
+    return;
+  }
   const s = readState();
-  if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) return;
+  if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) {
+    logEvent({ type: 'stamp_skipped', session_id: mySession, reason: s ? 'stale_state' : 'no_state' });
+    return;
+  }
 
   // Rate-limit windows are account-level (true for every session). Context is
   // session-level: when state.json was last written by a DIFFERENT concurrent session,
@@ -214,6 +231,13 @@ export async function hookUserPromptSubmit() {
   // Fresh and 25-minutes-old look identical otherwise; disclose age once it's not "now".
   const ageSec = Date.now() / 1000 - s.updated_at;
   const ageMark = ageSec > 120 ? ` (${Math.round(ageSec / 60)}m old)` : '';
+
+  logEvent({
+    type: 'stamp',
+    session_id: mySession,
+    fh_left: fh?.used_pct != null ? Math.round(100 - fh.used_pct) : null,
+    ctx_tokens: ctx?.tokens_to_ceiling ?? null,
+  });
 
   process.stdout.write(
     JSON.stringify({

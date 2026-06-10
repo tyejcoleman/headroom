@@ -213,6 +213,51 @@ test('T2.11: post-tool-use re-stamps on worsening band crossings only — thrott
   assert.equal(post(), ''); // improvement: always silent
 });
 
+test('audit: renders the awareness timeline with steering-signal counts', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-audit-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  const evs = [
+    { at: now - 300, type: 'stamp', fh_left: 13, ctx_tokens: 600000 },
+    { at: now - 240, type: 'mcp_call', tool: 'fit_check', verdict: 'defer' },
+    { at: now - 230, type: 'mcp_call', tool: 'plan_resume', verdict: 'recorded' },
+    { at: now - 120, type: 'band_change', emitted: true, fh_left: 9, exh: true },
+    { at: now - 60, type: 'stamp_skipped', reason: 'stale_state' },
+  ];
+  writeFileSync(join(dir, 'events.jsonl'), evs.map((e) => JSON.stringify(e)).join('\n') + '\n');
+
+  const out = run(['audit'], { env }).stdout;
+  assert.match(out, /stamp {4}injected: 5h 13% left · ctx ~600k/);
+  assert.match(out, /consult {2}fit_check → defer/);
+  assert.match(out, /update injected \(5h 9% left, exhaustion projected\)/);
+  assert.match(out, /skipped \(stale_state\)/);
+  assert.match(out, /steering signals: 1 stamps · 1 mid-task updates · 2 consults \(fit_check defer\/tight\/fits: 1\/0\/0\) · 1 defers recorded · 0 pins/);
+});
+
+test('audit: stamps and MCP consults are logged automatically', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-audit2-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'a1',
+      windows: { five_hour: { used_pct: 40, resets_at: now + 3600 } },
+      context: null,
+      burn: {},
+      session: {},
+    })
+  );
+  run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'a1' }), env });
+  const req = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
+  run(['mcp'], { input: req(1, 'tools/call', { name: 'fit_check', arguments: { est_tokens: 5000 } }), env });
+  const out = run(['audit'], { env }).stdout;
+  assert.match(out, /stamp {4}injected: 5h 60% left/);
+  assert.match(out, /consult {2}fit_check → fits/);
+});
+
 test('pin_fact via the MCP server works without any ResourceState', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-mcp-pin-'));
   const env = { HEADROOM_DIR: dir };

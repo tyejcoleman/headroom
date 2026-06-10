@@ -42,6 +42,62 @@ export function recentEvents(windowSec, nowSec = Date.now() / 1000) {
 }
 
 /**
+ * `headroom audit` — render the awareness loop as a timeline: what headroom knew, what
+ * it injected (or why it stayed silent), and what the agent consulted. The audit shows
+ * steering SIGNALS (consults, defers, pins); whether prose behavior changed is the
+ * eval harness's job, and this output never pretends otherwise.
+ */
+export function renderAudit(sinceSec = 6 * 3600, nowSec = Date.now() / 1000) {
+  const evs = recentEvents(sinceSec, nowSec);
+  if (!evs.length) return 'no audit events in this window — use Claude Code with headroom installed, then re-run';
+
+  const clock = (t) => {
+    const d = new Date(t * 1000);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+  const describe = (e) => {
+    switch (e.type) {
+      case 'stamp':
+        return `stamp    injected: 5h ${e.fh_left}% left${e.ctx_tokens != null ? ` · ctx ~${Math.round(e.ctx_tokens / 1000)}k` : ''}`;
+      case 'stamp_skipped':
+        return `stamp    skipped (${e.reason})`;
+      case 'band_change':
+        if (e.held) return `band     worsened mid-turn → held by throttle (retries next tool call)`;
+        return e.emitted
+          ? `band     crossed mid-turn → update injected (5h ${e.fh_left != null ? `${e.fh_left}% left` : '?'}${e.exh ? ', exhaustion projected' : ''})`
+          : `band     changed (improvement — silent by design)`;
+      case 'mcp_call':
+        return `consult  ${e.tool}${e.verdict != null ? ` → ${e.verdict}` : ''}`;
+      case 'pre_compact':
+        return `compact  pre-compact snapshot (${e.trigger ?? '?'})`;
+      case 'post_compact':
+        return `compact  completed (${e.trigger ?? '?'})`;
+      case 'compact_blocked':
+        return `compact  AUTO compaction blocked (${e.minutes_to_reset}m to reset)`;
+      case 'session_start':
+        return `session  start (${e.source ?? '?'})`;
+      case 'context_drop':
+        return `context  silent cliff: -${e.dropped_tokens != null ? `${Math.round(e.dropped_tokens / 1000)}k tokens` : `${e.dropped_pct}%`} (no compaction event)`;
+      case 'drop_announced':
+        return `context  cliff disclosed in next stamp`;
+      default:
+        return `${e.type}`;
+    }
+  };
+
+  const lines = evs.map((e) => `${clock(e.at)}  ${describe(e)}`);
+  const n = (t, f = () => true) => evs.filter((e) => e.type === t && f(e)).length;
+  const fc = (v) => n('mcp_call', (e) => e.tool === 'fit_check' && e.verdict === v);
+  lines.push(
+    '—',
+    `steering signals: ${n('stamp')} stamps · ${n('band_change', (e) => e.emitted)} mid-task updates · ` +
+      `${n('mcp_call')} consults (fit_check defer/tight/fits: ${fc('defer')}/${fc('tight')}/${fc('fits')}) · ` +
+      `${n('mcp_call', (e) => e.tool === 'plan_resume')} defers recorded · ${n('mcp_call', (e) => e.tool === 'pin_fact')} pins`
+  );
+  return lines.join('\n');
+}
+
+/**
  * Detect a silent context cliff: usage dropped sharply for the SAME session with no
  * compaction/clear event to explain it. Claude Code's microcompaction layers clear old
  * tool results without firing any hook — this is the only way to notice from outside.

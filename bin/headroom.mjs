@@ -2,6 +2,7 @@
 import { tap } from '../src/tap.mjs';
 import { hookUserPromptSubmit, hookPreCompact, hookSessionStart, hookPostCompact, hookPostToolUse } from '../src/hook.mjs';
 import { addPin, listPins, removePins } from '../src/pins.mjs';
+import { renderAudit } from '../src/events.mjs';
 import { mcpServe } from '../src/mcp.mjs';
 import { install, uninstall } from '../src/install.mjs';
 import { readState } from '../src/state.mjs';
@@ -61,6 +62,12 @@ switch (cmd) {
     }
     break;
   }
+  case 'audit': {
+    const i = argv.indexOf('--since');
+    const hours = i >= 0 ? Number(argv[i + 1]) || 6 : 6;
+    console.log(renderAudit(hours * 3600));
+    break;
+  }
   case 'mcp':
     mcpServe();
     break;
@@ -87,6 +94,7 @@ usage:
   headroom resume [--clear]                                      show or clear the deferred-work plan
   headroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
   headroom pins | unpin <id|--all>                               list / remove pins
+  headroom audit [--since <hours>]                               timeline of the awareness loop (default 6h)
   headroom tap [--capture]      (statusline command — wired by install)
   headroom hook <user-prompt-submit|pre-compact|session-start|post-compact>   (hook commands — wired by install)
   headroom mcp                                    (stdio MCP server — wired by install)`);
