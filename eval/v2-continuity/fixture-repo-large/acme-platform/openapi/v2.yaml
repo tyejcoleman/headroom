@@ -1,0 +1,67 @@
+openapi: "3.0.3"
+info:
+  title: acme-platform v2
+  version: "2.0.0"
+
+paths:
+  /v2/users/{id}:
+    get:
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: User object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+
+  /v2/users:
+    post:
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                name: { type: string }
+      responses:
+        "201":
+          description: Created
+
+  /v2/payments/{id}:
+    get:
+      summary: Get payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Payment object
+
+  /v2/payments:
+    post:
+      summary: Create payment
+      responses:
+        "201":
+          description: Created
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: string }

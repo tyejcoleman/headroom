@@ -1,0 +1,6 @@
+{
+  "v2_users_enabled": true,
+  "v2_payments_enabled": true,
+  "v2_notifications_enabled": false,
+  "v2_users_profile_enabled": false
+}

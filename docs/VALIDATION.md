@@ -105,6 +105,25 @@ fingerprint), confirm `~/.headroom/handoffs/` absent, then compact and verify bo
   hook exited 0 with valid JSON. Lesson for docs/FAQ: hook errors in the UI are not
   attributed per-hook — users with multiple SessionStart hooks may misattribute failures.
 
+**ADR-9 wording eval (2026-06-10, `eval/v3-wording/`): GATE PASSED.** 8 cells (4
+scenarios × naive/equipped), single-shot planning probes, artifact-graded JSON. Pins:
+skill section drives pin_fact-first behavior cleanly. Cliff disclosure + mid-turn
+re-stamps: the stamp wording ALONE drives correct behavior (skill section refines, does
+not create). Transcript anchor: confounded probe — the handoff rendering itself already
+instructs transcript use, and it works in both conditions; skill section kept as
+redundant reinforcement. No timidity regression. Provenance: cells were executed by the
+first ARMED resume run (launchd → headless claude -p, 03:31) and verified against real
+subagent transcripts. Caveats and confounds recorded in the results file — they are part
+of the result.
+
+**G2 large-fixture (2026-06-10, `eval/v2-continuity/results/2026-06-10-large-fixture.md`):
+honest null on outcome.** Both naive and equipped landed the full 4-file atomic migration
+with zero churn on a strong model — the clean fixture tree hands naive the answer via one
+`git status`. Path differentiated as designed (snapshot → confirmation instead of
+discovery, ~40% faster wall-clock). v4 fixture requirement: planted distractor dirt, so
+the tree is noisy like real life. "Differentiation grows with repo size" is bounded, not
+extended: survival's outcome value concentrates in weak models + messy states.
+
 ## Decision gates
 
 | Gate | Pass → | Fail → |

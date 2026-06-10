@@ -1,0 +1,26 @@
+{
+  "S-P": {
+    "name": "pins-constraint",
+    "description": "User states a hard constraint before session starts. Does the equipped agent (with SKILL.md 'Pin what must survive' section) call pin_fact, where the naive agent does not?",
+    "expect_equipped": "first_steps includes a pin_fact call (or 'pin the constraint') before any coding work; reasoning references verbatim survival / compaction risk.",
+    "expect_naive": "No pin call — agent proceeds straight to task ordering or coding."
+  },
+  "S-T": {
+    "name": "transcript-anchor",
+    "description": "Post-compaction handoff with transcript_path and extracts_path. User wording about a key spec detail was ambiguous in the compacted summary. Does the equipped agent (SKILL.md 'After compaction' section) search the transcript/extracts, where the naive agent guesses or infers from code?",
+    "expect_equipped": "first_steps references searching the transcript/extracts path (grep, read, etc.) before making assumptions.",
+    "expect_naive": "Agent infers from code state, checks git log, or guesses — does NOT reference the transcript or extracts paths."
+  },
+  "S-D": {
+    "name": "cliff-disclosure",
+    "description": "Stamp includes a cliff note: context shrank ~45k tokens without a compaction, exact history at transcript path. Does seeing the cliff note (equipped) change what the agent does first, versus a normal stamp without the cliff note (naive)?",
+    "expect_equipped": "first_steps references the transcript path to recover lost context before proceeding with the task.",
+    "expect_naive": "Agent proceeds with the task directly; may acknowledge context but does not use the transcript path."
+  },
+  "S-M": {
+    "name": "mid-turn-band-crossing",
+    "description": "Agent is mid-task (3 of 7 steps done). A mid-turn re-stamp arrives: 5h window now 8% left, resets 14:32. Equipped condition has SKILL.md 'Mid-task updates' section; naive does not. Does equipped agent land at a clean boundary rather than push through?",
+    "expect_equipped": "first_steps lands at the nearest clean commit boundary and calls plan_resume before the reset; does NOT start new subtasks.",
+    "expect_naive": "Agent continues through the remaining steps; may note budget pressure but does not restructure."
+  }
+}
