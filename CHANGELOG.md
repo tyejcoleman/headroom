@@ -27,6 +27,14 @@
   a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
   — long autonomous turns no longer burn blind.
 
+### Changed
+- **HUD redesigned around "only what changes your next decision"** (field feedback):
+  `5h 10% left ↻03:30` (explicit "left", ↻ for reset); healthy 7d window hidden (shown
+  only under 30% left); context shows tokens (`ctx 580k`), the actionable unit; burn
+  warning rephrased `⚠ empty by ~00:34` — a clock time that can no longer be misread as
+  a duration; deferred-work segment compressed to `⏲ queued` → `✓ deferred work ready`
+  (the duplicate reset clock is gone).
+
 ### Notes
 - New skill/stamp wording (pins section, transcript-anchor guidance, cliff disclosure)
   is pending the ADR-9 eval pass before npm publish.

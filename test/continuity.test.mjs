@@ -100,7 +100,7 @@ test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in sta
 
   // countdown in HUD while waiting
   const hud = run(['tap'], { input: fixture('statusline-full.json'), env }).stdout;
-  assert.match(hud, /⏲ resume \d\d:\d\d/);
+  assert.match(hud, /⏲ queued/);
 
   // flip the plan to "ready" and check stamp + session-start + HUD
   const planPath = join(dir, 'resume.json');
@@ -113,7 +113,7 @@ test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in sta
   const startCtx = JSON.parse(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'x', source: 'startup' }), env }).stdout)
     .hookSpecificOutput.additionalContext;
   assert.match(startCtx, /deferred work is now ready/);
-  assert.match(run(['tap'], { input: fixture('statusline-full.json'), env }).stdout, /✓ deferred ready/);
+  assert.match(run(['tap'], { input: fixture('statusline-full.json'), env }).stdout, /✓ deferred work ready/);
 
   // clear
   assert.match(run(['resume', '--clear'], { env }).stdout, /cleared/);
