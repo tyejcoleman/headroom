@@ -5,6 +5,7 @@ import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
 import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
 import { listPins, renderPins } from './pins.mjs';
+import { takeCheckpoint, renderCheckpoint } from './checkpoint.mjs';
 
 const STALE_SEC = 30 * 60;
 
@@ -111,7 +112,9 @@ export async function hookPostToolUse() {
       parts.push(`at current burn may exhaust ~${fmtClock(s.burn.projected_exhaustion)}, before the reset — land at a clean boundary or defer now`);
     }
     if (ctxLeft != null && ctxBand > prev.ctx) {
-      parts.push(`context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — checkpoint important state; avoid re-reading large files`);
+      parts.push(
+        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — save a checkpoint NOW via the headroom \`checkpoint\` tool (task, state, decisions, ruled-out approaches, exact next steps); it will be re-injected to you after compaction`
+      );
     }
 
     save({ fh: fhBand, ctx: ctxBand, exh, at: parts.length ? now : prev.at });
@@ -151,8 +154,11 @@ export async function hookSessionStart() {
   logEvent({ type: 'session_start', session_id: p.session_id ?? null, source: p.source ?? null });
   const parts = [];
   if (p.source === 'compact') {
+    // facts first (hook-captured), then judgment (model-authored) — ADR-8 + ADR-15
     const snap = takeHandoff(p.session_id);
     if (snap) parts.push(renderHandoff(snap));
+    const note = takeCheckpoint(p.session_id);
+    if (note) parts.push(renderCheckpoint(note));
     const pins = listPins();
     if (pins.length) parts.push(renderPins(pins));
   }

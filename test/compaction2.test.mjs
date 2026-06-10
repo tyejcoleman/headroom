@@ -294,3 +294,39 @@ test('T2.15: armed-resume artifacts — prompt carries the plan, plist is one-sh
   assert.match(out, /nothing to arm/); // no plan in sandbox → refuses, writes nothing
   assert.ok(!existsSync(join(dir, 'arm.json')));
 });
+
+test('T2.12: checkpoint lifecycle — save via MCP, re-inject after compact, staleness + wrong-session guards', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-ck-'));
+  const env = { HEADROOM_DIR: dir };
+  const req = (id, name, args) =>
+    JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } }) + '\n';
+  const out = run(['mcp'], {
+    input: req(1, 'checkpoint', {
+      task: 'migrate auth to RS256',
+      state: 'token.js done, middleware half-rewritten',
+      decisions: ['wrap HS256 not replace — rollout safety'],
+      rejected: ['jsonwebtoken v8 upgrade — breaks node 18'],
+      next_steps: ['finish middleware.js:88 verify()', 'run auth tests'],
+      key_values: { port: 4731 },
+    }),
+    env,
+  }).stdout;
+  assert.match(out, /Checkpoint saved/);
+
+  const ctx = JSON.parse(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'any', source: 'compact' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(ctx, /your own pre-compaction checkpoint/);
+  assert.match(ctx, /already ruled out \(do NOT retry\): jsonwebtoken v8/);
+  assert.match(ctx, /1\. finish middleware\.js:88/);
+  assert.match(ctx, /port=4731/);
+
+  // stale note → silent
+  const p = join(dir, 'checkpoint.json');
+  const note = JSON.parse(readFileSync(p, 'utf8'));
+  writeFileSync(p, JSON.stringify({ ...note, at: note.at - 7 * 3600 }));
+  assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'any', source: 'compact' }), env }).stdout, '');
+
+  // wrong-session note → silent
+  writeFileSync(p, JSON.stringify({ ...note, session_id: 'other-session' }));
+  assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'mine', source: 'compact' }), env }).stdout, '');
+});

@@ -118,3 +118,18 @@ headroom NEVER arms without one of the two consents. *Why:* deferred work that r
 itself at the reset is the product's whole point — done with consent it's a feature,
 done without it's malware. **Enforced by:** consent checks in code, dry-run output,
 audit-log `armed`/`resume_run` events, this ADR.
+
+## ADR-15 — Facts from hooks, judgment from models (amends ADR-8)
+ADR-8 holds: hooks have no model, so hook-captured handoffs carry only facts. The
+`checkpoint` MCP tool (third write surface) adds the other half: the AGENT saves its own
+survival note — task, state, decisions with why, ruled-out approaches, exact next steps,
+key values — triggered by the ctx band-crossing mid-task update, re-injected at
+SessionStart(source=compact) AFTER the fact snapshot (facts anchor, judgment annotates).
+Caps (300-600 chars/field, 8 items/list, latest-wins, 6h staleness) keep it a
+distillation, not a context dump. Known limitation: MCP calls carry no session id, so
+the note is tagged with the latest tap session and the injection guard accepts a match
+or an untagged note — exact for single-session use, documented race for concurrent
+sessions. *Why:* native compaction summarizes generically at the last second; the agent
+knows what THIS task needs, and "already ruled out" is the single most expensive thing
+compaction loses. **Enforced by:** caps in `src/checkpoint.mjs`, lifecycle tests; new
+wording joins the eval queue (ADR-9).

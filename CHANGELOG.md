@@ -27,6 +27,10 @@
   a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
   — long autonomous turns no longer burn blind.
 
+- **Model-authored checkpoint (T2.12, ADR-15):** the `checkpoint` MCP tool — the agent
+  saves its own survival note (task, state, decisions+why, ruled-out approaches, exact
+  next steps, key values) when a ctx update warns the ceiling is near; re-injected after
+  compaction AFTER the fact snapshot. Facts from hooks, judgment from models.
 - **Armed resume (T2.15, ADR-16):** `headroom resume --arm` schedules the deferred plan
   at the reset via launchd + official `claude -p` headless mode — guard-railed
   (max-turns, pinned cwd, reviewable log), self-disarming after one run, `--disarm`

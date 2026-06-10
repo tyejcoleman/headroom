@@ -6,6 +6,7 @@ import { readState } from './state.mjs';
 import { fitCheck, estimateRemaining } from './fit.mjs';
 import { planResume } from './resume.mjs';
 import { addPin } from './pins.mjs';
+import { saveCheckpoint } from './checkpoint.mjs';
 import { logEvent } from './events.mjs';
 import { readConfig } from './util.mjs';
 
@@ -53,6 +54,23 @@ const TOOLS = [
         est_tokens: { type: 'number', description: 'estimated tokens the deferred work needs (optional)' },
       },
       required: ['summary'],
+    },
+  },
+  {
+    name: 'checkpoint',
+    description:
+      'Save YOUR OWN survival note before context compaction: what you are doing, where you are, decisions made (with why), approaches already ruled out, exact next steps, key values. Re-injected to you after compaction. Call when a [headroom] update says context is running low, or before starting work that will not fit. Latest call wins.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task: { type: 'string', description: 'what you are working on, one sentence' },
+        state: { type: 'string', description: 'where you are right now — what is done, what is in flight' },
+        decisions: { type: 'array', items: { type: 'string' }, description: 'decisions made, each with its why' },
+        rejected: { type: 'array', items: { type: 'string' }, description: 'approaches already ruled out, each with why-not (prevents retrying dead ends)' },
+        next_steps: { type: 'array', items: { type: 'string' }, description: 'exact next steps, file:line specific' },
+        key_values: { type: 'object', description: 'exact values that must not be garbled (ports, ids, paths, budgets)' },
+      },
+      required: ['task', 'next_steps'],
     },
   },
   {
@@ -106,7 +124,13 @@ export function mcpServe() {
       }
       const state = readState();
       let result;
-      if (name === 'pin_fact') {
+      if (name === 'checkpoint') {
+        // works without state — saving judgment must never depend on the tap being live
+        const note = saveCheckpoint(args);
+        result = note
+          ? { saved: true, note: 'Checkpoint saved — it will be re-injected to you after compaction. Update it as the task evolves (latest wins).' }
+          : { saved: false, error: 'task and next_steps are required' };
+      } else if (name === 'pin_fact') {
         // works without state — pinning must never depend on the tap being live
         const pin = addPin(args.text, { ttl_hours: args.ttl_hours });
         result = pin
@@ -134,7 +158,11 @@ export function mcpServe() {
       logEvent({
         type: 'mcp_call',
         tool: name,
-        verdict: result?.overall ?? (result?.recorded != null ? 'recorded' : null) ?? (result?.pinned != null ? 'pinned' : null),
+        verdict:
+          result?.overall ??
+          (result?.recorded != null ? 'recorded' : null) ??
+          (result?.pinned != null ? 'pinned' : null) ??
+          (result?.saved != null ? 'saved' : null),
       });
       send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify(result, null, 1) }] } });
     } else if (id !== undefined && method) {

@@ -76,8 +76,11 @@ not general context.
 
 ## Near the context ceiling
 
-- Before starting anything that won't fit: write a handoff note (task state, decisions
-  made, exact next steps) so work survives compaction.
+- When a `[headroom]` update says context is running low (or before starting anything
+  that won't fit): call the **`checkpoint`** tool with your task, current state,
+  decisions made (with why), approaches already ruled out, and exact next steps —
+  headroom re-injects it to you after compaction. Update it as the task evolves; the
+  latest call wins.
 - Compress instead of re-reading: summarize long outputs you already saw; don't reopen
   large files for facts you noted.
 - Downshift subtasks that don't need full context to a smaller model where available.
