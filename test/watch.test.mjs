@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildDashboard } from '../src/watch.mjs';
+import { renderLine } from '../src/hud.mjs';
 
 const state = {
   schema: 'resource-state/v0',
@@ -38,4 +39,25 @@ test('dashboard shows deferred countdown then READY; flags frozen data', () => {
 
 test('dashboard degrades with no state', () => {
   assert.match(buildDashboard(null, null, 0).join('\n'), /no state yet/);
+});
+
+test('line: live countdowns computed at call time', () => {
+  const now = 1781304000;
+  const out = renderLine(state, null, now);
+  assert.equal(out, '5h 60% ↻1h 0m · 7d 91% · ctx 49% · $12.50');
+  // ten minutes later, same state — the countdown moved without a new render
+  assert.match(renderLine(state, null, now + 600), /5h 60% ↻50m/);
+});
+
+test('line: deferred countdown, ready flag, exhaustion warning, idle state', () => {
+  const now = 1781304000;
+  const resume = { summary: 'x', created_at: now, resume_at: now + 600 };
+  assert.match(renderLine(state, resume, now), /⏲10m/);
+  assert.match(renderLine(state, resume, now + 601), /✓ready/);
+
+  const burning = { ...state, burn: { pct_per_hour: 50, projected_exhaustion: now + 1200 } };
+  assert.match(renderLine(burning, null, now), /⚠exh 20m/);
+
+  assert.match(renderLine(state, null, state.updated_at + 45 * 60), /idle 45m/);
+  assert.equal(renderLine(null), 'headroom: no data');
 });

@@ -92,6 +92,28 @@ context     ██████████████░░░░░░░░�
 burn        7.3%/h · no exhaustion risk before reset
 ```
 
+### Live everywhere else: `headroom line`
+
+`headroom line` prints one compact line with **countdowns computed at call time** —
+poll it every second and the display is genuinely live, anywhere:
+
+```
+5h 64% ↻3h 58m · 7d 84% · ctx 45% · $51.63
+```
+
+**tmux status bar** (live in the same window as Claude Code):
+
+```tmux
+set -g status-interval 1
+set -g status-right '#(headroom line) '
+set -g status-right-length 80
+```
+
+**macOS menu bar** via [SwiftBar](https://swiftbar.app)/xbar: copy
+[`integrations/xbar/headroom.1s.sh`](integrations/xbar/headroom.1s.sh) into your plugin
+folder — budgets in the menu bar, refreshed every second, with a detail dropdown.
+Linux bars (waybar, polybar) work the same way: exec `headroom line` on an interval.
+
 ## Your agent's work survives compaction
 
 Compaction summarizes the conversation — and garbles exactly the facts an in-flight task

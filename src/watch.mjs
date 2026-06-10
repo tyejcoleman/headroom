@@ -1,5 +1,5 @@
 import { watch as fsWatch } from 'node:fs';
-import { headroomDir, fmtClock, fmtTokens } from './util.mjs';
+import { headroomDir, fmtClock, fmtTokens, fmtDelta } from './util.mjs';
 import { readState } from './state.mjs';
 import { readResume } from './resume.mjs';
 
@@ -14,14 +14,6 @@ const bar = (pctLeft) => {
   if (pctLeft == null) return '─'.repeat(BAR_W);
   const filled = Math.round((Math.max(0, Math.min(100, pctLeft)) / 100) * BAR_W);
   return '█'.repeat(filled) + '░'.repeat(BAR_W - filled);
-};
-
-const fmtDelta = (sec) => {
-  if (sec <= 0) return 'now';
-  const h = Math.floor(sec / 3600);
-  const m = Math.round((sec % 3600) / 60);
-  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
-  return h ? `${h}h ${m}m` : `${m}m`;
 };
 
 /** Pure renderer — testable without the loop. Returns lines. */

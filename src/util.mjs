@@ -44,6 +44,14 @@ export function fmtTokens(n) {
   return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
 }
 
+export function fmtDelta(sec) {
+  if (sec <= 0) return 'now';
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
 export function readConfig() {
   return {
     stamp_enabled: true,

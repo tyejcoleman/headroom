@@ -22,3 +22,6 @@ dist/
 .vscode/
 eval/v1/cells/
 eval/v2-continuity/cells/
+
+# launch drafts (not for the public repo)
+launch/

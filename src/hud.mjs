@@ -1,4 +1,4 @@
-import { fmtClock, fmtTokens } from './util.mjs';
+import { fmtClock, fmtTokens, fmtDelta } from './util.mjs';
 
 /**
  * One-line human HUD for the statusline. Convention everywhere in headroom:
@@ -30,4 +30,33 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
 
   return parts.length ? `⛶ ${parts.join(' · ')}` : '⛶ headroom: awaiting data';
+}
+
+/**
+ * `headroom line` — the live-display primitive. Unlike the statusline HUD (rendered on
+ * Claude Code's schedule, so it uses absolute clocks), this computes countdowns at
+ * call time: poll it every second (tmux status-right, SwiftBar/xbar, waybar/polybar)
+ * and the display is genuinely live.
+ */
+export function renderLine(state, resume = null, nowSec = Date.now() / 1000) {
+  if (!state) return 'headroom: no data';
+  const age = nowSec - state.updated_at;
+  if (age > 30 * 60) return `headroom: idle ${Math.round(age / 60)}m`;
+
+  const parts = [];
+  const fh = state.windows?.five_hour;
+  if (fh?.used_pct != null) {
+    parts.push(`5h ${Math.round(100 - fh.used_pct)}%${fh.resets_at ? ` ↻${fmtDelta(fh.resets_at - nowSec)}` : ''}`);
+  }
+  const sd = state.windows?.seven_day;
+  if (sd?.used_pct != null) parts.push(`7d ${Math.round(100 - sd.used_pct)}%`);
+  const ctx = state.context;
+  if (ctx?.used_pct != null) {
+    parts.push(`ctx ${Math.max(0, Math.round((ctx.compact_ceiling_pct ?? 80) - ctx.used_pct))}%`);
+  }
+  const exh = state.burn?.projected_exhaustion;
+  if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠exh ${fmtDelta(exh - nowSec)}`);
+  if (resume?.resume_at) parts.push(nowSec >= resume.resume_at ? '✓ready' : `⏲${fmtDelta(resume.resume_at - nowSec)}`);
+  if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
+  return parts.length ? parts.join(' · ') : 'headroom: no data';
 }
