@@ -5,6 +5,7 @@ import { parsePayload, updateBurn, writeState, readState } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
 import { detectContextDrop } from './events.mjs';
+import { enrichBurn } from './flow.mjs';
 
 /**
  * Statusline command: read the payload Claude Code pipes to stdin, persist
@@ -28,7 +29,7 @@ export async function tap(argv = []) {
     }
     const payload = JSON.parse(raw);
     const prev = readState();
-    const state = updateBurn(parsePayload(payload));
+    const state = enrichBurn(updateBurn(parsePayload(payload)));
     detectContextDrop(prev, state); // silent microcompaction leaves no other trace
     writeState(state);
     hud = renderHUD(state, readResume());

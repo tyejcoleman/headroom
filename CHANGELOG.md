@@ -27,6 +27,11 @@
   a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
   — long autonomous turns no longer burn blind.
 
+- **Velocity engine (T2.1):** hooks sample exact token flow from the transcript usage
+  records (incremental cursor, cheap); the tap cross-calibrates flow against %-steps to
+  LEARN tokens-per-percent. Unlocks: `≈230k` tokens-left on the quota (HUD + stamp,
+  always ≈), exhaustion as a confidence band (`⚠ empty ~00:40–01:30`) instead of a
+  twitchy point, and idle suppression — no burn in 10 min clears the warning.
 - **Cost receipts (T2.13):** a single tool call that visibly moves the budget gets a
   one-line receipt (`receipt: that Task cost ≈5% of the 5h window (+$3.30) — 55% left`)
   — per-action unit economics; floors (≥2 points or ≥$1) keep receipts rare.

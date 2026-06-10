@@ -16,7 +16,10 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
 
   // primary quota needs no label — leading position + the ↻ reset clock say what it is
   if (fh?.used_pct != null) {
-    parts.push(`${Math.round(100 - fh.used_pct)}% left${fh.resets_at ? ` ↻${fmtClock(fh.resets_at)}` : ''}`);
+    let seg = `${Math.round(100 - fh.used_pct)}% left`;
+    if (state.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(state.burn.est_tokens_left)})`;
+    if (fh.resets_at) seg += ` ↻${fmtClock(fh.resets_at)}`;
+    parts.push(seg);
   }
   // weekly window is only news when it's the binding constraint
   if (sd?.used_pct != null && 100 - sd.used_pct < 30) parts.push(`week ${Math.round(100 - sd.used_pct)}% left`);
@@ -29,8 +32,10 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   // Raw %/h confused everyone in the field; surface burn only when it predicts trouble.
   // Clock, not countdown: the statusline re-renders on Claude Code's schedule, and a
   // frozen "in 25m" lies — "by ~00:39" stays true. Live countdowns: headroom watch/line.
+  const band = state.burn?.exhaustion_band;
   const exh = state.burn?.projected_exhaustion;
-  if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠ empty by ~${fmtClock(exh)}`);
+  if (band && fh?.resets_at && band[0] < fh.resets_at) parts.push(`⚠ empty ~${fmtClock(band[0])}–${fmtClock(band[1])}`);
+  else if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠ empty by ~${fmtClock(exh)}`);
   // deferred work appears only when actionable — a waiting plan is noise (headroom resume shows it)
   if (resume?.resume_at && nowSec >= resume.resume_at) parts.push('✓ deferred work ready');
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);

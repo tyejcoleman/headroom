@@ -1,0 +1,61 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { writeFileSync, appendFileSync, readFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const dir = mkdtempSync(join(tmpdir(), 'hr-flow-'));
+process.env.HEADROOM_DIR = dir;
+const { sampleFlow, flowStats, calibrate, enrichBurn } = await import('../src/flow.mjs');
+
+const NOW = Math.round(Date.now() / 1000);
+const iso = (t) => new Date(t * 1000).toISOString();
+const usageLine = (t, out) =>
+  JSON.stringify({ type: 'assistant', timestamp: iso(t), message: { usage: { output_tokens: out, input_tokens: 10, cache_read_input_tokens: 50000, cache_creation_input_tokens: 200 } } });
+
+test('sampleFlow: incremental cursor — no duplicates, partial lines deferred', () => {
+  const tp = join(dir, 'transcript.jsonl');
+  writeFileSync(tp, usageLine(NOW - 300, 5000) + '\n' + usageLine(NOW - 200, 7000) + '\n');
+  sampleFlow(tp, 'f1', NOW);
+  assert.equal(readFileSync(join(dir, 'flow.jsonl'), 'utf8').trim().split('\n').length, 2);
+
+  appendFileSync(tp, usageLine(NOW - 100, 3000) + '\n' + '{"partial');
+  sampleFlow(tp, 'f1', NOW);
+  const lines = readFileSync(join(dir, 'flow.jsonl'), 'utf8').trim().split('\n');
+  assert.equal(lines.length, 3); // one new sample, no re-reads, partial line ignored
+  assert.equal(JSON.parse(lines[2]).out, 3000);
+});
+
+test('flowStats: recent flow and idle detection', () => {
+  const stats = flowStats(NOW);
+  assert.equal(stats.out_10m, 15000); // 5000 + 7000 + 3000, all within the last 10min
+  assert.equal(stats.idle, false);
+  const later = flowStats(NOW + 30 * 60); // half an hour of silence
+  assert.equal(later.idle, true);
+});
+
+test('calibrate: learns tokens-per-percent from a %-step, re-anchors on reset', () => {
+  assert.equal(calibrate(50, NOW - 400), null); // first sight: anchor only
+  // the 15000 out-tokens in flow.jsonl all happened after NOW-400
+  const cal = calibrate(53, NOW); // +3 points
+  assert.equal(cal.tokens_per_pct, 5000); // 15000 / 3
+  // window reset (big drop) re-anchors without a bogus sample
+  const afterReset = calibrate(2, NOW + 10);
+  assert.equal(afterReset.tokens_per_pct, 5000); // estimate retained, no new sample
+});
+
+test('enrichBurn: tokens-left estimate, exhaustion band, idle suppression', () => {
+  const state = (exh) => ({
+    windows: { five_hour: { used_pct: 53, resets_at: NOW + 7200 } },
+    burn: { pct_per_hour: 9, projected_exhaustion: exh },
+  });
+  const s = enrichBurn(state(NOW + 3600), NOW);
+  assert.equal(s.burn.est_tokens_left, 235000); // (100-53) × 5000
+  assert.ok(Array.isArray(s.burn.exhaustion_band));
+  assert.ok(s.burn.exhaustion_band[0] <= s.burn.exhaustion_band[1]);
+
+  // idle: flow went quiet → the projection's premise is false → suppressed
+  const idle = enrichBurn(state(NOW + 3600), NOW + 30 * 60);
+  assert.equal(idle.burn.projected_exhaustion, null);
+  assert.equal(idle.burn.exhaustion_band, null);
+});

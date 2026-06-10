@@ -6,6 +6,7 @@ import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
 import { listPins, renderPins } from './pins.mjs';
 import { takeCheckpoint, renderCheckpoint } from './checkpoint.mjs';
+import { sampleFlow } from './flow.mjs';
 
 const STALE_SEC = 30 * 60;
 
@@ -69,6 +70,7 @@ const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
 export async function hookPostToolUse() {
   const p = await readStdin();
   try {
+    sampleFlow(p.transcript_path, p.session_id); // velocity engine's FAST signal (T2.1)
     if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) return;
     const s = readState();
     const now = Date.now() / 1000;
@@ -241,6 +243,7 @@ export async function hookSessionStart() {
 export async function hookUserPromptSubmit() {
   const payload = await readStdin();
   const mySession = payload.session_id ?? null;
+  sampleFlow(payload.transcript_path, mySession); // velocity engine's FAST signal (T2.1)
 
   if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) {
     logEvent({ type: 'stamp_skipped', session_id: mySession, reason: 'disabled' });
@@ -262,9 +265,16 @@ export async function hookUserPromptSubmit() {
   const sd = s.windows?.seven_day;
   const ctx = foreign ? null : s.context;
   if (fh?.used_pct != null) {
-    let seg = `5h: ${Math.round(100 - fh.used_pct)}% left${fh.resets_at ? `, resets ${fmtClock(fh.resets_at)}` : ''}`;
+    let seg = `5h: ${Math.round(100 - fh.used_pct)}% left`;
+    if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens)`;
+    if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
+    const band = s.burn?.exhaustion_band;
     const exh = s.burn?.projected_exhaustion;
-    if (exh && fh.resets_at && exh < fh.resets_at) seg += ` (at current burn, may exhaust ~${fmtClock(exh)})`;
+    if (band && fh.resets_at && band[0] < fh.resets_at) {
+      seg += ` (at current pace, may run dry ~${fmtClock(band[0])}–${fmtClock(band[1])})`;
+    } else if (exh && fh.resets_at && exh < fh.resets_at) {
+      seg += ` (at current burn, may exhaust ~${fmtClock(exh)})`;
+    }
     parts.push(seg);
   }
   if (sd?.used_pct != null) parts.push(`7d: ${Math.round(100 - sd.used_pct)}% left`);
