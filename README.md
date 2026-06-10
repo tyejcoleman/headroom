@@ -48,6 +48,24 @@ Requires Claude Code ≥ 2.1.92 on a Pro/Max subscription for rate-limit data (`
 appears in statusline payloads after the first response). On API-key auth Headroom
 degrades gracefully to context-only awareness.
 
+### Reading the HUD
+
+`⛶ 5h 60%→22:30 · 7d 92% · ctx 56%(560k) · $26.03`
+
+| Segment | Meaning |
+|---|---|
+| `5h 60%→22:30` | 5-hour rate-limit window: 60% **remaining**, resets at 22:30 |
+| `7d 92%` | 7-day window: 92% remaining |
+| `ctx 56%(560k)` | context left before auto-compaction: 56% ≈ 560k tokens (`⚠compact` when low) |
+| `$26.03` | this session at API prices (a "how heavy was this session" gauge; hidden when ~$0) |
+| `⚠exh 22:10` | only shown when current burn would exhaust the window **before** its reset |
+
+Every percentage is **remaining**, never used. Data refreshes on every statusline render
+while a session is active (idle sessions keep their last line — that's the terminal, not
+stale data); values move in 1% steps because Claude Code reports integer percentages.
+The model-facing stamp discloses its age when over two minutes old and goes silent past
+thirty.
+
 ## Does it actually change behavior? We tested it.
 
 Before building this, we ran agents through a [simulated-budget eval](eval/v1/): real repo,
