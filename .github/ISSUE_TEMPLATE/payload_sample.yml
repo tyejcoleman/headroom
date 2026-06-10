@@ -1,0 +1,24 @@
+name: Payload sample donation
+description: Donate a statusline payload shape for the fixture corpus (especially Pro plans, 200k models, older versions, Windows)
+labels: [fixtures]
+body:
+  - type: textarea
+    id: payload
+    attributes:
+      label: Sanitized payload
+      description: From `headroom tap --capture` → `~/.headroom/raw-sample.jsonl`. Replace `session_id` and any paths; keep the structure byte-faithful.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Where observed
+      placeholder: Claude Code 2.1.x · Pro plan · model · OS
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything odd about it?
+      description: Missing fields, weird values, when it occurs (first render? after compaction?)

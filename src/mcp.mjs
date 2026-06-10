@@ -1,7 +1,13 @@
 import { createInterface } from 'node:readline';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readState } from './state.mjs';
 import { fitCheck, estimateRemaining } from './fit.mjs';
 import { planResume } from './resume.mjs';
+
+// package.json is the single source of truth for the version (see /release procedure)
+const pkg = JSON.parse(readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json'), 'utf8'));
 
 // Minimal stdio MCP server (newline-delimited JSON-RPC 2.0). No network, no
 // dependencies. Read-only over ~/.headroom/state.json, with one deliberate write
@@ -70,7 +76,7 @@ export function mcpServe() {
         result: {
           protocolVersion: params?.protocolVersion ?? '2025-06-18',
           capabilities: { tools: {} },
-          serverInfo: { name: 'headroom', version: '0.2.0' },
+          serverInfo: { name: 'headroom', version: pkg.version },
         },
       });
     } else if (method === 'tools/list') {

@@ -5,12 +5,16 @@ import { mcpServe } from '../src/mcp.mjs';
 import { install, uninstall } from '../src/install.mjs';
 import { readState } from '../src/state.mjs';
 import { readResume, clearResume } from '../src/resume.mjs';
+import { watchDashboard } from '../src/watch.mjs';
 
 const [cmd, ...argv] = process.argv.slice(2);
 
 switch (cmd) {
   case 'tap':
     await tap(argv);
+    break;
+  case 'watch':
+    watchDashboard();
     break;
   case 'hook': {
     if (argv[0] === 'user-prompt-submit') await hookUserPromptSubmit();
@@ -49,6 +53,7 @@ usage:
   headroom install [--dry-run] [--no-mcp] [--config-dir <dir>]   wire up statusline + hooks + skill + MCP
   headroom uninstall [--config-dir <dir>]                        remove everything install added
   headroom status                                                print the current ResourceState
+  headroom watch                                                 LIVE dashboard (1s ticks) for a second pane
   headroom resume [--clear]                                      show or clear the deferred-work plan
   headroom tap [--capture]      (statusline command — wired by install)
   headroom hook <user-prompt-submit|pre-compact|session-start>   (hook commands — wired by install)

@@ -1,0 +1,30 @@
+name: Bug report
+description: Something broke or behaved wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened vs what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, node version, Claude Code version, plan (Pro/Max/API), model
+      placeholder: macOS 15 · node 20.11 · Claude Code 2.1.170 · Max · 1M-window model
+    validations:
+      required: true
+  - type: textarea
+    id: state
+    attributes:
+      label: headroom status output
+      description: Run `headroom status` and paste (it contains no secrets — usage %, reset times, session cost).
+      render: json
+  - type: textarea
+    id: payload
+    attributes:
+      label: Raw payload sample (if parsing-related)
+      description: Temporarily add `--capture` to the statusline command, reproduce, then paste a SANITIZED line from `~/.headroom/raw-sample.jsonl` (replace session_id and paths).
+      render: json

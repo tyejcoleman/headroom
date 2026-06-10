@@ -7,10 +7,26 @@ spend efficiently, and use capacity that would otherwise expire.
 
 ## Read this before any work
 
-1. `docs/ONE-PAGER.md` — what we're building and why (architecture, data sources, schema).
-2. `docs/PLAN.md` — the phased plan; every task has acceptance criteria (AC).
-3. `docs/VALIDATION.md` — **start here in practice.** The project rests on two
-   load-bearing assumptions that we de-risk *before* building the full system.
+1. `docs/ARCHITECTURE.md` — what talks to what: data flow, module map, extension points.
+2. `docs/DECISIONS.md` — the ADR log: every standing decision with its why. **Do not
+   silently violate an ADR**; propose a new one instead.
+3. `docs/PLAN.md` — the phased plan; every task has acceptance criteria (AC).
+4. Background when needed: `docs/ONE-PAGER.md` (original design), `docs/VALIDATION.md`
+   (assumption gates + eval methodology).
+
+## Hard gates (enforced, not advisory)
+
+`scripts/check-invariants.mjs` runs after every Edit/Write you make (repo PostToolUse
+hook) and inside `npm test`/CI. It blocks: new dependencies or non-builtin imports
+(ADR-2), any network surface (ADR-1/G3), compliance tripwires (ADR-1/G4), and
+catch-free tap/hook entry points (ADR-5). If a gate blocks you and you believe you're
+right, stop and propose an ADR change — never work around a gate.
+
+## Procedures (repo slash-commands)
+
+`/release` (version → CHANGELOG → tag → publish checklist) · `/add-fixture` (new payload
+shape → sanitized fixture + tests) · `/run-evals` (required for any stamp/skill/verdict
+wording change, per ADR-9).
 
 ## Hard rules (compliance — non-negotiable)
 

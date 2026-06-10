@@ -8,6 +8,9 @@ const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binPath = join(pkgRoot, 'bin', 'headroom.mjs');
 const MARK = 'headroom.mjs'; // identifies commands we own in settings.json
 
+/** npx runs from an evictable cache — absolute paths written from there break later. */
+export const isEphemeralInstall = (p) => p.includes('/_npx/') || p.includes('\\_npx\\');
+
 const cmd = (sub) => `"${process.execPath}" "${binPath}" ${sub}`;
 
 function configDir(argv) {
@@ -25,10 +28,24 @@ const readSettings = (p) => {
 };
 
 export function install(argv = []) {
+  if (isEphemeralInstall(pkgRoot)) {
+    console.error(
+      'headroom install: refusing to install from the npx cache.\n' +
+        'npx runs from an evictable cache directory; the absolute paths written into\n' +
+        'settings.json would silently break when npm prunes it. Install persistently:\n' +
+        '  npm install -g headroom-cc && headroom install\n' +
+        'or clone the repo and run: node bin/headroom.mjs install'
+    );
+    process.exitCode = 1;
+    return;
+  }
   const dry = argv.includes('--dry-run');
   const dir = configDir(argv);
   const settingsPath = join(dir, 'settings.json');
   const changes = [];
+  if (process.platform === 'win32') {
+    changes.push('note: Windows is currently UNTESTED — verify the quoted command paths in settings.json work, and please report results in an issue');
+  }
 
   mkdirSync(dir, { recursive: true });
   const settings = readSettings(settingsPath);

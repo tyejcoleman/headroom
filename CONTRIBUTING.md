@@ -1,33 +1,53 @@
 # Contributing to Headroom
 
-Thanks for helping build a resource-aware layer that works in *anyone's* setup.
+This repo is built to be worked on **with coding agents** — the repo itself is the
+harness. Context, procedures, and hard gates are wired in so that any agent (Claude Code
+or otherwise) picks up the project's discipline automatically. Humans get the same
+benefits; agents just read faster.
 
-## Read first
+## How the harness works
 
-- [`CLAUDE.md`](CLAUDE.md) — working context and the hard rules.
-- [`docs/ONE-PAGER.md`](docs/ONE-PAGER.md) — the design.
-- [`docs/PLAN.md`](docs/PLAN.md) — phased tasks with acceptance criteria.
-- [`docs/VALIDATION.md`](docs/VALIDATION.md) — what we're de-risking and the decision gates.
+| Layer | Where | What it does for you |
+|---|---|---|
+| **Context** | `CLAUDE.md` / `AGENTS.md` → `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/PLAN.md` | your agent learns the data flow, the module map, every standing decision *with its why*, and the task list with acceptance criteria |
+| **Procedures** | `.claude/commands/` → `/release`, `/add-fixture`, `/run-evals` | step-by-step runbooks for the recurring jobs, invocable as slash commands in Claude Code |
+| **Hard gates** | `scripts/check-invariants.mjs`, run by the repo's PostToolUse hook + `npm test` + CI | violations (new dependency, network call, compliance tripwire, crash-prone entry point) are rejected at edit time with the ADR that explains why |
 
-## Principles
+Start an agent in the repo root and tell it what you want to change — `CLAUDE.md` routes
+it from there. (Claude Code will ask you to approve the repo's hooks on first run; the
+hook is `scripts/check-invariants.mjs`, ~50 lines, read it.)
 
-- **Validation-first.** Don't build machinery ahead of the assumption that justifies it.
-  Phase 0 waits on Spike S0; Phase 1 waits on S1. See the gates in `docs/VALIDATION.md`.
-- **Acceptance criteria are the definition of done.** Every task in `PLAN.md` carries AC;
-  a PR that doesn't meet its task's AC isn't finished. Check the box (`[ ]` → `[x]`) when it does.
-- **Defensive by default.** Every external field can be absent, malformed, or buggy.
-  Clamp, degrade, never crash the statusline. Add a fixture for each new failure mode.
-- **The hard rules are absolute** (see `CLAUDE.md`): official extension points only; no
-  OAuth reuse outside official clients; no undocumented endpoints; no harness spoofing; no
-  headless burning of interactive quota. PRs that cross these lines will be declined.
+## The workflow
 
-## Dev setup
+1. **Read order** (agents do this automatically via CLAUDE.md): `docs/ARCHITECTURE.md` →
+   `docs/DECISIONS.md` → the `docs/PLAN.md` task you're picking up.
+2. **Acceptance criteria are the definition of done.** Every PLAN task carries AC; check
+   the box (`[ ]` → `[x]`) when met, with a note if reality diverged from the plan.
+3. **Tests with every change.** `npm test` (node:test, zero deps, spawn-based — real
+   processes, temp dirs, real git repos). New payload shape → new fixture (`/add-fixture`).
+   New failure mode → regression test citing the incident.
+4. **Behavioral changes need eval evidence** (ADR-9). Stamp wording, skill policy, verdict
+   semantics: run `/run-evals` and include the dated results file in your PR.
+5. **Don't fight the gates.** If an invariant blocks something you believe is right, open
+   an issue proposing a new ADR — gates change by decision, not by workaround.
 
-TypeScript monorepo, pnpm workspaces (`packages/{tap,mcp,hooks,skill,schema}`). Once
-scaffolded: `pnpm install`, `pnpm build`, `pnpm test`, `pnpm eval`.
+## Style
+
+Plain ESM JavaScript, `node:` builtins only, no build step. Match the existing voice:
+comments state constraints the code can't (usually with an ADR reference), not narration.
+Errors degrade; entry points never throw. All user/model-facing percentages are
+*remaining* (ADR-3).
+
+## What's most wanted
+
+- **Real-world payload samples** — `headroom tap --capture`, sanitize, `/add-fixture`.
+  Especially: Pro plans, 200k-window models, older Claude Code versions, Windows, WSL.
+- **Windows support** — currently untested; the installer warns.
+- **Codex adapter** (PLAN T3.2) — proves the ResourceState spec is provider-neutral.
+- **Larger continuity eval fixture** — where the post-compaction snapshot should shine.
 
 ## Submitting
 
-Small, focused PRs mapped to a `PLAN.md` task. Include tests (schema validation + the
-relevant fixtures). By contributing you agree your contributions are licensed under
-Apache-2.0.
+Small PRs mapped to a PLAN task or issue. The PR template's checklist mirrors the gates —
+filling it honestly is faster than CI telling you the same thing. By contributing you
+agree your contributions are licensed under Apache-2.0.
