@@ -1,0 +1,18 @@
+{
+  "updated": "2026-06-10",
+  "note": "Headline numbers with their evidence. `npm run eval` re-derives this report and fails if any evidence file is missing — numbers cannot silently outlive their sources.",
+  "rows": [
+    { "suite": "v1 live-burn (haiku+sonnet)", "metric": "est. tokens of work exposed to 429 death", "naive": "~33k", "equipped": "0", "evidence": "eval/v1/results" },
+    { "suite": "v1 live-burn (haiku+sonnet)", "metric": "token spend on the same task set", "naive": "baseline", "equipped": "~40% fewer", "evidence": "eval/v1/results" },
+    { "suite": "v1 live-burn (healthy budget control)", "metric": "false caution / deferred healthy work", "naive": "none", "equipped": "none", "evidence": "eval/v1/results" },
+    { "suite": "v2 continuity (small fixture)", "metric": "tool calls to resume a half-done migration", "naive": "baseline", "equipped": "~19% fewer", "evidence": "eval/v2-continuity/results" },
+    { "suite": "v2 continuity (large fixture)", "metric": "4-file atomic migration landed, zero churn", "naive": "yes (via broad git survey)", "equipped": "yes (~40% faster — discovery became confirmation)", "evidence": "eval/v2-continuity/results/2026-06-10-large-fixture.md" },
+    { "suite": "v3 wording (ADR-9 gate)", "metric": "pin_fact called before coding when user states a hard constraint", "naive": "no", "equipped": "yes, first action", "evidence": "eval/v3-wording/results/2026-06-10-v3-wording-sonnet.md" },
+    { "suite": "v3 wording (ADR-9 gate)", "metric": "transcript-first recovery after a silent context cliff", "naive": "no (git archaeology)", "equipped": "yes (stamp wording alone suffices)", "evidence": "eval/v3-wording/results/2026-06-10-v3-wording-sonnet.md" }
+  ],
+  "honest_notes": [
+    "v3 S-T probe is confounded: the handoff wording already instructs transcript use, so both conditions comply — the skill section is reinforcement, not the driver.",
+    "v2-large is an outcome NULL on strong models with clean trees: git status hands the naive agent the answer. The effect concentrates in weak models + messy working trees; v4 fixtures need planted distractor dirt.",
+    "All suites are simulated-budget or single-shot probes; live S1 (real tap + real account) ran informally throughout dogfooding, not as a controlled cell."
+  ]
+}

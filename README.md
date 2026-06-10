@@ -10,9 +10,10 @@ scarcest resources — account **rate-limit headroom** (5h / 7d windows) and ses
 that fits, defers what doesn't, survives compaction, and stops wasting capacity that
 expires.
 
-> **Status: early (0.2.x).** Working end-to-end and dogfooded daily by its author;
-> validated by behavioral evals (below); macOS/Linux; Windows untested. npm package
-> coming — install from source today. Expect sharp edges; [report them](.github/ISSUE_TEMPLATE).
+> **Status: 0.3.0, ship-ready.** Working end-to-end and dogfooded hard by its author
+> (including surviving its own compactions and scheduling its own resumes); every
+> behavioral claim eval-tested (below); macOS/Linux; Windows untested. npm package lands
+> with the public launch — install from source today. [Report sharp edges](.github/ISSUE_TEMPLATE).
 
 ## The problem
 
@@ -28,12 +29,14 @@ knows.
 ```
 collectors                state                      awareness connector → Claude Code
 ----------                -----                      ---------------------------------
-statusline tap  ──▶  ~/.headroom/state.json  ──▶  push   UserPromptSubmit hook: tiny [headroom] stamp
- (rate_limits +       + burn model,                       SessionStart: post-compaction re-injection
-  context_window)       projections               pull   MCP: resource_state · estimate_remaining ·
-                                                          fit_check · plan_resume
-PreCompact hook ──▶  ground-truth snapshot        policy  skill: scope-to-fit planning rules
-                                                  human   statusline HUD · `headroom watch` live dashboard
+statusline tap  ──▶  ~/.headroom/state.json  ──▶  push   prompt stamps + MID-TURN updates (band
+ (rate_limits +       + velocity engine                    crossings, cost receipts) + post-compaction
+  context_window)       (learned tokens/%,                 re-injection (facts → checkpoint → pins)
+                         flow, burn bands)         pull   MCP: resource_state · estimate_remaining ·
+PreCompact hook ──▶  ground-truth snapshot                fit_check · plan_resume · checkpoint · pin_fact
+ + transcript anchor      + verbatim extracts     policy  skill: scope-to-fit rules · governor modes ·
+hooks (every event) ─▶  token-flow samples                 opt-in compact guard + launch gate
+                         + audit log              human   statusline HUD · watch · line · audit · doctor
 ```
 
 Zero dependencies. No network, ever. Official extension points only (statusline, hooks,
@@ -54,7 +57,9 @@ One idempotent command wires up (and `uninstall` reverts, restoring any statusli
    `[headroom] 5h: 58% left, resets 14:00 · 7d: 85% left · ctx: ~38k tokens before compaction`.
    Age-disclosed when stale; silent rather than wrong; `HEADROOM_DISABLE=1` to mute.
 3. **MCP tools** — `resource_state`, `estimate_remaining`, `fit_check({est_tokens})` →
-   `fits | tight | exceeds | defer`, and `plan_resume` for deferred work.
+   `fits | tight | exceeds | defer`, `plan_resume` for deferred work, `checkpoint` (the
+   agent's own pre-compaction survival note), and `pin_fact` (facts that must survive
+   compaction verbatim).
 4. **Skill** — the eval-tested planning policy (size-to-fit, cheap-first under pressure,
    checkpoint before the ceiling, never defer out of caution).
 5. **Compaction hooks** — PreCompact snapshot + SessionStart re-injection (below).
@@ -64,16 +69,18 @@ auth Headroom degrades gracefully to context-only awareness.
 
 ### Reading the HUD
 
-`⛶ 5h 60%→22:30 · 7d 92% · ctx 56%(560k) · $26.03`
+`⛶ 60% left (≈310k) ↻22:30 · ctx 56% (560k) · $26.03`
 
-| Segment | Meaning |
-|---|---|
-| `5h 60%→22:30` | 5-hour rate-limit window: 60% **remaining**, resets at 22:30 |
-| `7d 92%` | 7-day window: 92% remaining |
-| `ctx 56%(560k)` | context left before auto-compaction (`⚠compact` when low) |
-| `$26.03` | this session at API prices (hidden when ~$0) |
-| `⚠exh 22:10` | only when current burn would exhaust the window **before** its reset |
-| `⏲ resume 22:30` / `✓ deferred ready` | deferred-work countdown / readiness |
+| Segment | Appears | Meaning |
+|---|---|---|
+| `60% left (≈310k) ↻22:30` | always | your quota: remaining %, **learned** ≈tokens-left (after calibration), reset clock |
+| `week 22% left` | only when the weekly window is the binding constraint (<30%) |
+| `ctx 56% (560k)` | always | room before auto-compaction (`⚠compact soon` under 10%) |
+| `⚠ empty ~18:40–19:55` | only when the burn band lands **before** the reset | confidence band, not a twitchy point; suppressed entirely while idle |
+| `✓ deferred work ready` | only when actionable | a waiting plan is hidden (see `headroom resume`) |
+| `$26.03` | when ≥ $0.01 | this session at API prices |
+
+A segment's *appearance* is itself the signal — healthy sessions stay terse.
 
 Every percentage is **remaining**, never used. The statusline re-renders on session
 activity (that's Claude Code's schedule), so it shows absolute clock times that never go
@@ -130,15 +137,68 @@ Trust this snapshot for repository state: check the uncommitted files first…
 ```
 
 Hard facts, not summaries — the model resumes from what *is*, not what the compactor
-remembered. In our continuity eval, snapshot-equipped agents resumed a half-done
-migration with ~19% fewer tool calls ([results](eval/v2-continuity/results/)).
+remembered. And the snapshot **anchors back to disk**: it carries the path to the full
+pre-compaction transcript plus a sidecar of verbatim extracts (every user message, recent
+failed commands), so the model *searches* instead of reconstructing from memory.
 
-## Defer now, resume when the window resets
+Three more layers ride the same loop:
+
+- **`checkpoint`** — when a mid-turn update warns context is low, the *agent* saves its
+  own survival note (task, decisions + why, ruled-out approaches, exact next steps);
+  re-injected after compaction. Facts from hooks, judgment from models.
+- **`pin_fact` / `headroom pin`** — constraints whose exact wording must never be
+  paraphrased away ("no deploys before June 16") are re-injected verbatim after every
+  compaction until unpinned or expired.
+- **Silent-trim detection** — Claude Code's microcompaction clears old tool results with
+  *no hook and no UI signal*; headroom's tap notices the context cliff and the next stamp
+  discloses it once, with the transcript path as the recovery route.
+
+Continuity eval results (including the honest nulls): [`eval/REPORT.md`](eval/REPORT.md).
+
+## Defer now, resume when the window resets — or wake up and do it
 
 When `fit_check` says work won't fit the current window, the model records a plan with
-the `plan_resume` MCP tool. The HUD counts down (`⏲ resume 22:30`); the moment the window
-resets, prompt stamps and new sessions announce `deferred work now ready: …`. Capacity
-that used to expire silently now has a queue. Clear with `headroom resume --clear`.
+`plan_resume`. The moment the window resets, prompt stamps, new sessions, and the HUD
+(`✓ deferred work ready`) announce it. Capacity that used to expire silently now has a
+queue (`headroom resume` to inspect, `--clear` when picked up).
+
+And with **armed resume** (`headroom resume --arm`), the deferred work runs *itself* at
+the reset: a launchd one-shot fires the official `claude -p` headless mode with the plan
+as its prompt, guard-railed (`--max-turns`, pinned cwd, output to a reviewable log),
+self-disarming after one run. Strictly consent-first (ADR-16): you arm it per-plan — or
+set `auto_arm: true` for the fully autonomous defer → wake → resume loop. Headroom never
+schedules your quota by itself.
+
+## The agent sees costs while it works — not just balances
+
+- **Mid-turn updates:** stamps arrive with your prompts, but long autonomous turns used
+  to burn blind. A PostToolUse hook now re-stamps the model the moment a budget crosses a
+  worsening band (25/10/5% left), throttled, never chatty.
+- **Cost receipts:** a tool call that visibly moves the budget gets a one-line receipt —
+  `receipt: that Task cost ≈5% of the 5h window (+$3.30) — 55% left` — so agents learn
+  unit economics instead of pricing by vibes.
+- **Velocity engine:** hooks sample exact token flow from the transcript and calibrate it
+  against the window's %-steps, *learning* your account's tokens-per-percent. That's how
+  the HUD earns `≈tokens left`, exhaustion becomes a confidence band, and the warning
+  disappears entirely while you're idle.
+- **Governor modes:** `mode: performance | ondemand | powersave` shifts *when* headroom
+  speaks (bands, receipt floors, throttle) — never what it says. Applies without restart.
+- **Opt-in guards:** `compact_guard_min` blocks *auto*-compaction minutes before a reset
+  (a post-reset `/clear` beats compacting into a dying window — never blocks your manual
+  `/compact`); `launch_gate` denies expensive subagent/workflow launches when the window
+  verdict is defer. Both fail open, always.
+
+## Audit the loop: `headroom audit` · diagnose it: `headroom doctor`
+
+`headroom audit` renders the awareness loop as a timeline — every stamp injected (and why
+skipped), band crossings even when silent by design, every MCP consult with its verdict,
+the compaction lifecycle — closing with steering-signal counts. You can *see* whether
+your agent actually consulted its budgets.
+
+`headroom doctor` answers "why isn't it working?" before you file an issue: wiring,
+stale paths, data freshness, calibration state — and it flags *other* hooks sharing your
+events, because Claude Code doesn't attribute hook errors per-hook and their failures
+will look like headroom's.
 
 ## Does it actually change behavior? We tested it.
 
@@ -152,9 +212,9 @@ artifacts (commits, test suites, journals — never self-reports). Across haiku 
   reset-aware resume plans — while spending ~40% fewer tokens.
 - On healthy budgets, equipped agents completed everything with no false caution.
 
-Published results, including the honest weak spots: [`eval/v1/results/`](eval/v1/results/),
-[`eval/v2-continuity/results/`](eval/v2-continuity/results/). Methodology rules in
-[ADR-9](docs/DECISIONS.md).
+The full comparison table — regenerated by `npm run eval`, which fails if any number's
+evidence file is missing — lives in [`eval/REPORT.md`](eval/REPORT.md), honest nulls
+included. Methodology rules in [ADR-9](docs/DECISIONS.md).
 
 ## This repo is an agent harness
 
@@ -178,8 +238,9 @@ Windows testing, the Codex adapter.
 
 ## The spec
 
-`ResourceState v0` ([`schema/`](schema/)) is deliberately provider-neutral — the contract
-for adapters beyond Claude Code (Codex next; see [`docs/PLAN.md`](docs/PLAN.md) Phase 3).
+`ResourceState v0` is deliberately provider-neutral — an adapter for any harness (Codex
+CLI next) can be written from [`docs/RESOURCE-STATE.md`](docs/RESOURCE-STATE.md) alone;
+everything downstream (HUD, stamps, MCP, audit) works unchanged.
 
 ## Compliance posture
 
@@ -192,7 +253,7 @@ See [`SECURITY.md`](SECURITY.md) and ADR-1.
 ## Project layout
 
 ```
-bin/ src/        the CLI: tap · hook · mcp · install · status · watch · resume (zero-dep ESM)
+bin/ src/        the CLI: tap · hook · mcp · install · watch · line · resume · pin · audit · doctor (zero-dep ESM)
 skill/           the behavioral policy installed into Claude Code
 schema/          ResourceState v0 JSON Schema
 scripts/         invariant gates (the hard-gate layer)

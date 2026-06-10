@@ -71,6 +71,10 @@ switch (cmd) {
     (await import('../src/arm.mjs')).resumeRun();
     break;
   }
+  case 'doctor': {
+    (await import('../src/doctor.mjs')).doctor(argv);
+    break;
+  }
   case 'audit': {
     const i = argv.indexOf('--since');
     const hours = i >= 0 ? Number(argv[i + 1]) || 6 : 6;
@@ -106,6 +110,7 @@ usage:
   headroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
   headroom pins | unpin <id|--all>                               list / remove pins
   headroom audit [--since <hours>]                               timeline of the awareness loop (default 6h)
+  headroom doctor                                                diagnose the install (wiring, freshness, conflicts)
   headroom tap [--capture]      (statusline command — wired by install)
   headroom hook <user-prompt-submit|pre-compact|session-start|post-compact>   (hook commands — wired by install)
   headroom mcp                                    (stdio MCP server — wired by install)`);

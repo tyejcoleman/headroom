@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — Unreleased
+## 0.3.0 — 2026-06-10
 
 ### Added
 - **Transcript anchor (T2.6, ADR-11):** the post-compaction injection now points at the
@@ -65,9 +65,16 @@
   surfaces. Quota tokens-left deliberately absent: the payload has no token denominator
   — estimation lands with T2.1 burn priors rather than fake precision.
 
+- `headroom audit` (awareness-loop timeline) and `headroom doctor` (install diagnosis,
+  incl. flagging other hooks sharing events — errors aren't attributed per-hook).
+- T2.5 reproducible eval report: `npm run eval` regenerates `eval/REPORT.md` and fails
+  if any number's evidence file is missing.
+- `docs/RESOURCE-STATE.md`: the provider-neutral adapter contract (T3.3).
+
 ### Notes
-- New skill/stamp wording (pins section, transcript-anchor guidance, cliff disclosure)
-  is pending the ADR-9 eval pass before npm publish.
+- ADR-9 eval gate for the new skill/stamp wording: **PASSED 2026-06-10**
+  (`eval/v3-wording/results/`); confounds documented in the results.
+- npm publish is deliberately held to land with the public launch.
 
 ## 0.2.0 — 2026-06-09
 

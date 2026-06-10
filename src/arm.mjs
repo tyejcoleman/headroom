@@ -94,22 +94,25 @@ export function armResume(argv = []) {
 }
 
 export function disarmResume() {
+  // Files first, `launchctl unload` LAST: when the firing job disarms itself, unloading
+  // its own launchd job kills this process on the spot — anything after never runs
+  // (field bug: first armed flight left a stale arm.json exactly this way).
   let removed = false;
-  try {
-    execFileSync('launchctl', ['unload', plistPath()], { stdio: 'ignore' });
-  } catch {
-    // not loaded
-  }
-  if (existsSync(plistPath())) {
-    rmSync(plistPath());
-    removed = true;
-  }
   if (existsSync(armPath())) {
     rmSync(armPath());
     removed = true;
   }
   logEvent({ type: 'disarmed' });
+  if (existsSync(plistPath())) {
+    rmSync(plistPath());
+    removed = true;
+  }
   console.log(removed ? 'disarmed — scheduled resume removed' : 'nothing was armed');
+  try {
+    execFileSync('launchctl', ['unload', plistPath()], { stdio: 'ignore' });
+  } catch {
+    // not loaded
+  }
 }
 
 /** Entry point launchd calls. Guards: plan must exist, reset passed, not already run. */

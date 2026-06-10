@@ -438,3 +438,18 @@ test('T2.4: governor mode shifts when headroom speaks — powersave early, perfo
   write(92);
   assert.match(post(), /8% left.*clean boundary/);
 });
+
+test('doctor: flags missing wiring in a sandbox, exits 1; clean after install', () => {
+  const cfg = mkdtempSync(join(tmpdir(), 'hr-doc-'));
+  const env = { HEADROOM_DIR: mkdtempSync(join(tmpdir(), 'hr-docd-')) };
+  const broken = run(['doctor', '--config-dir', cfg], { env });
+  assert.equal(broken.status, 1);
+  assert.match(broken.stdout, /statusline tap not registered/);
+  assert.match(broken.stdout, /problem\(s\) found/);
+
+  run(['install', '--config-dir', cfg]);
+  const after = run(['doctor', '--config-dir', cfg], { env });
+  assert.match(after.stdout, /statusline tap registered/);
+  assert.match(after.stdout, /skill installed and current/);
+  assert.doesNotMatch(after.stdout, /hook \w+: not registered/);
+});

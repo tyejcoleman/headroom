@@ -1,6 +1,6 @@
 {
   "name": "headroom-cc",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Resource-aware layer for Claude Code: feeds rate-limit and context headroom to the agent itself, so it plans work that fits the budget.",
   "type": "module",
   "bin": {
@@ -15,7 +15,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "eval": "node scripts/eval-report.mjs"
   },
   "engines": {
     "node": ">=18.17"
