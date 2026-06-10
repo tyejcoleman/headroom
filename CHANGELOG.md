@@ -27,6 +27,12 @@
   a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
   — long autonomous turns no longer burn blind.
 
+- **Armed resume (T2.15, ADR-16):** `headroom resume --arm` schedules the deferred plan
+  at the reset via launchd + official `claude -p` headless mode — guard-railed
+  (max-turns, pinned cwd, reviewable log), self-disarming after one run, `--disarm`
+  anytime. `auto_arm` config flag = standing consent: every plan_resume self-schedules
+  (truly autonomous defer→wake→resume loop). Headroom never arms without consent.
+
 ### Changed
 - **HUD redesigned around "only what changes your next decision"** (field feedback):
   `5h 10% left ↻03:30` (explicit "left", ↻ for reset); healthy 7d window hidden (shown

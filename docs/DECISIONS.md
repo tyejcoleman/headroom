@@ -104,3 +104,17 @@ exhaustion-before-reset flipping true), at most every 120s; first sight and impr
 are silent. *Why:* per-tool-call stamps would drown the context and train the model to
 ignore them — band crossings are the only mid-turn news that changes decisions.
 **Enforced by:** tests; new wording joins the ADR-9 eval queue before publish.
+
+## ADR-16 — Armed resume: the user schedules the spend (amends the headless rule)
+The hard rule "never burn interactive subscription quota headlessly" exists to stop
+TOOLS from spending quota the user didn't choose to spend. Armed resume does not cross
+it — it inverts it: the USER schedules the spend, either per-plan (`headroom resume
+--arm`, which prints exactly what command runs, when, and where the output goes) or via
+the standing-consent config flag `auto_arm` (every plan_resume also arms). Constraints
+that keep this honest: official `claude -p` headless mode only; guardrails embedded in
+the armed command (`--max-turns`, constrained tools, pinned cwd); output to a reviewable
+log; `--disarm` removes everything; the firing entry point self-disarms after one run;
+headroom NEVER arms without one of the two consents. *Why:* deferred work that resumes
+itself at the reset is the product's whole point — done with consent it's a feature,
+done without it's malware. **Enforced by:** consent checks in code, dry-run output,
+audit-log `armed`/`resume_run` events, this ADR.

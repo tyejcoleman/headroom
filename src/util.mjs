@@ -58,6 +58,7 @@ export function readConfig() {
     ceiling_pct: 80,
     mode: 'ondemand',
     compact_guard_min: null, // minutes-to-reset under which AUTO compaction is blocked (ADR-13); null = off
+    auto_arm: false, // standing consent: every plan_resume also schedules the work at reset (ADR-16); default OFF
     ...(readJSON(join(headroomDir(), 'config.json')) ?? {}),
   };
 }

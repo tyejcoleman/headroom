@@ -37,7 +37,9 @@ These are the project's reason to exist responsibly. Any change that touches the
   `~/.claude` / `~/.codex` files.
 - **Never** reuse a subscription OAuth token outside the official client, call
   undocumented endpoints (e.g. `api/oauth/usage`), spoof harness identity headers, read
-  `.credentials.json` to make API calls, or burn interactive subscription quota headlessly.
+  `.credentials.json` to make API calls, or burn interactive subscription quota headlessly
+  — headless spend is allowed ONLY under ADR-16's consent contract (the user arms it,
+  per-plan or via `auto_arm`; transparent, guard-railed, disarmable).
 - **Defensive parsing always:** every field we read may be absent, malformed, or buggy
   (e.g. epoch values leaking into `used_percentage`). Degrade gracefully, clamp to valid
   ranges, never crash the statusline.
