@@ -79,6 +79,7 @@ export function install(argv = []) {
     ['PreCompact', 'hook pre-compact', 'compaction-survival snapshot + transcript anchor'],
     ['SessionStart', 'hook session-start', 'post-compaction re-injection + pins + deferred-work readiness'],
     ['PostCompact', 'hook post-compact', 'compaction event log (observability)'],
+    ['PostToolUse', 'hook post-tool-use', 'mid-turn band-crossing re-stamps'],
   ];
   for (const [event, sub, label] of HOOK_EVENTS) {
     settings.hooks[event] ??= [];

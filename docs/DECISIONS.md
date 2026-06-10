@@ -94,3 +94,13 @@ is ≤N minutes away (a post-reset `/clear` beats compacting); any error in the 
 falls through to allowing compaction. *Why:* a wrongly-blocked compaction can wedge a
 full-context session; the guard must be impossible to blame for one. **Enforced by:**
 tests covering all three guards (auto-only, near-reset-only, fail-open default-off).
+
+## ADR-14 — Mid-turn awareness is push-on-worsening, throttled
+Stamps fire only at UserPromptSubmit, so a long autonomous turn burns blind while
+state.json stays fresh (field-observed 2026-06-10: 5h went 39%→13% across one turn and
+the agent never re-saw a number). The PostToolUse hook re-stamps ONLY when a budget
+crosses a WORSENING band (5h: 25/10/5% left; context: 25/10 points to ceiling;
+exhaustion-before-reset flipping true), at most every 120s; first sight and improvements
+are silent. *Why:* per-tool-call stamps would drown the context and train the model to
+ignore them — band crossings are the only mid-turn news that changes decisions.
+**Enforced by:** tests; new wording joins the ADR-9 eval queue before publish.

@@ -30,6 +30,12 @@ All percentages in stamps and tools are **remaining**, never used.
 | `exceeds` (context) | Do NOT start as-is: write a checkpoint/handoff first, or split so a piece fits. |
 | `defer` (window) | Do not start. Finish current work at a clean boundary, record a resume plan **naming the reset time**, and stop. |
 
+## Mid-task updates
+
+During long multi-step work a `[headroom] mid-task update` may arrive after a tool call
+— it means a budget crossed a threshold *while you were working*. Treat it as a
+re-planning point: re-check fit, land at a clean boundary, or defer (`plan_resume`).
+
 ## Under window pressure (≲10% left)
 
 - Reorder the queue cheap-first; ship small certain wins before big uncertain ones.

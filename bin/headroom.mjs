@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { tap } from '../src/tap.mjs';
-import { hookUserPromptSubmit, hookPreCompact, hookSessionStart, hookPostCompact } from '../src/hook.mjs';
+import { hookUserPromptSubmit, hookPreCompact, hookSessionStart, hookPostCompact, hookPostToolUse } from '../src/hook.mjs';
 import { addPin, listPins, removePins } from '../src/pins.mjs';
 import { mcpServe } from '../src/mcp.mjs';
 import { install, uninstall } from '../src/install.mjs';
@@ -26,6 +26,7 @@ switch (cmd) {
     else if (argv[0] === 'pre-compact') await hookPreCompact();
     else if (argv[0] === 'session-start') await hookSessionStart();
     else if (argv[0] === 'post-compact') await hookPostCompact();
+    else if (argv[0] === 'post-tool-use') await hookPostToolUse();
     // unknown hook events exit silently — a hook must never break the harness
     break;
   }

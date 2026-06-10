@@ -18,6 +18,9 @@
 - **Compact guard (T2.10, ADR-13, opt-in):** `compact_guard_min` blocks auto-compaction
   when the 5h reset is ≤N minutes away; never blocks manual `/compact`; fail-open.
 - `docs/COMPACTION.md`: compaction research — algorithm layers, OSS survey, gap analysis.
+- **Mid-turn re-stamps (T2.11, ADR-14):** PostToolUse hook injects a budget update when
+  a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
+  — long autonomous turns no longer burn blind.
 
 ### Notes
 - New skill/stamp wording (pins section, transcript-anchor guidance, cliff disclosure)

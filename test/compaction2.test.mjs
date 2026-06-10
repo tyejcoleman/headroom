@@ -177,6 +177,42 @@ test('T2.8: install adds removable Compact Instructions + PostCompact hook; unin
   assert.ok(!JSON.parse(readFileSync(join(cfg, 'settings.json'), 'utf8')).hooks);
 });
 
+test('T2.11: post-tool-use re-stamps on worsening band crossings only — throttled, improvements silent', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-t211-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = () => Math.round(Date.now() / 1000);
+  const write = (usedPct) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now(),
+        session_id: 'm1',
+        windows: { five_hour: { used_pct: usedPct, resets_at: now() + 3600 } },
+        context: null,
+        burn: {},
+        session: {},
+      })
+    );
+  const post = () => run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'm1' }), env }).stdout;
+
+  write(70);
+  assert.equal(post(), ''); // first sight: baseline only — the turn-start stamp covered it
+  write(80);
+  const out = post();
+  assert.match(out, /mid-task update/);
+  assert.match(out, /20% left/);
+  assert.equal(post(), ''); // same band: silent
+  write(92);
+  assert.equal(post(), ''); // worse band, but inside the 120s throttle
+  const bands = JSON.parse(readFileSync(join(dir, 'bands.json'), 'utf8'));
+  bands.m1.at = 0; // age the throttle
+  writeFileSync(join(dir, 'bands.json'), JSON.stringify(bands));
+  assert.match(post(), /8% left.*clean boundary/);
+  write(60);
+  assert.equal(post(), ''); // improvement: always silent
+});
+
 test('pin_fact via the MCP server works without any ResourceState', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-mcp-pin-'));
   const env = { HEADROOM_DIR: dir };

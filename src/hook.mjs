@@ -1,5 +1,6 @@
+import { join } from 'node:path';
 import { readState } from './state.mjs';
-import { readConfig, fmtClock, fmtTokens } from './util.mjs';
+import { readConfig, fmtClock, fmtTokens, headroomDir, readJSON, atomicWriteJSON, ensureDir } from './util.mjs';
 import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
 import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
@@ -52,6 +53,74 @@ export async function hookPreCompact() {
     logEvent({ type: 'pre_compact', session_id: p.session_id ?? null, trigger: p.trigger ?? null });
   } catch {
     // a failed snapshot (or guard) must never break compaction itself — fail open
+  }
+}
+
+// Mid-turn awareness (T2.11/ADR-14): stamps fire only at UserPromptSubmit, so a long
+// autonomous turn burns blind while state.json stays fresh on disk. PostToolUse
+// re-stamps ONLY when a budget crosses a WORSENING band — first sight silent (the
+// turn-start stamp covered it), improvements silent, ≥120s between re-stamps.
+const FH_BANDS = [25, 10, 5]; // % left
+const CTX_BANDS = [25, 10]; // points left to the compact ceiling
+const RESTAMP_THROTTLE_SEC = 120;
+const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
+
+export async function hookPostToolUse() {
+  const p = await readStdin();
+  try {
+    if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) return;
+    const s = readState();
+    const now = Date.now() / 1000;
+    if (!s || now - s.updated_at > 5 * 60) return;
+    const mySession = p.session_id ?? 'unknown';
+
+    const fhLeft = s.windows?.five_hour?.used_pct != null ? 100 - s.windows.five_hour.used_pct : null;
+    const fhBand = fhLeft != null ? bandOf(fhLeft, FH_BANDS) : 0;
+    // context is session-scoped (ADR-7): ignore another session's numbers
+    const foreign = s.session_id && p.session_id && s.session_id !== p.session_id;
+    const ctx = foreign ? null : s.context;
+    const ctxLeft = ctx?.used_pct != null ? Math.max(0, (ctx.compact_ceiling_pct ?? 80) - ctx.used_pct) : null;
+    const ctxBand = ctxLeft != null ? bandOf(ctxLeft, CTX_BANDS) : 0;
+    const exh = !!(s.burn?.projected_exhaustion && s.windows?.five_hour?.resets_at && s.burn.projected_exhaustion < s.windows.five_hour.resets_at);
+
+    const bandsPath = join(headroomDir(), 'bands.json');
+    const all = readJSON(bandsPath) ?? {};
+    for (const k of Object.keys(all)) if (now - (all[k].t ?? 0) > 24 * 3600) delete all[k];
+    const prev = all[mySession];
+    const save = (entry) => {
+      all[mySession] = { ...entry, t: now };
+      ensureDir(headroomDir());
+      atomicWriteJSON(bandsPath, all);
+    };
+    if (!prev) return save({ fh: fhBand, ctx: ctxBand, exh, at: 0 });
+
+    const throttled = now - (prev.at ?? 0) < RESTAMP_THROTTLE_SEC;
+    if (throttled) {
+      // record improvements so a later re-worsening re-triggers; hold worsenings for retry
+      return save({ fh: Math.min(prev.fh, fhBand), ctx: Math.min(prev.ctx, ctxBand), exh: prev.exh && exh, at: prev.at });
+    }
+
+    const parts = [];
+    if (fhLeft != null && fhBand > prev.fh) {
+      const advice = fhBand >= 3 ? 'stop new work; checkpoint and defer' : fhBand === 2 ? 'finish at a clean boundary; defer heavy work (plan_resume)' : 're-check that remaining work fits; defer what does not';
+      parts.push(`5h window now ${Math.round(fhLeft)}% left${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
+    }
+    if (exh && !prev.exh) {
+      parts.push(`at current burn may exhaust ~${fmtClock(s.burn.projected_exhaustion)}, before the reset — land at a clean boundary or defer now`);
+    }
+    if (ctxLeft != null && ctxBand > prev.ctx) {
+      parts.push(`context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — checkpoint important state; avoid re-reading large files`);
+    }
+
+    save({ fh: fhBand, ctx: ctxBand, exh, at: parts.length ? now : prev.at });
+    if (!parts.length) return;
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: `[headroom] mid-task update: ${parts.join(' · ')}` },
+      })
+    );
+  } catch {
+    // mid-turn awareness is best-effort; never interfere with the tool loop
   }
 }
 
