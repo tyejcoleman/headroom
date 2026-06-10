@@ -268,7 +268,10 @@ export async function hookUserPromptSubmit() {
   const ctx = foreign ? null : s.context;
   if (fh?.used_pct != null) {
     let seg = `5h: ${Math.round(100 - fh.used_pct)}% left`;
-    if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens)`;
+    // "tokens of quota", not "tokens": a bare token count next to a reset clock reads as
+    // a CONTEXT pool that refills at that time (field-observed conflation, 2026-06-10 —
+    // an agent deferred reading work to a rate-limit reset expecting fresh context)
+    if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)`;
     if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
     const band = s.burn?.exhaustion_band;
     const exh = s.burn?.projected_exhaustion;

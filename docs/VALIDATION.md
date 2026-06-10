@@ -116,6 +116,13 @@ first ARMED resume run (launchd → headless claude -p, 03:31) and verified agai
 subagent transcripts. Caveats and confounds recorded in the results file — they are part
 of the result.
 
+**Budget-conflation field incident + probe (2026-06-10,
+`eval/v3-wording/results/2026-06-10-budget-conflation-probe.md`):** a live agent read the
+new quota token annotation as a context pool that "resets at 21:10". 4-cell probe did NOT
+reproduce it on the current model tier with ctx present; shipped the minimal fix
+(`tokens of quota`, +3 tokens) rather than the full relabel the evidence doesn't justify.
+Soak-week watch item: any recurrence escalates to a weaker-model probe matrix.
+
 **G2 large-fixture (2026-06-10, `eval/v2-continuity/results/2026-06-10-large-fixture.md`):
 honest null on outcome.** Both naive and equipped landed the full 4-file atomic migration
 with zero churn on a strong model — the clean fixture tree hands naive the answer via one

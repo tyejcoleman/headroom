@@ -453,3 +453,25 @@ test('doctor: flags missing wiring in a sandbox, exits 1; clean after install', 
   assert.match(after.stdout, /skill installed and current/);
   assert.doesNotMatch(after.stdout, /hook \w+: not registered/);
 });
+
+test('stamp: quota tokens are labeled "of quota" — never a bare token pool next to a reset clock', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-conf-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'c1',
+      windows: { five_hour: { used_pct: 16, resets_at: now + 16200 } },
+      context: null,
+      burn: { est_tokens_left: 858000, tokens_per_pct: 10214 },
+      session: {},
+    })
+  );
+  const stamp = JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'c1' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(stamp, /\(≈858k tokens of quota\)/);
+  assert.doesNotMatch(stamp, /tokens\), resets/); // the confusable shape must not exist
+});
