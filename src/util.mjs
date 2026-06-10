@@ -57,6 +57,7 @@ export function readConfig() {
     stamp_enabled: true,
     ceiling_pct: 80,
     mode: 'ondemand',
+    compact_guard_min: null, // minutes-to-reset under which AUTO compaction is blocked (ADR-13); null = off
     ...(readJSON(join(headroomDir(), 'config.json')) ?? {}),
   };
 }

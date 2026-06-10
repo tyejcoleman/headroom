@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { tap } from '../src/tap.mjs';
-import { hookUserPromptSubmit, hookPreCompact, hookSessionStart } from '../src/hook.mjs';
+import { hookUserPromptSubmit, hookPreCompact, hookSessionStart, hookPostCompact } from '../src/hook.mjs';
+import { addPin, listPins, removePins } from '../src/pins.mjs';
 import { mcpServe } from '../src/mcp.mjs';
 import { install, uninstall } from '../src/install.mjs';
 import { readState } from '../src/state.mjs';
@@ -24,7 +25,30 @@ switch (cmd) {
     if (argv[0] === 'user-prompt-submit') await hookUserPromptSubmit();
     else if (argv[0] === 'pre-compact') await hookPreCompact();
     else if (argv[0] === 'session-start') await hookSessionStart();
+    else if (argv[0] === 'post-compact') await hookPostCompact();
     // unknown hook events exit silently — a hook must never break the harness
+    break;
+  }
+  case 'pin': {
+    let ttl;
+    const words = [...argv];
+    const ti = words.indexOf('--ttl-hours');
+    if (ti >= 0) {
+      ttl = Number(words[ti + 1]);
+      words.splice(ti, 2);
+    }
+    const pin = addPin(words.join(' '), { ttl_hours: ttl });
+    console.log(pin ? `pinned ${pin.id}: ${pin.text}` : 'usage: headroom pin "fact that must survive compaction" [--ttl-hours N]');
+    break;
+  }
+  case 'pins': {
+    const pins = listPins();
+    console.log(pins.length ? pins.map((p) => `${p.id}  ${p.text}`).join('\n') : 'no pins');
+    break;
+  }
+  case 'unpin': {
+    const n = removePins(argv[0] === '--all' ? '--all' : argv[0]);
+    console.log(n ? `removed ${n} pin${n > 1 ? 's' : ''}` : 'no matching pin (`headroom pins` to list)');
     break;
   }
   case 'resume': {
@@ -60,7 +84,9 @@ usage:
   headroom watch                                                 LIVE dashboard (1s ticks) for a second pane
   headroom line                                                  one live line (countdowns at call time) for tmux/xbar/waybar
   headroom resume [--clear]                                      show or clear the deferred-work plan
+  headroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
+  headroom pins | unpin <id|--all>                               list / remove pins
   headroom tap [--capture]      (statusline command — wired by install)
-  headroom hook <user-prompt-submit|pre-compact|session-start>   (hook commands — wired by install)
+  headroom hook <user-prompt-submit|pre-compact|session-start|post-compact>   (hook commands — wired by install)
   headroom mcp                                    (stdio MCP server — wired by install)`);
 }

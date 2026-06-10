@@ -105,7 +105,8 @@ input schema (`session_id`, `transcript_path`, `trigger`, `cwd`), so the adapter
 | Compaction observability (incl. silent microcompaction) | none | ❌ | **T2.9** PostCompact logging + context-cliff detection in the tap |
 | Don't compact at a dumb time | blockable since v2.1.105 | ❌ | **T2.10** (governor, opt-in, ties into T2.4) |
 
-Proposed tasks, ranked by value/effort (additions to PLAN.md Phase 2 when picked up):
+**Update 2026-06-10: T2.6–T2.10 all shipped** — see PLAN.md Phase 2 and ADR-11/12/13.
+Original ranking kept below for the reasoning record:
 
 - **T2.6 — Transcript anchor + verbatim extracts** (highest leverage, smallest lift).
   PreCompact already receives `transcript_path`. Extend `captureHandoff` to store it plus

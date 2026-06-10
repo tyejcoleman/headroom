@@ -53,6 +53,21 @@ commits). **Trust it over the compacted summary** when they disagree: check the
 uncommitted files first, then resume the in-flight task — do not redo work the snapshot
 shows as already done.
 
+If the block names a **transcript or extracts path**, the full pre-compaction history is
+still on disk. For exact error text, file contents you saw earlier, or the user's exact
+wording, search those files (grep the transcript JSONL) instead of reconstructing from
+memory — a wrong guess costs more than a read.
+
+## Pin what must survive
+
+Compaction paraphrases; **pins survive verbatim**. When the user states a hard
+constraint, deadline, or exact value that a future compacted you must not garble ("no
+promo before June 16", "never run migrations on prod", a port, a budget), call
+**`pin_fact`** with that constraint in one sentence. Headroom re-injects every pin
+word-for-word after each compaction. When a pin is satisfied or obsolete, say so and run
+`headroom unpin <id>`. Pin sparingly: pins are for sentences whose exact wording matters,
+not general context.
+
 ## Near the context ceiling
 
 - Before starting anything that won't fit: write a handoff note (task state, decisions

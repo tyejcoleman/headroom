@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { headroomDir, ensureDir, readJSON, fmtClock } from './util.mjs';
 import { readState } from './state.mjs';
@@ -7,10 +7,60 @@ import { readState } from './state.mjs';
 // Compaction survival, part 1: at PreCompact we cannot summarize the conversation
 // (hooks have no model), but we CAN capture what compaction most often garbles —
 // hard repository facts. The SessionStart(source=compact) hook re-injects them.
+// Part 2 (ADR-11): the transcript JSONL outlives compaction on disk, so the handoff
+// anchors to it — path plus deterministic verbatim extracts in a sidecar file. The
+// injection carries pointers, never bulk content: compaction just freed the context.
 
 const handoffDir = () => join(headroomDir(), 'handoffs');
 const pathFor = (sessionId) => join(handoffDir(), `${sessionId}.json`);
+const extractsPathFor = (sessionId) => join(handoffDir(), `${sessionId}.extracts.json`);
 const MAX_AGE_SEC = 6 * 3600;
+
+const MAX_TRANSCRIPT_BYTES = 64 * 1024 * 1024;
+const MAX_USER_MSGS = 80;
+const MAX_MSG_CHARS = 2000;
+const MAX_ERRORS = 15;
+const MAX_ERR_CHARS = 1500;
+
+const isHarnessText = (t) =>
+  t.startsWith('<command-') || t.startsWith('<local-command') || t.startsWith('<system-reminder') || t.startsWith('Caveat:') || t.startsWith('[Request interrupted');
+
+/** Deterministic extraction from the transcript JSONL: the user's exact words and
+ *  recent failed tool calls — the two things compaction paraphrases worst. */
+export function extractTranscript(path) {
+  let raw;
+  try {
+    if (statSync(path).size > MAX_TRANSCRIPT_BYTES) return null;
+    raw = readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+  const user_messages = [];
+  const tool_errors = [];
+  for (const line of raw.split('\n')) {
+    if (!line) continue;
+    let o;
+    try {
+      o = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (o?.type !== 'user' || o.isMeta || o.isCompactSummary) continue;
+    const content = o.message?.content;
+    const texts = typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? content : [];
+    for (const b of texts) {
+      if (b?.type === 'text' && typeof b.text === 'string') {
+        const t = b.text.trim();
+        if (t && !isHarnessText(t)) user_messages.push(t.slice(0, MAX_MSG_CHARS));
+      } else if (b?.type === 'tool_result' && b.is_error) {
+        const t = (typeof b.content === 'string' ? b.content : Array.isArray(b.content) ? b.content.map((c) => c?.text ?? '').join('\n') : '').trim();
+        if (t) tool_errors.push(t.slice(0, MAX_ERR_CHARS));
+      }
+    }
+  }
+  if (!user_messages.length && !tool_errors.length) return null;
+  return { user_messages: user_messages.slice(-MAX_USER_MSGS), tool_errors: tool_errors.slice(-MAX_ERRORS) };
+}
 
 const git = (cwd, args) => {
   try {
@@ -20,16 +70,31 @@ const git = (cwd, args) => {
   }
 };
 
-export function captureHandoff({ session_id, cwd, trigger }, nowMs = Date.now()) {
+export function captureHandoff({ session_id, cwd, trigger, transcript_path, custom_instructions }, nowMs = Date.now()) {
   if (!session_id) return null;
   const snap = {
     session_id,
     at: Math.round(nowMs / 1000),
     trigger: trigger ?? null,
     cwd: cwd ?? null,
+    transcript_path: typeof transcript_path === 'string' ? transcript_path : null,
+    custom_instructions:
+      typeof custom_instructions === 'string' && custom_instructions.trim() ? custom_instructions.trim().slice(0, 500) : null,
+    extracts_path: null,
     git: null,
     budgets: null,
   };
+  if (snap.transcript_path) {
+    const extracts = extractTranscript(snap.transcript_path);
+    if (extracts) {
+      ensureDir(handoffDir());
+      writeFileSync(
+        extractsPathFor(session_id),
+        JSON.stringify({ session_id, at: snap.at, source_transcript: snap.transcript_path, ...extracts }, null, 2)
+      );
+      snap.extracts_path = extractsPathFor(session_id);
+    }
+  }
   if (cwd) {
     const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
     if (branch !== null) {
@@ -74,8 +139,14 @@ export function renderHandoff(snap) {
   if (snap.budgets?.five_hour_pct_left != null) {
     lines.push(`- budget at snapshot: 5h ${snap.budgets.five_hour_pct_left}% left${snap.budgets.five_hour_resets_at ? `, resets ${fmtClock(snap.budgets.five_hour_resets_at)}` : ''}`);
   }
+  if (snap.custom_instructions) lines.push(`- the user asked this compaction to focus on: "${snap.custom_instructions}"`);
+  if (snap.transcript_path) lines.push(`- full pre-compaction transcript (JSONL): ${snap.transcript_path}`);
+  if (snap.extracts_path) lines.push(`- verbatim extracts (every user message + recent failed tool calls): ${snap.extracts_path}`);
   lines.push(
-    'The compacted summary may have dropped or garbled details. Trust this snapshot for repository state: check the uncommitted files first, then resume the in-flight task.'
+    'The compacted summary may have dropped or garbled details. Trust this snapshot for repository state: check the uncommitted files first, then resume the in-flight task.' +
+      (snap.transcript_path
+        ? " For exact error text, file contents, or the user's exact wording, search the transcript/extracts above instead of reconstructing from memory."
+        : '')
   );
   return lines.join('\n');
 }

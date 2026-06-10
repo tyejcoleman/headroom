@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.0 — Unreleased
+
+### Added
+- **Transcript anchor (T2.6, ADR-11):** the post-compaction injection now points at the
+  full pre-compaction transcript JSONL plus a sidecar of deterministic verbatim extracts
+  (every user message, recent failed tool calls) — search, don't reconstruct. `/compact
+  <focus>` custom instructions are captured and echoed back after compaction.
+- **Pins (T2.7, ADR-12):** `pin_fact` MCP tool and `headroom pin|pins|unpin` — facts
+  re-injected word-for-word after every compaction until unpinned or expired (7d default).
+- **Compact Instructions (T2.8):** the installer appends a marked, removable block to
+  `~/.claude/CLAUDE.md` shaping what compaction preserves (exact paths, failing commands
+  with error text, user wording verbatim, remaining-first budgets).
+- **Compaction observability (T2.9):** PostCompact hook + `~/.headroom/events.jsonl`;
+  silent context cliffs (microcompaction fires no hooks) are detected by the tap and
+  disclosed once in the next stamp, with the transcript path as the recovery route.
+- **Compact guard (T2.10, ADR-13, opt-in):** `compact_guard_min` blocks auto-compaction
+  when the 5h reset is ≤N minutes away; never blocks manual `/compact`; fail-open.
+- `docs/COMPACTION.md`: compaction research — algorithm layers, OSS survey, gap analysis.
+
+### Notes
+- New skill/stamp wording (pins section, transcript-anchor guidance, cliff disclosure)
+  is pending the ADR-9 eval pass before npm publish.
+
 ## 0.2.0 — 2026-06-09
 
 ### Added

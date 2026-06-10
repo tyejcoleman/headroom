@@ -26,8 +26,10 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 | `src/tap.mjs` | statusline entry: parse → persist → HUD | never crashes, always prints (ADR-5); `--capture` appends raw payloads |
 | `src/state.mjs` | payload → ResourceState; burn model; atomic state I/O | clamp/null bad fields; median-of-buckets burn ≥10min baseline (ADR-4/5) |
 | `src/hud.mjs` | human one-liner | remaining-first (ADR-3); actionable signals only (ADR-4) |
-| `src/hook.mjs` | UserPromptSubmit stamp · PreCompact snapshot · SessionStart re-inject | session-scoping (ADR-7); age disclosure; silence > lying |
-| `src/handoff.mjs` | ground-truth snapshot capture/render | facts not prose (ADR-8); 6h staleness guard |
+| `src/hook.mjs` | UserPromptSubmit stamp · PreCompact snapshot/guard · SessionStart re-inject · PostCompact log | session-scoping (ADR-7); age disclosure; silence > lying; guard fail-open (ADR-13) |
+| `src/handoff.mjs` | ground-truth snapshot capture/render + transcript extracts | facts not prose (ADR-8); 6h staleness guard; pointer not payload (ADR-11) |
+| `src/pins.mjs` | must-survive-verbatim facts, re-injected after compaction | capped + TTL'd (ADR-12) |
+| `src/events.mjs` | compaction event log + silent-cliff detection | best-effort only; never breaks tap/hooks (ADR-5) |
 | `src/resume.mjs` | deferred-work plan lifecycle | 24h expiry; single file |
 | `src/fit.mjs` | fit_check + estimate_remaining verdict logic | context = real tokens; window = labeled heuristic |
 | `src/mcp.mjs` | stdio MCP server (newline JSON-RPC) | read-only + one write surface (ADR-6); version from package.json (ADR-10) |
@@ -39,9 +41,11 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 ## Runtime files (`~/.headroom/`)
 
 `state.json` (ResourceState v0, atomic) · `history.jsonl` (burn samples, self-pruning) ·
-`handoffs/<session>.json` (pre-compaction snapshots) · `resume.json` (deferred-work plan) ·
-`config.json` (user config: `stamp_enabled`, `ceiling_pct`, `mode`) · `raw-sample.jsonl`
-(only with `tap --capture`).
+`handoffs/<session>.json` (pre-compaction snapshots) · `handoffs/<session>.extracts.json`
+(verbatim transcript extracts, ADR-11) · `resume.json` (deferred-work plan) · `pins.json`
+(must-survive facts, ADR-12) · `events.jsonl` (compaction lifecycle + context anomalies,
+capped) · `config.json` (user config: `stamp_enabled`, `ceiling_pct`, `mode`,
+`compact_guard_min`) · `raw-sample.jsonl` (only with `tap --capture`).
 
 ## Extension points
 

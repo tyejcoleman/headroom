@@ -67,3 +67,30 @@ cycle caught timidity, stamp misreading, and overclaiming before they shipped.
 `src/mcp.mjs` reads its version from package.json at runtime; nothing else hardcodes it.
 *Why:* the 0.1.1→0.2.0 bump required synchronized edits in two files; that class of bug
 is eliminated structurally. **Enforced by:** code structure.
+
+## ADR-11 — Transcript anchor: pointer, not payload
+The PreCompact handoff records the transcript path and writes deterministic verbatim
+extracts (every user message, recent failed tool calls) to a sidecar file
+(`handoffs/<session>.extracts.json`); the post-compaction injection includes the *paths*,
+never the contents. *Why:* compaction just freed the context — refilling it with bulk
+history defeats the purpose, and the #1 field complaint about compaction is "the data is
+still on disk but the model guesses instead of reading it". A pointer lets the model
+fetch exactly what it needs. **Enforced by:** test asserting injected context contains
+paths but not extract contents.
+
+## ADR-12 — Pins are the MCP server's second write surface (amends ADR-6)
+`pin_fact` (and `headroom pin`) writes `~/.headroom/pins.json`: facts re-injected
+VERBATIM at SessionStart(source=compact). Constrained hard: text ≤500 chars, ≤50 pins,
+default TTL 7 days, ≤20 re-injected. *Why:* paraphrase drift of user constraints is a
+top compaction failure mode (2026 field survey), and only the model can identify which
+sentences must not be reworded — that requires a tool, which requires a write. Pins are
+not general memory; the caps enforce that. **Enforced by:** caps in `src/pins.mjs`, tests.
+
+## ADR-13 — Compact guard is opt-in, auto-only, fail-open
+Blocking compaction (official PreCompact capability since Claude Code v2.1.105) is OFF
+by default. When enabled (`compact_guard_min` in `~/.headroom/config.json`) it blocks
+only `trigger: "auto"` — never a user's manual `/compact` — and only when the 5h reset
+is ≤N minutes away (a post-reset `/clear` beats compacting); any error in the guard path
+falls through to allowing compaction. *Why:* a wrongly-blocked compaction can wedge a
+full-context session; the guard must be impossible to blame for one. **Enforced by:**
+tests covering all three guards (auto-only, near-reset-only, fail-open default-off).

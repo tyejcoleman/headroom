@@ -1,9 +1,10 @@
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { headroomDir, ensureDir } from './util.mjs';
-import { parsePayload, updateBurn, writeState } from './state.mjs';
+import { parsePayload, updateBurn, writeState, readState } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
+import { detectContextDrop } from './events.mjs';
 
 /**
  * Statusline command: read the payload Claude Code pipes to stdin, persist
@@ -26,7 +27,9 @@ export async function tap(argv = []) {
       appendFileSync(join(headroomDir(), 'raw-sample.jsonl'), raw.trim() + '\n');
     }
     const payload = JSON.parse(raw);
+    const prev = readState();
     const state = updateBurn(parsePayload(payload));
+    detectContextDrop(prev, state); // silent microcompaction leaves no other trace
     writeState(state);
     hud = renderHUD(state, readResume());
   } catch {

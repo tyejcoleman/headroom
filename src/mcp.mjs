@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readState } from './state.mjs';
 import { fitCheck, estimateRemaining } from './fit.mjs';
 import { planResume } from './resume.mjs';
+import { addPin } from './pins.mjs';
 
 // package.json is the single source of truth for the version (see /release procedure)
 const pkg = JSON.parse(readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json'), 'utf8'));
@@ -52,6 +53,19 @@ const TOOLS = [
       required: ['summary'],
     },
   },
+  {
+    name: 'pin_fact',
+    description:
+      'Pin a fact that must survive context compaction VERBATIM — hard user constraints, deadlines, exact values ("no deploys before June 16", a port, an invariant). Re-injected word-for-word after every compaction until it expires (default 7 days) or is unpinned. Pin sparingly: only sentences whose exact wording matters.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'the fact, in one sentence, exactly as it must be re-injected' },
+        ttl_hours: { type: 'number', description: 'hours until the pin expires (default 168 = 7 days)' },
+      },
+      required: ['text'],
+    },
+  },
 ];
 
 export function mcpServe() {
@@ -90,7 +104,13 @@ export function mcpServe() {
       }
       const state = readState();
       let result;
-      if (!state) {
+      if (name === 'pin_fact') {
+        // works without state — pinning must never depend on the tap being live
+        const pin = addPin(args.text, { ttl_hours: args.ttl_hours });
+        result = pin
+          ? { pinned: true, id: pin.id, text: pin.text, expires_at: pin.expires_at }
+          : { pinned: false, error: 'text (non-empty string) is required' };
+      } else if (!state) {
         result = { error: 'no ResourceState collected yet — install the statusline tap (headroom install) and use Claude Code once' };
       } else if (name === 'resource_state') {
         result = { ...state, age_seconds: Math.max(0, Math.round(Date.now() / 1000 - state.updated_at)) };

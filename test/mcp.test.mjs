@@ -43,7 +43,7 @@ test('mcp: initialize → tools/list → fit_check round-trip', async () => {
     send({ jsonrpc: '2.0', method: 'notifications/initialized' });
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     const list = await next();
-    assert.deepEqual(list.result.tools.map((t) => t.name).sort(), ['estimate_remaining', 'fit_check', 'plan_resume', 'resource_state']);
+    assert.deepEqual(list.result.tools.map((t) => t.name).sort(), ['estimate_remaining', 'fit_check', 'pin_fact', 'plan_resume', 'resource_state']);
 
     send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'fit_check', arguments: { est_tokens: 5000 } } });
     const fit = await next();
