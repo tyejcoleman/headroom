@@ -59,6 +59,16 @@ only. Every feature here doubles as a Pro demo — never gate it.
   change; concurrent-session fixture test; ADR-7 scoping preserved.
 - [ ] **T2.19 `headroom brief`.** Morning block: deferred-ready, pins, last recap line,
   calibration state, weekly shape. AC: composes T2.16 internals; no new state.
+- [ ] **T2.21 Meta-awareness (the agent sees its own operation).** Components, all from
+  existing data: (a) session self-state in stamps — age, compactions survived, turn
+  count ("post-compaction humility" framing); (b) failure-streak detection from
+  transcript `is_error` results → just-in-time "step back and reassess" note (wording
+  eval-gated, ADR-9); (c) `self_audit` MCP tool — the audit's steering stats for THIS
+  session served to the agent; (d) estimate-vs-actual: log fit_check `est_tokens`,
+  reconcile against receipt actuals, disclose the agent's own estimation bias. AC: each
+  injection band-gated and throttled like T2.11; no new collectors; eval before any
+  wording ships. Principle (proven this week): timing beats content — push for
+  awareness, pull for action.
 - [ ] **T2.20 Context-hygiene signals (design first).** Re-read churn / edit-thrash
   detection from flow samples — the "tired agent" beyond budgets. Eval-gated (ADR-9)
   before any injection wording ships.
