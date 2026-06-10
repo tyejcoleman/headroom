@@ -1,0 +1,8 @@
+# The package has zero npm dependencies (ADR-2, gate-enforced) — the only supply chain
+# to watch is the GitHub Actions used by CI itself.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

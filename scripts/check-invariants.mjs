@@ -62,8 +62,30 @@ for (const file of files) {
   }
 }
 
+// G6 — no credentials in the tree (tokens live in ~/.npmrc and repo secrets only)
+const SECRET_RE = /(npm_[A-Za-z0-9]{30,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-[A-Za-z0-9-]{30,})/;
+const sweep = [...files];
+for (const dir of ['scripts', '.github', '.github/workflows', '.claude', '.claude/commands', 'docs', '.']) {
+  try {
+    for (const f of readdirSync(join(root, dir))) {
+      if (/\.(mjs|js|json|ya?ml|md)$/.test(f)) sweep.push(join(root, dir, f));
+    }
+  } catch {
+    // optional dirs
+  }
+}
+for (const file of new Set(sweep)) {
+  try {
+    if (SECRET_RE.test(readFileSync(file, 'utf8'))) {
+      errors.push(`G6 secrets: ${file.slice(root.length + 1)} contains a credential-shaped string — never commit tokens (use ~/.npmrc or repo secrets).`);
+    }
+  } catch {
+    // unreadable entries are skipped
+  }
+}
+
 if (errors.length) {
   console.error('headroom invariant gates FAILED:\n' + errors.map((e) => '  - ' + e).join('\n'));
   process.exit(2);
 }
-console.log(`invariant gates: OK (${files.length} files checked)`);
+console.log(`invariant gates: OK (${new Set(sweep).size} files checked)`);

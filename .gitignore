@@ -10,10 +10,11 @@ dist/
 # spike captures
 **/raw-sample.json
 
-# logs / env
+# logs / env / credentials (tokens live in ~/.npmrc and repo secrets, never here)
 *.log
 .env
 .env.*
+.npmrc
 
 # editor / os
 .DS_Store

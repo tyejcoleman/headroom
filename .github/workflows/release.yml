@@ -1,0 +1,41 @@
+name: release
+# Pushing a version tag (v0.2.1) publishes to npm with provenance and cuts a GitHub
+# release from the matching CHANGELOG section. The /release procedure prepares the tag;
+# this workflow does everything after it. NPM_TOKEN lives in repo secrets only.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write # npm --provenance attestation
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Gates
+        run: npm test
+      - name: Tag must match package.json version
+        run: |
+          PKG_V=$(node -p "require('./package.json').version")
+          TAG_V=${GITHUB_REF_NAME#v}
+          if [ "$PKG_V" != "$TAG_V" ]; then
+            echo "tag $TAG_V does not match package.json $PKG_V — fix the version or the tag"; exit 1
+          fi
+      - name: Publish to npm (with provenance)
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: GitHub release from CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          awk -v ver="${GITHUB_REF_NAME#v}" '$0 ~ "^## "ver" "{f=1; next} /^## /{f=0} f' CHANGELOG.md > /tmp/notes.md
+          if [ ! -s /tmp/notes.md ]; then echo "No CHANGELOG section for ${GITHUB_REF_NAME#v}" > /tmp/notes.md; fi
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file /tmp/notes.md

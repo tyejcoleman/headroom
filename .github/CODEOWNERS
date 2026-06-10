@@ -1,0 +1,4 @@
+# Default reviewer for everything; compliance-critical paths called out explicitly.
+* @tyejcoleman
+/scripts/check-invariants.mjs @tyejcoleman
+/docs/DECISIONS.md @tyejcoleman
