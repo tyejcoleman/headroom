@@ -55,7 +55,7 @@ export function mcpServe() {
         result: {
           protocolVersion: params?.protocolVersion ?? '2025-06-18',
           capabilities: { tools: {} },
-          serverInfo: { name: 'headroom', version: '0.1.0' },
+          serverInfo: { name: 'headroom', version: '0.1.1' },
         },
       });
     } else if (method === 'tools/list') {

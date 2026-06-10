@@ -1,6 +1,6 @@
 {
   "name": "headroom-cc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Resource-aware layer for Claude Code: feeds rate-limit and context headroom to the agent itself, so it plans work that fits the budget.",
   "type": "module",
   "bin": {

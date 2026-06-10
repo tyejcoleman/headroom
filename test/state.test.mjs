@@ -41,16 +41,45 @@ test('epoch-leak and out-of-range percentages become null, resets_at ms tolerate
 });
 
 test('burn model derives rate and exhaustion from history', () => {
+  process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-burn1-'));
   const t0 = 1781300000;
   let s;
-  for (const [dt, used] of [[0, 40], [600, 42], [1200, 44]]) {
-    s = parsePayload(fix('statusline-full.json'), (t0 + dt) * 1000);
-    s.windows.five_hour.used_pct = used;
+  for (let i = 0; i <= 10; i++) {
+    // 12%/h, sampled every 2 min over 20 min
+    s = parsePayload(fix('statusline-full.json'), (t0 + i * 120) * 1000);
+    s.windows.five_hour.used_pct = 40 + ((i * 120) / 3600) * 12;
     s = updateBurn(s);
   }
-  assert.equal(s.burn.pct_per_hour, 12); // 4% over 20 min
+  assert.equal(s.burn.pct_per_hour, 12);
   assert.ok(s.burn.projected_exhaustion > t0 + 1200);
   assert.deepEqual(validateResourceState(s), []);
+});
+
+test('regression: poisoned first sample + interleaved stale sessions do not hallucinate burn', () => {
+  // Field data 2026-06-09: a placeholder 1% landed as the first sample and a concurrent
+  // session interleaved stale 36s among fresh 38s; first-vs-last said ~180%/h.
+  process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-burn2-'));
+  const t0 = 1781300000;
+  const seq = [[0, 1], [1, 35], [2, 35], [60, 35], [240, 35], [300, 36], [480, 36], [600, 36], [660, 37], [700, 38], [710, 36], [720, 38], [730, 36]];
+  let s;
+  for (const [dt, u] of seq) {
+    s = parsePayload(fix('statusline-full.json'), (t0 + dt) * 1000);
+    s.windows.five_hour.used_pct = u;
+    s = updateBurn(s);
+  }
+  assert.ok(s.burn.pct_per_hour === null || s.burn.pct_per_hour < 20, `expected sane burn, got ${s.burn.pct_per_hour}%/h`);
+});
+
+test('burn stays null until a 10-minute baseline accumulates', () => {
+  process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-burn3-'));
+  const t0 = 1781300000;
+  let s;
+  for (const [dt, u] of [[0, 35], [60, 36], [120, 36], [300, 38]]) {
+    s = parsePayload(fix('statusline-full.json'), (t0 + dt) * 1000);
+    s.windows.five_hour.used_pct = u;
+    s = updateBurn(s);
+  }
+  assert.equal(s.burn.pct_per_hour, null);
 });
 
 test('fit_check verdicts: context exceeds, window defer, healthy fits', () => {

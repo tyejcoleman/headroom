@@ -21,8 +21,10 @@ export function renderHUD(state) {
     if (left < 10) s += ' ⚠compact';
     parts.push(s);
   }
-  if (state.burn?.pct_per_hour != null) parts.push(`${state.burn.pct_per_hour}%/h`);
-  if (state.session?.cost_usd != null) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
+  // Raw %/h confused everyone in the field; surface burn only when it predicts trouble.
+  const exh = state.burn?.projected_exhaustion;
+  if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠exh ${fmtClock(exh)}`);
+  if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
 
   return parts.length ? `⛶ ${parts.join(' · ')}` : '⛶ headroom: awaiting data';
 }

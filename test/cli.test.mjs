@@ -57,6 +57,12 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   // disabled → no output (fresh state again)
   run(['tap'], { input: fixture('statusline-full.json'), env: { HEADROOM_DIR: dir } });
   assert.equal(run(['hook', 'user-prompt-submit'], { input: '{}', env: { HEADROOM_DIR: dir, HEADROOM_DISABLE: '1' } }).stdout, '');
+
+  // state written by a DIFFERENT session → account-level windows kept, session-level ctx omitted
+  const r2 = run(['hook', 'user-prompt-submit'], { input: '{"session_id":"some-other-session"}', env: { HEADROOM_DIR: dir } });
+  const stamp2 = JSON.parse(r2.stdout).hookSpecificOutput.additionalContext;
+  assert.match(stamp2, /5h: 58% left/);
+  assert.doesNotMatch(stamp2, /ctx:/);
 });
 
 test('install: idempotent into sandbox config dir; uninstall leaves no trace', () => {

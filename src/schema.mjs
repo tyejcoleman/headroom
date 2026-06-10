@@ -14,6 +14,7 @@ export function validateResourceState(s) {
   if (!Number.isInteger(s.updated_at) || s.updated_at < 0) err('updated_at must be a non-negative integer');
   if (typeof s.provider !== 'string') err('provider must be a string');
   if (s.auth !== undefined && !['subscription', 'api_key', 'unknown'].includes(s.auth)) err('auth invalid');
+  if (s.session_id !== undefined && s.session_id !== null && typeof s.session_id !== 'string') err('session_id invalid');
 
   if (!s.windows || typeof s.windows !== 'object') {
     err('windows must be an object');

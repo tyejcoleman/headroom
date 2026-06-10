@@ -35,6 +35,7 @@ export function parsePayload(payload, nowMs = Date.now()) {
     updated_at: Math.round(nowMs / 1000),
     provider: 'anthropic',
     auth: windows.five_hour || windows.seven_day ? 'subscription' : 'unknown',
+    session_id: typeof payload?.session_id === 'string' ? payload.session_id : null,
     windows,
     context,
     burn: { pct_per_hour: null, projected_exhaustion: null },
@@ -47,8 +48,21 @@ export function parsePayload(payload, nowMs = Date.now()) {
 
 const HISTORY_WINDOW_SEC = 90 * 60;
 const HISTORY_MAX_SAMPLES = 400;
+const MIN_BASELINE_SEC = 10 * 60;
 
-/** Append this sample to history and derive burn rate / projected exhaustion from it. */
+const median = (arr) => {
+  const s = [...arr].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+/**
+ * Append this sample to history and derive burn rate / projected exhaustion from it.
+ * Estimator is median-of-buckets (oldest vs newest quarter of the baseline), not
+ * first-vs-last: real histories contain outlier samples (e.g. a placeholder 1% before
+ * rate_limits populates) and interleaved stale values from concurrent sessions, and a
+ * single bad endpoint must not produce a 180%/h hallucination.
+ */
 export function updateBurn(state) {
   const fh = state.windows.five_hour;
   if (fh?.used_pct == null) return state;
@@ -79,11 +93,22 @@ export function updateBurn(state) {
 
   const first = samples[0];
   const last = samples[samples.length - 1];
-  if (last.t - first.t >= 5 * 60 && last.u >= first.u) {
-    const pctPerHour = (last.u - first.u) / ((last.t - first.t) / 3600);
-    state.burn.pct_per_hour = Math.round(pctPerHour * 10) / 10;
-    if (pctPerHour > 0.1) {
-      state.burn.projected_exhaustion = Math.round(last.t + ((100 - last.u) / pctPerHour) * 3600);
+  const span = last.t - first.t;
+  if (span >= MIN_BASELINE_SEC) {
+    const quarter = span / 4;
+    const oldest = samples.filter((s) => s.t <= first.t + quarter);
+    const newest = samples.filter((s) => s.t >= last.t - quarter);
+    if (oldest.length >= 2 && newest.length >= 2) {
+      const dt = median(newest.map((s) => s.t)) - median(oldest.map((s) => s.t));
+      const du = median(newest.map((s) => s.u)) - median(oldest.map((s) => s.u));
+      if (dt > 0 && du >= 0) {
+        const pctPerHour = (du / dt) * 3600;
+        state.burn.pct_per_hour = Math.round(pctPerHour * 10) / 10;
+        if (pctPerHour > 0.1) {
+          const currentU = median(newest.map((s) => s.u));
+          state.burn.projected_exhaustion = Math.round(last.t + ((100 - currentU) / pctPerHour) * 3600);
+        }
+      }
     }
   }
   return state;

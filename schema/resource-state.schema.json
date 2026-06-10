@@ -9,6 +9,7 @@
     "updated_at": { "type": "integer", "minimum": 0 },
     "provider": { "type": "string" },
     "auth": { "enum": ["subscription", "api_key", "unknown"] },
+    "session_id": { "type": ["string", "null"] },
     "windows": {
       "type": "object",
       "additionalProperties": false,
