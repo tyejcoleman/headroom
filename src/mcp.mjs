@@ -72,7 +72,7 @@ export function mcpServe() {
       if (!state) {
         result = { error: 'no ResourceState collected yet — install the statusline tap (headroom install) and use Claude Code once' };
       } else if (name === 'resource_state') {
-        result = state;
+        result = { ...state, age_seconds: Math.max(0, Math.round(Date.now() / 1000 - state.updated_at)) };
       } else if (name === 'estimate_remaining') {
         result = estimateRemaining(state);
       } else {

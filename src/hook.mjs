@@ -50,11 +50,15 @@ export async function hookUserPromptSubmit() {
   }
   if (!parts.length) return;
 
+  // Fresh and 25-minutes-old look identical otherwise; disclose age once it's not "now".
+  const ageSec = Date.now() / 1000 - s.updated_at;
+  const ageMark = ageSec > 120 ? ` (${Math.round(ageSec / 60)}m old)` : '';
+
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'UserPromptSubmit',
-        additionalContext: `[headroom] ${parts.join(' · ')}`,
+        additionalContext: `[headroom] ${parts.join(' · ')}${ageMark}`,
       },
     })
   );

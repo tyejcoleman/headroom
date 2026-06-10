@@ -63,6 +63,14 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   const stamp2 = JSON.parse(r2.stdout).hookSpecificOutput.additionalContext;
   assert.match(stamp2, /5h: 58% left/);
   assert.doesNotMatch(stamp2, /ctx:/);
+
+  // fresh stamp has no age marker; aging (but not stale) state discloses its age
+  assert.doesNotMatch(stamp2, /m old\)/);
+  const aging = JSON.parse(readFileSync(statePath, 'utf8'));
+  aging.updated_at = Math.round(Date.now() / 1000) - 300;
+  writeFileSync(statePath, JSON.stringify(aging));
+  const r3 = run(['hook', 'user-prompt-submit'], { input: '{}', env: { HEADROOM_DIR: dir } });
+  assert.match(JSON.parse(r3.stdout).hookSpecificOutput.additionalContext, /\(5m old\)$/);
 });
 
 test('install: idempotent into sandbox config dir; uninstall leaves no trace', () => {
