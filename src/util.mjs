@@ -59,6 +59,7 @@ export function readConfig() {
     mode: 'ondemand',
     compact_guard_min: null, // minutes-to-reset under which AUTO compaction is blocked (ADR-13); null = off
     auto_arm: false, // standing consent: every plan_resume also schedules the work at reset (ADR-16); default OFF
+    launch_gate: false, // deny expensive Task/Agent/Workflow launches when the window verdict is defer (T2.14); default OFF
     ...(readJSON(join(headroomDir(), 'config.json')) ?? {}),
   };
 }

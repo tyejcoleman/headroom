@@ -79,15 +79,18 @@ export function install(argv = []) {
     ['PreCompact', 'hook pre-compact', 'compaction-survival snapshot + transcript anchor'],
     ['SessionStart', 'hook session-start', 'post-compaction re-injection + pins + deferred-work readiness'],
     ['PostCompact', 'hook post-compact', 'compaction event log (observability)'],
-    ['PostToolUse', 'hook post-tool-use', 'mid-turn band-crossing re-stamps'],
+    ['PostToolUse', 'hook post-tool-use', 'mid-turn band-crossing re-stamps + cost receipts'],
+    ['PreToolUse', 'hook pre-tool-use', 'launch gate (opt-in via launch_gate config)', 'Task|Agent|Workflow'],
   ];
-  for (const [event, sub, label] of HOOK_EVENTS) {
+  for (const [event, sub, label, matcher] of HOOK_EVENTS) {
     settings.hooks[event] ??= [];
     const present = settings.hooks[event].some((m) => (m.hooks ?? []).some((h) => h.command?.includes(MARK)));
     if (present) {
       changes.push(`hook ${event}: already installed`);
     } else {
-      settings.hooks[event].push({ hooks: [{ type: 'command', command: cmd(sub), timeout: 10 }] });
+      const entry = { hooks: [{ type: 'command', command: cmd(sub), timeout: 10 }] };
+      if (matcher) entry.matcher = matcher;
+      settings.hooks[event].push(entry);
       changes.push(`hook ${event}: installed (${label})`);
     }
   }

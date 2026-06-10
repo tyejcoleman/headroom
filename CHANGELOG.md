@@ -27,6 +27,12 @@
   a window/context band worsens mid-turn (25/10/5% left), throttled to one per 2 minutes
   — long autonomous turns no longer burn blind.
 
+- **Cost receipts (T2.13):** a single tool call that visibly moves the budget gets a
+  one-line receipt (`receipt: that Task cost ≈5% of the 5h window (+$3.30) — 55% left`)
+  — per-action unit economics; floors (≥2 points or ≥$1) keep receipts rare.
+- **Launch gate (T2.14, opt-in `launch_gate`):** PreToolUse denies expensive
+  Task/Agent/Workflow launches when the window verdict is defer, with an actionable
+  reason; cheap tools never gated; fail-open on any error.
 - **Model-authored checkpoint (T2.12, ADR-15):** the `checkpoint` MCP tool — the agent
   saves its own survival note (task, state, decisions+why, ruled-out approaches, exact
   next steps, key values) when a ctx update warns the ceiling is near; re-injected after

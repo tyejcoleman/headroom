@@ -204,7 +204,9 @@ test('T2.11: post-tool-use re-stamps on worsening band crossings only — thrott
   assert.match(out, /20% left/);
   assert.equal(post(), ''); // same band: silent
   write(92);
-  assert.equal(post(), ''); // worse band, but inside the 120s throttle
+  const held = post(); // worse band inside the 120s throttle — band text held...
+  assert.doesNotMatch(held, /5h window now/);
+  assert.match(held, /receipt/); // ...but a 12-point single-call jump earns a receipt (own floor, no throttle)
   const bands = JSON.parse(readFileSync(join(dir, 'bands.json'), 'utf8'));
   bands.m1.at = 0; // age the throttle
   writeFileSync(join(dir, 'bands.json'), JSON.stringify(bands));
@@ -329,4 +331,66 @@ test('T2.12: checkpoint lifecycle — save via MCP, re-inject after compact, sta
   // wrong-session note → silent
   writeFileSync(p, JSON.stringify({ ...note, session_id: 'other-session' }));
   assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'mine', source: 'compact' }), env }).stdout, '');
+});
+
+test('T2.13: receipt fires when one tool call visibly moves the budget; floors keep quiet otherwise', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-rcpt-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = () => Math.round(Date.now() / 1000);
+  const write = (usedPct, cost) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now(),
+        session_id: 'r1',
+        windows: { five_hour: { used_pct: usedPct, resets_at: now() + 3600 } },
+        context: null,
+        burn: {},
+        session: { cost_usd: cost },
+      })
+    );
+  const post = (tool) => run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'r1', tool_name: tool }), env }).stdout;
+
+  write(40, 10.0);
+  assert.equal(post('Bash'), ''); // baseline
+  write(40, 10.2);
+  assert.equal(post('Bash'), ''); // under both floors → silent
+  write(45, 13.5);
+  const out = post('Task'); // 5 points + $3.30 in one call
+  assert.match(out, /receipt: that Task cost ≈5% of the 5h window \(\+\$3\.30\)/);
+  assert.match(out, /55% left/);
+  assert.match(readFileSync(join(dir, 'events.jsonl'), 'utf8'), /receipt/);
+});
+
+test('T2.14: launch gate denies expensive launches only when window says defer — opt-in, fail-open', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-gate-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  const state = (usedPct) =>
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'g1',
+      windows: { five_hour: { used_pct: usedPct, resets_at: now + 3600 } },
+      context: null,
+      burn: {},
+      session: {},
+    });
+  const pre = (tool) => run(['hook', 'pre-tool-use'], { input: JSON.stringify({ session_id: 'g1', tool_name: tool }), env }).stdout;
+
+  // gate off (default) → always silent, even at 1% left
+  writeFileSync(join(dir, 'state.json'), state(99));
+  assert.equal(pre('Task'), '');
+
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ launch_gate: true }));
+  const denied = pre('Task');
+  assert.match(denied, /"permissionDecision":"deny"/);
+  assert.match(denied, /launch gate/);
+  assert.match(denied, /plan_resume/);
+  assert.equal(pre('Bash'), ''); // cheap tools never gated
+  writeFileSync(join(dir, 'state.json'), state(50)); // healthy window
+  assert.equal(pre('Task'), '');
+  writeFileSync(join(dir, 'state.json'), 'garbage'); // broken state → fail open
+  assert.equal(pre('Task'), '');
 });

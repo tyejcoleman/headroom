@@ -88,19 +88,46 @@ export async function hookPostToolUse() {
     const all = readJSON(bandsPath) ?? {};
     for (const k of Object.keys(all)) if (now - (all[k].t ?? 0) > 24 * 3600) delete all[k];
     const prev = all[mySession];
+    const fhUsed = s.windows?.five_hour?.used_pct ?? null;
+    const cost = !foreign && typeof s.session?.cost_usd === 'number' ? s.session.cost_usd : null;
     const save = (entry) => {
-      all[mySession] = { ...entry, t: now };
+      all[mySession] = { ...entry, u: fhUsed, c: cost, t: now };
       ensureDir(headroomDir());
       atomicWriteJSON(bandsPath, all);
     };
     if (!prev) return save({ fh: fhBand, ctx: ctxBand, exh, at: 0 });
+
+    // Cost receipt (T2.13): a single tool call that visibly moved the budget gets a
+    // one-line receipt — per-action unit economics, not just a balance. Floors keep it
+    // rare; window % is account-level, so a concurrent session's burn can co-attribute
+    // (acceptable at a ≥2-point floor; exact attribution lands with T2.1 flow).
+    const receipts = [];
+    const du = fhUsed != null && prev.u != null ? fhUsed - prev.u : null;
+    const dc = cost != null && prev.c != null ? cost - prev.c : null;
+    if ((du != null && du >= 2) || (dc != null && dc >= 1)) {
+      let r = `receipt: that ${p.tool_name ?? 'operation'} cost ≈`;
+      r += du != null && du >= 2 ? `${Math.round(du)}% of the 5h window` : `$${dc.toFixed(2)}`;
+      if (du != null && du >= 2 && dc != null && dc >= 0.01) r += ` (+$${dc.toFixed(2)})`;
+      if (fhLeft != null) r += ` — ${Math.round(fhLeft)}% left`;
+      receipts.push(r);
+      logEvent({ type: 'receipt', session_id: p.session_id ?? null, tool: p.tool_name ?? null, dpct: du != null ? Math.round(du * 10) / 10 : null, dcost: dc != null ? Math.round(dc * 100) / 100 : null });
+    }
+
+    const emit = (lines) =>
+      process.stdout.write(
+        JSON.stringify({
+          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: `[headroom] mid-task update: ${lines.join(' · ')}` },
+        })
+      );
 
     const worsened = fhBand > prev.fh || ctxBand > prev.ctx || (exh && !prev.exh);
     const throttled = now - (prev.at ?? 0) < RESTAMP_THROTTLE_SEC;
     if (throttled) {
       if (worsened) logEvent({ type: 'band_change', session_id: p.session_id ?? null, held: true, fh_left: fhLeft != null ? Math.round(fhLeft) : null });
       // record improvements so a later re-worsening re-triggers; hold worsenings for retry
-      return save({ fh: Math.min(prev.fh, fhBand), ctx: Math.min(prev.ctx, ctxBand), exh: prev.exh && exh, at: prev.at });
+      save({ fh: Math.min(prev.fh, fhBand), ctx: Math.min(prev.ctx, ctxBand), exh: prev.exh && exh, at: prev.at });
+      if (receipts.length) emit(receipts); // receipts have their own floor, not the band throttle
+      return;
     }
 
     const parts = [];
@@ -127,14 +154,44 @@ export async function hookPostToolUse() {
         exh,
       });
     }
-    if (!parts.length) return;
+    const lines = [...receipts, ...parts];
+    if (lines.length) emit(lines);
+  } catch {
+    // mid-turn awareness is best-effort; never interfere with the tool loop
+  }
+}
+
+/**
+ * Launch gate (T2.14, opt-in): an agent about to overspend won't audit itself —
+ * structurally fit_check expensive launches (subagents/workflows) and deny when the
+ * window verdict is `defer`. Fail-open everywhere (ADR-13 pattern): missing state,
+ * missing config, any error → allow.
+ */
+const EXPENSIVE_TOOLS = ['Task', 'Agent', 'Workflow'];
+
+export async function hookPreToolUse() {
+  const p = await readStdin();
+  try {
+    if (!readConfig().launch_gate) return;
+    if (!EXPENSIVE_TOOLS.includes(p.tool_name)) return;
+    const s = readState();
+    if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) return;
+    const { fitCheck } = await import('./fit.mjs');
+    const fit = fitCheck(s, { est_tokens: 40000 }); // conservative launch-sized estimate
+    if (fit?.window?.verdict !== 'defer') return;
+    logEvent({ type: 'launch_blocked', session_id: p.session_id ?? null, tool: p.tool_name });
+    const resets = s.windows?.five_hour?.resets_at;
     process.stdout.write(
       JSON.stringify({
-        hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: `[headroom] mid-task update: ${parts.join(' · ')}` },
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason: `headroom launch gate: the 5h window is nearly empty${resets ? ` (resets ${fmtClock(resets)})` : ''} — an expensive ${p.tool_name} launch now risks dying mid-work. Record the work with plan_resume and defer past the reset, or do a small piece inline. Disable: launch_gate in ~/.headroom/config.json.`,
+        },
       })
     );
   } catch {
-    // mid-turn awareness is best-effort; never interfere with the tool loop
+    // the gate must be impossible to blame for a wedged session — fail open
   }
 }
 
