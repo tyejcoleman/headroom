@@ -25,3 +25,6 @@ eval/v2-continuity/cells/
 
 # launch drafts (not for the public repo)
 launch/
+
+# eval cell outputs are runtime artifacts — regenerate via setup-cell scripts
+eval/v2-continuity/cells-large/
