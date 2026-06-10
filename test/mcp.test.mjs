@@ -43,7 +43,7 @@ test('mcp: initialize → tools/list → fit_check round-trip', async () => {
     send({ jsonrpc: '2.0', method: 'notifications/initialized' });
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     const list = await next();
-    assert.deepEqual(list.result.tools.map((t) => t.name).sort(), ['estimate_remaining', 'fit_check', 'resource_state']);
+    assert.deepEqual(list.result.tools.map((t) => t.name).sort(), ['estimate_remaining', 'fit_check', 'plan_resume', 'resource_state']);
 
     send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'fit_check', arguments: { est_tokens: 5000 } } });
     const fit = await next();
@@ -54,6 +54,11 @@ test('mcp: initialize → tools/list → fit_check round-trip', async () => {
     send({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'resource_state', arguments: {} } });
     const state = await next();
     assert.equal(JSON.parse(state.result.content[0].text).schema, 'resource-state/v0');
+
+    send({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'plan_resume', arguments: { summary: 'resume the big refactor', est_tokens: 30000 } } });
+    const planned = JSON.parse((await next()).result.content[0].text);
+    assert.equal(planned.recorded, true);
+    assert.equal(typeof planned.resume_at_clock, 'string');
   } finally {
     child.kill();
   }

@@ -1,9 +1,11 @@
 import { createInterface } from 'node:readline';
 import { readState } from './state.mjs';
 import { fitCheck, estimateRemaining } from './fit.mjs';
+import { planResume } from './resume.mjs';
 
-// Minimal stdio MCP server (newline-delimited JSON-RPC 2.0). Read-only over
-// ~/.headroom/state.json: no writes, no network, no dependencies.
+// Minimal stdio MCP server (newline-delimited JSON-RPC 2.0). No network, no
+// dependencies. Read-only over ~/.headroom/state.json, with one deliberate write
+// surface: plan_resume records a deferred-work plan to ~/.headroom/resume.json.
 
 const TOOLS = [
   {
@@ -31,6 +33,19 @@ const TOOLS = [
       required: ['est_tokens'],
     },
   },
+  {
+    name: 'plan_resume',
+    description:
+      'Record a resume plan for work deferred past the rate-limit reset (use after fit_check says defer). Headroom shows a countdown in the HUD and flags the work as ready in prompt stamps once the window resets.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string', description: 'what to resume and where to pick it up (one or two sentences)' },
+        est_tokens: { type: 'number', description: 'estimated tokens the deferred work needs (optional)' },
+      },
+      required: ['summary'],
+    },
+  },
 ];
 
 export function mcpServe() {
@@ -55,7 +70,7 @@ export function mcpServe() {
         result: {
           protocolVersion: params?.protocolVersion ?? '2025-06-18',
           capabilities: { tools: {} },
-          serverInfo: { name: 'headroom', version: '0.1.1' },
+          serverInfo: { name: 'headroom', version: '0.2.0' },
         },
       });
     } else if (method === 'tools/list') {
@@ -75,6 +90,8 @@ export function mcpServe() {
         result = { ...state, age_seconds: Math.max(0, Math.round(Date.now() / 1000 - state.updated_at)) };
       } else if (name === 'estimate_remaining') {
         result = estimateRemaining(state);
+      } else if (name === 'plan_resume') {
+        result = planResume(args, state);
       } else {
         result = fitCheck(state, args);
       }

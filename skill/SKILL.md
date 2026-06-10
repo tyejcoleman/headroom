@@ -34,8 +34,24 @@ All percentages in stamps and tools are **remaining**, never used.
 
 - Reorder the queue cheap-first; ship small certain wins before big uncertain ones.
 - Batch tool calls; prefer cache-friendly ordering (stable file set, no re-reads).
-- Heavy work that fits a fresh window: defer past the reset with a written resume plan.
+- Heavy work that fits a fresh window: defer past the reset — call **`plan_resume`** with a
+  one-to-two-sentence summary of what to resume and where to pick it up (plus `est_tokens`).
+  Headroom shows a countdown in the HUD and flags readiness in prompt stamps after the reset.
 - If the window resets while you're working, capacity is fresh — re-check and use it.
+
+## Deferred work lifecycle
+
+When a stamp or session start says **"deferred work now ready"**: tell the user, and once
+the work is actually picked up, clear the plan (`headroom resume --clear`). Never re-defer
+ready work without saying so.
+
+## After compaction
+
+If a `[headroom] post-compaction ground truth` block appears at session start, it is a
+pre-compaction snapshot of hard repository facts (branch, uncommitted files, recent
+commits). **Trust it over the compacted summary** when they disagree: check the
+uncommitted files first, then resume the in-flight task — do not redo work the snapshot
+shows as already done.
 
 ## Near the context ceiling
 

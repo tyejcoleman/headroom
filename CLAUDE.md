@@ -56,6 +56,9 @@ via the simulated evals in `eval/` and `eval/v1/` (see their `results/`). Adopte
 stamps lead with *remaining* + absolute tokens; eval prompts never offer deferral slots.
 **A1 confirmed on a live Max account (2026-06-09)**: real `rate_limits` (both windows)
 and `context_window` (1M-token window — size varies by model, never hardcode) flowed
-through the shipped tap on first render. Both validation gates are green. Next build
-targets: Phase 2 (burn-model hardening, PreCompact checkpointing, reset scheduler) per
-`docs/PLAN.md`, npm publish, launch post.
+through the shipped tap on first render. All validation gates green, including G2
+(continuity, sim — see `eval/v2-continuity/results/`). **v0.2.0 ships Phase 2's core:**
+compaction survival (PreCompact ground-truth snapshot → SessionStart re-injection) and
+the reset scheduler (`plan_resume` MCP tool, HUD countdown, readiness flags). Remaining
+targets: npm publish, launch post, larger-fixture continuity eval, T2.1 burn priors,
+T2.4 governor modes, T2.5 reproducible eval runner.

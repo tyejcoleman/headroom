@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { headroomDir, ensureDir } from './util.mjs';
 import { parsePayload, updateBurn, writeState } from './state.mjs';
 import { renderHUD } from './hud.mjs';
+import { readResume } from './resume.mjs';
 
 /**
  * Statusline command: read the payload Claude Code pipes to stdin, persist
@@ -27,7 +28,7 @@ export async function tap(argv = []) {
     const payload = JSON.parse(raw);
     const state = updateBurn(parsePayload(payload));
     writeState(state);
-    hud = renderHUD(state);
+    hud = renderHUD(state, readResume());
   } catch {
     // malformed/missing payload: keep the line, skip the write
   }

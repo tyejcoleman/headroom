@@ -1,7 +1,56 @@
 import { readState } from './state.mjs';
 import { readConfig, fmtClock, fmtTokens } from './util.mjs';
+import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
+import { readResume } from './resume.mjs';
 
 const STALE_SEC = 30 * 60;
+
+async function readStdin() {
+  let raw = '';
+  try {
+    process.stdin.setEncoding('utf8');
+    for await (const chunk of process.stdin) raw += chunk;
+  } catch {
+    // best-effort
+  }
+  try {
+    return JSON.parse(raw) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** PreCompact: snapshot ground-truth repo state so it survives the compaction. */
+export async function hookPreCompact() {
+  const p = await readStdin();
+  try {
+    captureHandoff({ session_id: p.session_id, cwd: p.cwd, trigger: p.trigger });
+  } catch {
+    // a failed snapshot must never break compaction itself
+  }
+}
+
+/** SessionStart: re-inject the handoff after compaction; flag ready deferred work. */
+export async function hookSessionStart() {
+  const p = await readStdin();
+  const parts = [];
+  if (p.source === 'compact') {
+    const snap = takeHandoff(p.session_id);
+    if (snap) parts.push(renderHandoff(snap));
+  }
+  const plan = readResume();
+  if (plan?.resume_at && Date.now() / 1000 >= plan.resume_at) {
+    parts.push(
+      `[headroom] deferred work is now ready (its window has reset): "${plan.summary}". Surface this to the user, and run \`headroom resume --clear\` once it is picked up.`
+    );
+  }
+  if (!parts.length) return;
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: parts.join('\n\n') },
+    })
+  );
+}
 
 /**
  * UserPromptSubmit hook: emit a tiny headroom stamp as additionalContext.
@@ -9,19 +58,8 @@ const STALE_SEC = 30 * 60;
  * tokens where known. Silent when disabled, missing, or stale — never inject a lie.
  */
 export async function hookUserPromptSubmit() {
-  let raw = '';
-  try {
-    process.stdin.setEncoding('utf8');
-    for await (const chunk of process.stdin) raw += chunk;
-  } catch {
-    // payload read is best-effort
-  }
-  let mySession = null;
-  try {
-    mySession = JSON.parse(raw)?.session_id ?? null;
-  } catch {
-    mySession = null;
-  }
+  const payload = await readStdin();
+  const mySession = payload.session_id ?? null;
 
   if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) return;
   const s = readState();
@@ -47,6 +85,10 @@ export async function hookUserPromptSubmit() {
     parts.push(`ctx: ~${fmtTokens(ctx.tokens_to_ceiling)} tokens before compaction`);
   } else if (ctx?.used_pct != null) {
     parts.push(`ctx: ${Math.max(0, Math.round((ctx.compact_ceiling_pct ?? 80) - ctx.used_pct))}% left before compaction`);
+  }
+  const plan = readResume();
+  if (plan?.resume_at && Date.now() / 1000 >= plan.resume_at) {
+    parts.push(`deferred work now ready: "${plan.summary.slice(0, 60)}"`);
   }
   if (!parts.length) return;
 

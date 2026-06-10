@@ -4,7 +4,7 @@ import { fmtClock, fmtTokens } from './util.mjs';
  * One-line human HUD for the statusline. Convention everywhere in headroom:
  * percentages shown are REMAINING, never used (eval v0 found "X% used" gets misread).
  */
-export function renderHUD(state) {
+export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   const parts = [];
   const fh = state.windows?.five_hour;
   const sd = state.windows?.seven_day;
@@ -24,6 +24,9 @@ export function renderHUD(state) {
   // Raw %/h confused everyone in the field; surface burn only when it predicts trouble.
   const exh = state.burn?.projected_exhaustion;
   if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠exh ${fmtClock(exh)}`);
+  if (resume?.resume_at) {
+    parts.push(nowSec >= resume.resume_at ? '✓ deferred ready' : `⏲ resume ${fmtClock(resume.resume_at)}`);
+  }
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
 
   return parts.length ? `⛶ ${parts.join(' · ')}` : '⛶ headroom: awaiting data';

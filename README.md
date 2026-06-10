@@ -66,6 +66,34 @@ stale data); values move in 1% steps because Claude Code reports integer percent
 The model-facing stamp discloses its age when over two minutes old and goes silent past
 thirty.
 
+## Your agent's work survives compaction
+
+Compaction summarizes the conversation — and garbles exactly the facts an in-flight task
+depends on. Headroom's **PreCompact** hook snapshots ground truth the instant before
+compaction (branch, uncommitted files, recent commits, budget state), and the
+**SessionStart** hook re-injects it right after:
+
+```
+[headroom] post-compaction ground truth (snapshot taken 20:41, just before compaction):
+- branch: main
+- uncommitted changes (2):  M src/auth/middleware.js,  M test/auth.test.js
+- recent commits: e508784 baseline · 1f201d4 migrate token.js
+The compacted summary may have dropped or garbled details. Trust this snapshot for
+repository state: check the uncommitted files first, then resume the in-flight task.
+```
+
+Hard facts, not summaries — the model resumes from what *is*, not what the compactor
+remembered. In our continuity eval, snapshot-equipped agents resumed a half-done
+migration with ~19% fewer tool calls ([results](eval/v2-continuity/results/)).
+
+## Defer now, resume when the window resets
+
+When `fit_check` says work won't fit the current window, the model records a plan with
+the `plan_resume` MCP tool. The HUD counts down (`⏲ resume 22:30`), and the moment the
+window resets, prompt stamps and new sessions flag it: `deferred work now ready: "finish
+auth migration…"`. Capacity that used to expire silently now has a queue. Clear with
+`headroom resume --clear` once picked up.
+
 ## Does it actually change behavior? We tested it.
 
 Before building this, we ran agents through a [simulated-budget eval](eval/v1/): real repo,

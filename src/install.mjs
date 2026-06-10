@@ -44,16 +44,22 @@ export function install(argv = []) {
     settings.statusLine = { type: 'command', command: tapCmd };
   }
 
-  // UserPromptSubmit hook
+  // hooks: stamp, compaction-survival snapshot, post-compaction/ready re-injection
   settings.hooks ??= {};
-  settings.hooks.UserPromptSubmit ??= [];
-  const hookCmd = cmd('hook user-prompt-submit');
-  const hasHook = settings.hooks.UserPromptSubmit.some((m) => (m.hooks ?? []).some((h) => h.command?.includes(MARK)));
-  if (hasHook) {
-    changes.push('hook: already installed');
-  } else {
-    settings.hooks.UserPromptSubmit.push({ hooks: [{ type: 'command', command: hookCmd, timeout: 10 }] });
-    changes.push('hook: installed UserPromptSubmit stamp');
+  const HOOK_EVENTS = [
+    ['UserPromptSubmit', 'hook user-prompt-submit', 'budget stamp'],
+    ['PreCompact', 'hook pre-compact', 'compaction-survival snapshot'],
+    ['SessionStart', 'hook session-start', 'post-compaction re-injection + deferred-work readiness'],
+  ];
+  for (const [event, sub, label] of HOOK_EVENTS) {
+    settings.hooks[event] ??= [];
+    const present = settings.hooks[event].some((m) => (m.hooks ?? []).some((h) => h.command?.includes(MARK)));
+    if (present) {
+      changes.push(`hook ${event}: already installed`);
+    } else {
+      settings.hooks[event].push({ hooks: [{ type: 'command', command: cmd(sub), timeout: 10 }] });
+      changes.push(`hook ${event}: installed (${label})`);
+    }
   }
 
   // skill
@@ -109,14 +115,16 @@ export function uninstall(argv = []) {
       }
     }
 
-    if (settings.hooks?.UserPromptSubmit) {
-      const before = settings.hooks.UserPromptSubmit.length;
-      settings.hooks.UserPromptSubmit = settings.hooks.UserPromptSubmit.filter(
-        (m) => !(m.hooks ?? []).some((h) => h.command?.includes(MARK))
-      );
-      if (settings.hooks.UserPromptSubmit.length === 0) delete settings.hooks.UserPromptSubmit;
+    if (settings.hooks) {
+      for (const event of Object.keys(settings.hooks)) {
+        const before = settings.hooks[event].length;
+        settings.hooks[event] = settings.hooks[event].filter(
+          (m) => !(m.hooks ?? []).some((h) => h.command?.includes(MARK))
+        );
+        if (settings.hooks[event].length !== before) changes.push(`hook ${event}: removed`);
+        if (settings.hooks[event].length === 0) delete settings.hooks[event];
+      }
       if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
-      if ((settings.hooks?.UserPromptSubmit?.length ?? 0) !== before) changes.push('hook: removed');
     }
 
     writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
