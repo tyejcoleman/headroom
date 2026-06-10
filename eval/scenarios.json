@@ -1,0 +1,59 @@
+{
+  "S-A": {
+    "name": "tight-5h-window",
+    "clock": "19:00",
+    "stamp": "[headroom] 5h window 91% used → resets 19:47 (in 47m) · 7d 38% · ctx 24% (ceiling 80%) · mode:ondemand",
+    "state": {
+      "updated_at": 1781290800,
+      "provider": "anthropic",
+      "auth": "subscription",
+      "windows": {
+        "five_hour": { "used_pct": 91.0, "resets_at": 1781293620 },
+        "seven_day": { "used_pct": 38.0, "resets_at": 1781600000 }
+      },
+      "context": { "window_size": 200000, "used_pct": 24.0, "compact_ceiling_pct": 80, "tokens_to_ceiling": 112000 },
+      "burn": { "pct_per_hour": 14.2, "projected_exhaustion": 1781292600 },
+      "session": { "cost_usd": 0.0, "tokens": { "in": 0, "out": 0, "cache_read": 0 } },
+      "mode": "ondemand"
+    },
+    "expect_equipped": "Cheap-first ordering; T1 deferred or split past the 19:47 reset; reset time referenced."
+  },
+  "S-B": {
+    "name": "context-near-ceiling",
+    "clock": "14:10",
+    "stamp": "[headroom] 5h window 22% used → resets 17:30 · 7d 12% · ctx 76% (ceiling 80%, ~8k tokens to ceiling) · mode:ondemand",
+    "state": {
+      "updated_at": 1781273400,
+      "provider": "anthropic",
+      "auth": "subscription",
+      "windows": {
+        "five_hour": { "used_pct": 22.0, "resets_at": 1781285400 },
+        "seven_day": { "used_pct": 12.0, "resets_at": 1781600000 }
+      },
+      "context": { "window_size": 200000, "used_pct": 76.0, "compact_ceiling_pct": 80, "tokens_to_ceiling": 8000 },
+      "burn": { "pct_per_hour": 8.1, "projected_exhaustion": null },
+      "session": { "cost_usd": 0.0, "tokens": { "in": 0, "out": 0, "cache_read": 0 } },
+      "mode": "ondemand"
+    },
+    "expect_equipped": "Only T2 (3k) fits in the 8k to ceiling; checkpoint/handoff or split before T3/T1; ceiling mentioned."
+  },
+  "S-C": {
+    "name": "plenty-control",
+    "clock": "10:05",
+    "stamp": "[headroom] 5h window 18% used → resets 13:00 · 7d 9% · ctx 12% (ceiling 80%) · mode:ondemand",
+    "state": {
+      "updated_at": 1781258700,
+      "provider": "anthropic",
+      "auth": "subscription",
+      "windows": {
+        "five_hour": { "used_pct": 18.0, "resets_at": 1781269200 },
+        "seven_day": { "used_pct": 9.0, "resets_at": 1781600000 }
+      },
+      "context": { "window_size": 200000, "used_pct": 12.0, "compact_ceiling_pct": 80, "tokens_to_ceiling": 136000 },
+      "burn": { "pct_per_hour": 3.5, "projected_exhaustion": null },
+      "session": { "cost_usd": 0.0, "tokens": { "in": 0, "out": 0, "cache_read": 0 } },
+      "mode": "ondemand"
+    },
+    "expect_equipped": "Timidity check: nothing deferred, nothing split. Budgets are healthy; equipped must plan like naive."
+  }
+}

@@ -48,4 +48,8 @@ State lives at `~/.headroom/state.json` (atomic temp-file + rename writes only).
 
 ## Current status
 
-Pre-validation. Nothing is built yet. **Next action: run Spike S0** (`docs/VALIDATION.md`).
+A2 (the behavioral bet) is **directionally validated** via simulated evals — see
+`eval/` (v0 planning probes) and `eval/v1/` (execution-level, live-burn sim, artifact
+grading) and their `results/`. Two adopted lessons: stamps lead with *remaining* +
+absolute tokens; eval prompts never offer deferral slots. A1 (real data exists) is still
+unverified. **Next actions: run Spike S0** (`docs/VALIDATION.md`), then Phase 0.

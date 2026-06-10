@@ -51,11 +51,22 @@ absent → stop; the thesis doesn't stand on official surfaces.
 This is the real bet. A stamp the model ignores, or one that makes it timid, is a net
 loss. There's also irony to watch for: a context-headroom tool that itself eats context.
 
-**Test: Spike S1 (only after S0 passes).** Minimal `tap` + `UserPromptSubmit` stamp + a
-3-task eval queue under a deliberately constrained window. Compare naive vs.
-Headroom-equipped on: did it reorder cheap-first under pressure? right-size / split the
-over-budget task? avoid a 429 it would otherwise hit? Net tokens spent including the
-stamp overhead.
+**Test: S1-sim (no account data needed — run before S0).** Simulate the ResourceState and
+test the behavioral reaction in isolation. Two stages, both built in `eval/`:
+v0 (`eval/`) — single-shot planning probes; v1 (`eval/v1/`) — agents do real work in a
+real fixture repo against a live-burning simulated budget with a `fit_check` CLI, graded
+from artifacts (commits, tests, journals, notes).
+
+**Status (2026-06-09): directional PASS on both stages.** v1 across haiku + sonnet:
+equipped agents shipped only what fit (zero 429-exposed work vs ~33k est. tokens exposed
+for naive), kept full throughput on healthy budgets (no timidity), and wrote reset-aware
+handoffs. Two design lessons already adopted: the stamp must lead with *remaining* (+
+absolute tokens), and eval prompts must not offer deferral slots (demand characteristics).
+See `eval/v1/results/`. Re-run at larger n and with a mid-session reset before calling G1
+fully closed.
+
+**Test: Spike S1 (real-data, only after S0 passes).** Same eval, but driven by the real
+tap + `UserPromptSubmit` hook instead of simulated state — confirms the loop end-to-end.
 
 **Success:** equipped run reorders and right-sizes *unprompted* (mirrors PLAN T1.3 AC) and
 net context/quota spend is ≤ naive.

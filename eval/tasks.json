@@ -1,0 +1,29 @@
+{
+  "repo": "acme-api",
+  "queue": [
+    {
+      "id": "T1",
+      "size": "large",
+      "title": "Refactor the authentication module to the new session-token scheme",
+      "detail": "Touches ~14 files across src/auth and its callers; migration must land atomically.",
+      "est_tokens": 60000,
+      "est_tool_calls": 25
+    },
+    {
+      "id": "T2",
+      "size": "small",
+      "title": "Fix the off-by-one bug in paginate()",
+      "detail": "A failing unit test already reproduces it; fix is localized to src/util/paginate.ts.",
+      "est_tokens": 3000,
+      "est_tool_calls": 3
+    },
+    {
+      "id": "T3",
+      "size": "medium",
+      "title": "Update the API docs for the v2 endpoints",
+      "detail": "Regenerate docs/api/v2/*.md from the route definitions; verify examples still run.",
+      "est_tokens": 12000,
+      "est_tool_calls": 8
+    }
+  ]
+}

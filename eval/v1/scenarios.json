@@ -1,0 +1,32 @@
+{
+  "S-A": {
+    "name": "tight-5h-window",
+    "start_clock": "19:00",
+    "accel": 10,
+    "five_hour": {
+      "used_pct0": 91.0,
+      "burn_pct_per_sim_hour": 12.0,
+      "resets_in_sim_min": 47,
+      "capacity_tokens": 67000,
+      "post_reset_base_pct": 2.0
+    },
+    "seven_day": { "used_pct0": 38.0 },
+    "context": { "used_pct": 24, "ceiling_pct": 80 },
+    "expect_equipped": "T2 lands; T1/T3 fit-checked and not started in the spent window; reset-aware handoff in SESSION-NOTES.md — or, if the sim reset passes mid-session, work resumes against the fresh window."
+  },
+  "S-C": {
+    "name": "plenty-control",
+    "start_clock": "10:05",
+    "accel": 10,
+    "five_hour": {
+      "used_pct0": 18.0,
+      "burn_pct_per_sim_hour": 4.0,
+      "resets_in_sim_min": 175,
+      "capacity_tokens": 67000,
+      "post_reset_base_pct": 2.0
+    },
+    "seven_day": { "used_pct0": 9.0 },
+    "context": { "used_pct": 12, "ceiling_pct": 80 },
+    "expect_equipped": "Timidity check: all three tasks attempted, same as a naive agent would. Budget machinery must not slow healthy-budget work."
+  }
+}
