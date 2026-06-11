@@ -144,7 +144,7 @@ export async function hookPostToolUse() {
     }
     if (ctxLeft != null && ctxBand > prev.ctx) {
       parts.push(
-        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — save a checkpoint NOW via the headroom \`checkpoint\` tool (task, state, decisions, ruled-out approaches, exact next steps); it will be re-injected to you after compaction`
+        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — save a checkpoint NOW via the headroom \`checkpoint\` tool (task, state, decisions, ruled-out approaches, exact next steps), then KEEP WORKING: compaction happens automatically and your checkpoint + ground truth will be re-injected after it. Do NOT stop to wait — no clock restores context; only compaction or /clear change it`
       );
     }
 
@@ -266,11 +266,12 @@ export async function hookUserPromptSubmit() {
   const fh = s.windows?.five_hour;
   const sd = s.windows?.seven_day;
   const ctx = foreign ? null : s.context;
+  // Two field-observed conflations (2026-06-10, twice) drove this format: agents read
+  // quota tokens/reset clocks as CONTEXT that "comes back at HH:MM". It never does.
+  // Explicit "quota —/context —" labels + the contrast clause, probe-validated
+  // (eval/v3-wording results: both disambiguated cells cited the clause as decisive).
   if (fh?.used_pct != null) {
-    let seg = `5h: ${Math.round(100 - fh.used_pct)}% left`;
-    // "tokens of quota", not "tokens": a bare token count next to a reset clock reads as
-    // a CONTEXT pool that refills at that time (field-observed conflation, 2026-06-10 —
-    // an agent deferred reading work to a rate-limit reset expecting fresh context)
+    let seg = `quota — 5h: ${Math.round(100 - fh.used_pct)}% left`;
     if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)`;
     if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
     const band = s.burn?.exhaustion_band;
@@ -283,10 +284,11 @@ export async function hookUserPromptSubmit() {
     parts.push(seg);
   }
   if (sd?.used_pct != null) parts.push(`7d: ${Math.round(100 - sd.used_pct)}% left`);
+  const hadWindow = parts.length > 0;
   if (ctx?.tokens_to_ceiling != null) {
-    parts.push(`ctx: ~${fmtTokens(ctx.tokens_to_ceiling)} tokens before compaction`);
+    parts.push(`context — ~${fmtTokens(ctx.tokens_to_ceiling)} tokens before compaction${hadWindow ? ' (quota resets do NOT restore context)' : ''}`);
   } else if (ctx?.used_pct != null) {
-    parts.push(`ctx: ${Math.max(0, Math.round((ctx.compact_ceiling_pct ?? 80) - ctx.used_pct))}% left before compaction`);
+    parts.push(`context — ${Math.max(0, Math.round((ctx.compact_ceiling_pct ?? 80) - ctx.used_pct))}% left before compaction${hadWindow ? ' (quota resets do NOT restore context)' : ''}`);
   }
   const plan = readResume();
   if (plan?.resume_at && Date.now() / 1000 >= plan.resume_at) {

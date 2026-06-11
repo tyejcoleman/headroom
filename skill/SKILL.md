@@ -16,6 +16,19 @@ prompts when the headroom collector is installed:
 
 All percentages in stamps and tools are **remaining**, never used.
 
+## How these budgets actually behave (do not conflate them)
+
+- **Quota** (the 5h/7d windows) is account-level spend. It refills ONLY at its reset
+  clock. Low quota → defer heavy work past the reset (`plan_resume`).
+- **Context** is this session's working memory. **No clock refills it — waiting does
+  nothing.** It changes only when compaction fires (automatic, near the ceiling) or the
+  user runs /clear. Low context → save a `checkpoint`, then KEEP WORKING: compaction is
+  automatic and survivable — headroom re-injects your checkpoint, repo ground truth, and
+  pins immediately after it.
+- Never stop to "wait for context to come back at the reset" — that waits for the wrong
+  resource and wastes wall-clock. If a fresh context window would genuinely help the next
+  phase, ask the user to run /compact at a clean boundary; you cannot trigger it yourself.
+
 ## Before any sizable task
 
 1. Estimate its cost. Rough priors: small localized fix ~3k tokens; medium task (docs

@@ -121,7 +121,7 @@ of the result.
 new quota token annotation as a context pool that "resets at 21:10". 4-cell probe did NOT
 reproduce it on the current model tier with ctx present; shipped the minimal fix
 (`tokens of quota`, +3 tokens) rather than the full relabel the evidence doesn't justify.
-Soak-week watch item: any recurrence escalates to a weaker-model probe matrix.
+Soak-week watch item fired SAME DAY (second sighting: agent planned to resume-at-reset for context): full relabel + boundary coaching + skill mental-model section shipped — see the probe results file's escalation section. Weaker-model matrix still pending.
 
 **G2 large-fixture (2026-06-10, `eval/v2-continuity/results/2026-06-10-large-fixture.md`):
 honest null on outcome.** Both naive and equipped landed the full 4-file atomic migration

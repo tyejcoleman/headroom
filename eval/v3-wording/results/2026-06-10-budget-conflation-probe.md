@@ -35,3 +35,20 @@ three tokens, removes the "token pool" misread at its source, and survives the
 ctx-omitted shape where the risk concentrates. Watch item for the soak week: any further
 sighting of clock-based context expectations escalates to the full relabel + a
 weaker-model probe matrix.
+
+## ESCALATION EXECUTED — second wild sighting, same day
+
+A second live agent (different project) wrote *"Context is near the compaction boundary…
+Resuming at 21:10 when the window resets"* — clock-based context expectation, the
+pre-registered escalation trigger. Notably it HAD saved a checkpoint (the survival
+machinery is being adopted); the mental model was the failure. Shipped per the trigger:
+
+1. Full stamp relabel: `quota — 5h: …` / `context — … (quota resets do NOT restore
+   context)` — the probe-validated B wording (both B cells passed and cited the clause).
+2. ctx band mid-task update now coaches THROUGH the boundary: checkpoint, then KEEP
+   WORKING — compaction is automatic and survivable; no clock restores context.
+3. Skill gains "How these budgets actually behave": quota refills at its clock; context
+   never does; never wait for context; ask the user for /compact at a clean boundary if
+   a fresh window genuinely helps (agents cannot trigger compaction — no official surface).
+
+Remaining open item: weaker-model probe matrix for the new wording (post-soak).

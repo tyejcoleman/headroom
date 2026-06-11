@@ -42,7 +42,7 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   assert.equal(r.status, 0);
   const out = JSON.parse(r.stdout);
   const stamp = out.hookSpecificOutput.additionalContext;
-  assert.match(stamp, /^\[headroom\] 5h: 58% left/);
+  assert.match(stamp, /^\[headroom\] quota — 5h: 58% left/);
   assert.match(stamp, /7d: 85% left/);
   assert.match(stamp, /tokens before compaction/);
   assert.ok(stamp.length < 220, `stamp too long: ${stamp.length}`);
@@ -62,7 +62,7 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   const r2 = run(['hook', 'user-prompt-submit'], { input: '{"session_id":"some-other-session"}', env: { HEADROOM_DIR: dir } });
   const stamp2 = JSON.parse(r2.stdout).hookSpecificOutput.additionalContext;
   assert.match(stamp2, /5h: 58% left/);
-  assert.doesNotMatch(stamp2, /ctx:/);
+  assert.doesNotMatch(stamp2, /context/); // foreign session: context omitted entirely
 
   // fresh stamp has no age marker; aging (but not stale) state discloses its age
   assert.doesNotMatch(stamp2, /m old\)/);
