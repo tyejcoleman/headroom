@@ -475,3 +475,15 @@ test('stamp: quota tokens are labeled "of quota" — never a bare token pool nex
   assert.match(stamp, /\(≈858k tokens of quota\)/);
   assert.doesNotMatch(stamp, /tokens\), resets/); // the confusable shape must not exist
 });
+
+test('release preflight: offline checks run and validate this repo coherently', { skip: !!process.env.HEADROOM_PREFLIGHT }, () => {
+  const r = spawnSync(process.execPath, [join(root, 'scripts', 'release-preflight.mjs'), '--offline'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.match(r.stdout, /CHANGELOG has a dated section/);
+  assert.match(r.stdout, /tarball scoped to bin\/src\/skill\/schema/);
+  assert.match(r.stdout, /test suite green/);
+  // tag v0.3.0 exists at some commit; preflight must classify it, never crash
+  assert.match(r.stdout, /tag v\d+\.\d+\.\d+/);
+});
