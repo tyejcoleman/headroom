@@ -553,3 +553,28 @@ test('reset crossing: dead-window data is reported as FRESH quota, never as dry'
   assert.equal(fit.window.basis, 'window-reset');
   delete process.env.HEADROOM_DIR;
 });
+
+test('receipts: baseline from a previous window never produces a delta', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-xwin-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'w1',
+      windows: { five_hour: { used_pct: 76, resets_at: now + 4 * 3600 } }, // window started ~1h ago
+      context: null,
+      burn: {},
+      session: { cost_usd: 50 },
+    })
+  );
+  // baseline sampled 6h ago — a DIFFERENT window (u=12 then would read as +64 now)
+  writeFileSync(
+    join(dir, 'bands.json'),
+    JSON.stringify({ w1: { fh: 0, ctx: 0, exh: false, at: 0, u: 12, c: 10, t: now - 6 * 3600 } })
+  );
+  const out = run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'w1' }), env }).stdout;
+  assert.doesNotMatch(out, /receipt/); // rebaselined silently, no phantom 64% bill
+});

@@ -106,8 +106,12 @@ export async function hookPostToolUse() {
     // rare; window % is account-level, so a concurrent session's burn can co-attribute
     // (acceptable at a ≥2-point floor; exact attribution lands with T2.1 flow).
     const receipts = [];
-    const du = fhUsed != null && prev.u != null ? fhUsed - prev.u : null;
-    const dc = cost != null && prev.c != null ? cost - prev.c : null;
+    // a baseline sampled in a PREVIOUS window makes deltas meaningless (field 2026-06-11:
+    // a false "≈64%" receipt spanned the overnight reset) — rebaseline, no receipt
+    const windowStart = s.windows?.five_hour?.resets_at ? s.windows.five_hour.resets_at - 5 * 3600 : null;
+    const sameWindow = !(windowStart && (prev.t ?? 0) < windowStart);
+    const du = sameWindow && fhUsed != null && prev.u != null ? fhUsed - prev.u : null;
+    const dc = sameWindow && cost != null && prev.c != null ? cost - prev.c : null;
     if ((du != null && du >= prof.receipt_pct_floor) || (dc != null && dc >= prof.receipt_cost_floor)) {
       let r = `receipt: that ${p.tool_name ?? 'operation'} cost ≈`;
       r += du != null && du >= prof.receipt_pct_floor ? `${Math.round(du)}% of the 5h window` : `$${dc.toFixed(2)}`;
