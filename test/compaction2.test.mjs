@@ -389,6 +389,8 @@ test('T2.14: launch gate denies expensive launches only when window says defer �
   assert.match(denied, /launch gate/);
   assert.match(denied, /plan_resume/);
   assert.equal(pre('Bash'), ''); // cheap tools never gated
+  writeFileSync(join(dir, 'state.json'), state(96)); // 4% left: descent — indivisible launches denied
+  assert.match(pre('Task'), /"permissionDecision":"deny"/);
   writeFileSync(join(dir, 'state.json'), state(50)); // healthy window
   assert.equal(pre('Task'), '');
   writeFileSync(join(dir, 'state.json'), 'garbage'); // broken state → fail open

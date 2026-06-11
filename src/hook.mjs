@@ -136,7 +136,13 @@ export async function hookPostToolUse() {
     const parts = [];
     if (fhLeft != null && fhBand > prev.fh) {
       // advice keyed to the absolute level, not the band index — bands vary by mode
-      const advice = fhLeft <= 5 ? 'stop new work; checkpoint and defer' : fhLeft <= 10 ? 'finish at a clean boundary; defer heavy work (plan_resume)' : 're-check that remaining work fits; defer what does not';
+      // descent profile: work all the way down, but shrink work DIVISIBILITY with quota
+      const advice =
+        fhLeft <= 5
+          ? 'finishing moves only: commit in-flight work, checkpoint, plan_resume the rest — start nothing new'
+          : fhLeft <= 10
+            ? 'descend: small atomic steps only — no new subagents or long tasks, commit each piece at a clean boundary, defer the indivisible (plan_resume)'
+            : 're-check that remaining work fits; defer what does not';
       const estTok = s.burn?.est_tokens_left != null ? ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)` : '';
       parts.push(`5h window now ${Math.round(fhLeft)}% left${estTok}${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
@@ -189,7 +195,10 @@ export async function hookPreToolUse() {
     if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) return;
     const { fitCheck } = await import('./fit.mjs');
     const fit = fitCheck(s, { est_tokens: 40000 }); // conservative launch-sized estimate
-    if (fit?.window?.verdict !== 'defer') return;
+    const fhLeft = s.windows?.five_hour?.used_pct != null ? 100 - s.windows.five_hour.used_pct : null;
+    // deny at defer, and in late descent (≤5% left): an expensive launch is INDIVISIBLE —
+    // it cannot be checkpointed mid-flight, so a dying window wastes the whole bet
+    if (fit?.window?.verdict !== 'defer' && !(fhLeft != null && fhLeft <= 5)) return;
     logEvent({ type: 'launch_blocked', session_id: p.session_id ?? null, tool: p.tool_name });
     const resets = s.windows?.five_hour?.resets_at;
     process.stdout.write(

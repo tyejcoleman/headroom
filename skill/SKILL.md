@@ -49,6 +49,16 @@ During long multi-step work a `[headroom] mid-task update` may arrive after a to
 — it means a budget crossed a threshold *while you were working*. Treat it as a
 re-planning point: re-check fit, land at a clean boundary, or defer (`plan_resume`).
 
+## The endgame: a descent profile, not a stop sign
+
+Use the window all the way down — what changes is work DIVISIBILITY, not whether you work:
+**5–10% left:** descend — no new subagents, workflows, or long indivisible tasks (if quota
+dies mid-flight the whole bet is lost); small atomic steps, commit each one, keep the
+checkpoint fresh. **2–5%:** approach — finishing moves only (complete the in-flight edit,
+test, commit, `plan_resume` the rest). **≤2%:** land — start nothing; final commit +
+checkpoint + defer note. This is quota-tiredness (recoverable at the reset clock) — it is
+NOT context-tiredness (recoverable only via compaction); do not confuse the remedies.
+
 ## Under window pressure (≲10% left)
 
 - Reorder the queue cheap-first; ship small certain wins before big uncertain ones.
