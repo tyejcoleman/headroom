@@ -69,6 +69,21 @@ export function modeProfile(mode) {
   }
 }
 
+/** True (returning the reset clock) when window data was written BEFORE a reset that
+ *  has since passed — the figures are not stale, they are WRONG-SIGNED (a "7% left"
+ *  written at 21:05 is a lie at 21:15 if the window reset at 21:10). Field 2026-06-10:
+ *  an agent planned an entire turn around "nearly dry" minutes after a reset to 96%. */
+export function crossedReset(state, nowSec = Date.now() / 1000) {
+  const r = state?.windows?.five_hour?.resets_at;
+  // ANY resets_at in the past = dead-window data: real post-reset payloads always carry
+  // the NEXT reset clock. Covers both shapes: state.json written before the reset, AND
+  // state.json freshly overwritten by an idle session re-rendering stale payload data
+  // (field 2026-06-10: a "≈85% receipt / 6% left, resets 21:10" fired at 21:4x while the
+  // true window was 95% — shape 2, caught live minutes after shape 1 was fixed).
+  if (r && nowSec >= r) return r;
+  return null;
+}
+
 export function readConfig() {
   return {
     stamp_enabled: true,

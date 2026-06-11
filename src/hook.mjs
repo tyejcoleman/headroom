@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readState } from './state.mjs';
-import { readConfig, modeProfile, fmtClock, fmtTokens, headroomDir, readJSON, atomicWriteJSON, ensureDir } from './util.mjs';
+import { readConfig, modeProfile, fmtClock, fmtTokens, headroomDir, readJSON, atomicWriteJSON, ensureDir, crossedReset } from './util.mjs';
 import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
 import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
@@ -78,6 +78,7 @@ export async function hookPostToolUse() {
     if (!s || now - s.updated_at > 5 * 60) return;
     const mySession = p.session_id ?? 'unknown';
 
+    if (crossedReset(s, now)) return; // window data predates a passed reset — wrong-signed, not stale
     const fhLeft = s.windows?.five_hour?.used_pct != null ? 100 - s.windows.five_hour.used_pct : null;
     const fhBand = fhLeft != null ? bandOf(fhLeft, prof.fh_bands) : 0;
     // context is session-scoped (ADR-7): ignore another session's numbers
@@ -286,7 +287,12 @@ export async function hookUserPromptSubmit() {
   // quota tokens/reset clocks as CONTEXT that "comes back at HH:MM". It never does.
   // Explicit "quota —/context —" labels + the contrast clause, probe-validated
   // (eval/v3-wording results: both disambiguated cells cited the clause as decisive).
-  if (fh?.used_pct != null) {
+  const resetAt = crossedReset(s);
+  if (resetAt) {
+    parts.push(
+      `quota — the 5h window RESET at ${fmtClock(resetAt)}: quota is FRESH (effectively full). Earlier figures in this conversation and any "nearly dry" warnings predate the reset — disregard them; exact numbers arrive with the next statusline render`
+    );
+  } else if (fh?.used_pct != null) {
     let seg = `quota — 5h: ${Math.round(100 - fh.used_pct)}% left`;
     if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)`;
     if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;

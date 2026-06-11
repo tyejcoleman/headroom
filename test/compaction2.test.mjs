@@ -520,3 +520,36 @@ test('stamp discloses concurrent sessions sharing the account window', () => {
     .hookSpecificOutput.additionalContext;
   assert.match(stamp, /3 sessions sharing this quota/);
 });
+
+test('reset crossing: dead-window data is reported as FRESH quota, never as dry', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-reset-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  // shape 2 (the worse one): state freshly written but resets_at already passed
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'rx',
+      windows: { five_hour: { used_pct: 94, resets_at: now - 300 } },
+      context: null,
+      burn: { projected_exhaustion: now + 60 },
+      session: {},
+    })
+  );
+  const stamp = JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'rx' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(stamp, /RESET at .*quota is FRESH/);
+  assert.doesNotMatch(stamp, /6% left|94/);
+  // mid-turn hook stays silent on dead-window data (no false receipts/bands)
+  run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'rx' }), env });
+  assert.equal(run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'rx' }), env }).stdout, '');
+  // fit_check reports fresh, not defer
+  process.env.HEADROOM_DIR = dir;
+  const { fitCheck } = await import('../src/fit.mjs');
+  const fit = fitCheck(JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8')), { est_tokens: 50000 });
+  assert.equal(fit.window.verdict, 'fits');
+  assert.equal(fit.window.basis, 'window-reset');
+  delete process.env.HEADROOM_DIR;
+});

@@ -1,4 +1,4 @@
-import { fmtClock, fmtTokens, fmtDelta } from './util.mjs';
+import { fmtClock, fmtTokens, fmtDelta, crossedReset } from './util.mjs';
 
 /**
  * One-line human HUD for the statusline. Conventions (all field-tested):
@@ -15,7 +15,10 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   const ctx = state.context;
 
   // primary quota needs no label — leading position + the ↻ reset clock say what it is
-  if (fh?.used_pct != null) {
+  const resetAt = crossedReset(state, nowSec);
+  if (resetAt) {
+    parts.push(`window reset ${fmtClock(resetAt)} — fresh quota`);
+  } else if (fh?.used_pct != null) {
     let seg = `${Math.round(100 - fh.used_pct)}% left`;
     if (state.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(state.burn.est_tokens_left)})`;
     if (fh.resets_at) seg += ` ↻${fmtClock(fh.resets_at)}`;
@@ -56,7 +59,9 @@ export function renderLine(state, resume = null, nowSec = Date.now() / 1000) {
 
   const parts = [];
   const fh = state.windows?.five_hour;
-  if (fh?.used_pct != null) {
+  if (crossedReset(state, nowSec)) {
+    parts.push('5h reset — fresh');
+  } else if (fh?.used_pct != null) {
     parts.push(`5h ${Math.round(100 - fh.used_pct)}%${fh.resets_at ? ` ↻${fmtDelta(fh.resets_at - nowSec)}` : ''}`);
   }
   const sd = state.windows?.seven_day;

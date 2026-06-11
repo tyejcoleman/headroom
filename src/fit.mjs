@@ -1,3 +1,5 @@
+import { crossedReset } from './util.mjs';
+
 const RANK = { fits: 0, tight: 1, exceeds: 2, defer: 2 };
 
 /**
@@ -20,7 +22,10 @@ export function fitCheck(state, { est_tokens, est_calls } = {}, nowSec = Date.no
   }
 
   const fh = state?.windows?.five_hour;
-  if (fh?.used_pct != null) {
+  if (fh?.used_pct != null && crossedReset(state, nowSec)) {
+    out.window = { verdict: 'fits', pct_left: null, resets_at: fh.resets_at ?? null, minutes_to_reset: 0, basis: 'window-reset' };
+    out.advice.push('The 5h window has RESET since this data was written — quota is fresh; disregard earlier "nearly dry" figures.');
+  } else if (fh?.used_pct != null) {
     const pctLeft = 100 - fh.used_pct;
     const minutesToReset = fh.resets_at ? Math.max(0, Math.round((fh.resets_at - nowSec) / 60)) : null;
     let verdict = pctLeft <= 2 ? 'defer' : pctLeft <= 10 ? 'tight' : 'fits';
