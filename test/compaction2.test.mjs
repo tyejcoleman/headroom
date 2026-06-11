@@ -487,3 +487,34 @@ test('release preflight: offline checks run and validate this repo coherently', 
   // tag v0.3.0 exists at some commit; preflight must classify it, never crash
   assert.match(r.stdout, /tag v\d+\.\d+\.\d+/);
 });
+
+test('stamp discloses concurrent sessions sharing the account window', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-multi-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'me',
+      windows: { five_hour: { used_pct: 50, resets_at: now + 3600 } },
+      context: null,
+      burn: {},
+      session: {},
+    })
+  );
+  // two other sessions touched their band entries recently; one is ancient
+  writeFileSync(
+    join(dir, 'bands.json'),
+    JSON.stringify({
+      me: { fh: 0, ctx: 0, exh: false, at: 0, t: now },
+      other1: { fh: 0, ctx: 0, exh: false, at: 0, t: now - 60 },
+      other2: { fh: 1, ctx: 0, exh: false, at: 0, t: now - 600 },
+      ghost: { fh: 0, ctx: 0, exh: false, at: 0, t: now - 7200 },
+    })
+  );
+  const stamp = JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'me' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(stamp, /3 sessions sharing this quota/);
+});

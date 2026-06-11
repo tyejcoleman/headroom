@@ -137,10 +137,17 @@ export async function hookPostToolUse() {
     if (fhLeft != null && fhBand > prev.fh) {
       // advice keyed to the absolute level, not the band index — bands vary by mode
       const advice = fhLeft <= 5 ? 'stop new work; checkpoint and defer' : fhLeft <= 10 ? 'finish at a clean boundary; defer heavy work (plan_resume)' : 're-check that remaining work fits; defer what does not';
-      parts.push(`5h window now ${Math.round(fhLeft)}% left${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
+      const estTok = s.burn?.est_tokens_left != null ? ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)` : '';
+      parts.push(`5h window now ${Math.round(fhLeft)}% left${estTok}${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
     if (exh && !prev.exh) {
-      parts.push(`at current burn may exhaust ~${fmtClock(s.burn.projected_exhaustion)}, before the reset — land at a clean boundary or defer now`);
+      const est = s.burn?.est_tokens_left;
+      parts.push(
+        `at current burn may exhaust ~${fmtClock(s.burn.projected_exhaustion)}, before the reset — ` +
+          (est != null && est > 100000
+            ? `but ≈${fmtTokens(est)} tokens of quota remain (hours of normal work): keep working, right-size new tasks to fit before the reset, defer only what does not`
+            : `right-size: finish in-flight work at a clean boundary; defer heavy new work (plan_resume)`)
+      );
     }
     if (ctxLeft != null && ctxBand > prev.ctx) {
       parts.push(
@@ -284,6 +291,17 @@ export async function hookUserPromptSubmit() {
     parts.push(seg);
   }
   if (sd?.used_pct != null) parts.push(`7d: ${Math.round(100 - sd.used_pct)}% left`);
+  // the 5h window is ACCOUNT-level: other open sessions burn it too. Sessions whose
+  // hooks touched bands.json recently are live burners — disclose them (field 2026-06-10:
+  // a 29-point single-call "receipt" was a concurrent session's burn, co-attributed).
+  try {
+    const bands = readJSON(join(headroomDir(), 'bands.json')) ?? {};
+    const nowSec = Date.now() / 1000;
+    const others = Object.entries(bands).filter(([k, v]) => k !== (mySession ?? 'unknown') && nowSec - (v.t ?? 0) < 30 * 60).length;
+    if (others > 0) parts.push(`${others + 1} sessions sharing this quota — leave extra margin`);
+  } catch {
+    // disclosure is best-effort
+  }
   const hadWindow = parts.length > 0;
   if (ctx?.tokens_to_ceiling != null) {
     parts.push(`context — ~${fmtTokens(ctx.tokens_to_ceiling)} tokens before compaction${hadWindow ? ' (quota resets do NOT restore context)' : ''}`);

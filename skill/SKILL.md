@@ -57,6 +57,9 @@ re-planning point: re-check fit, land at a clean boundary, or defer (`plan_resum
   one-to-two-sentence summary of what to resume and where to pick it up (plus `est_tokens`).
   Headroom shows a countdown in the HUD and flags readiness in prompt stamps after the reset.
 - If the window resets while you're working, capacity is fresh — re-check and use it.
+- **Quota is shared across every open session on this account.** When the stamp says
+  "N sessions sharing this quota", divide your mental margin by N: another session can
+  consume what you were counting on, and projections cannot see its next burst.
 
 ## Deferred work lifecycle
 
@@ -102,6 +105,12 @@ not general context.
 
 Work normally. **Never defer, shrink, or hedge out of caution when the stamp shows
 plenty** — the budget layer exists to prevent waste, not to slow you down.
+
+**A low percentage is NOT a stop sign — check the absolute tokens.** ≈100k+ tokens of
+quota is hours of normal work: keep working on right-sized tasks until the *tokens* run
+out, not the percentage. Stopping at 14% wastes exactly the capacity this layer exists
+to use. Stop or defer only when `fit_check` says defer, the work at hand genuinely will
+not fit before the reset, or quota is truly nearly dry (≲5%).
 
 ## Honesty rules
 
