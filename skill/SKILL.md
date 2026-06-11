@@ -67,9 +67,11 @@ NOT context-tiredness (recoverable only via compaction); do not confuse the reme
   one-to-two-sentence summary of what to resume and where to pick it up (plus `est_tokens`).
   Headroom shows a countdown in the HUD and flags readiness in prompt stamps after the reset.
 - If the window resets while you're working, capacity is fresh — re-check and use it.
-- **Quota is shared across every open session on this account.** When the stamp says
-  "N sessions sharing this quota", divide your mental margin by N: another session can
-  consume what you were counting on, and projections cannot see its next burst.
+- **Quota is shared across every open session on this account — and the numbers already
+  include everyone.** The percentages and burn projections are account-level, so do NOT
+  divide your margin by N (that double-counts). What concurrency adds is BURSTINESS:
+  another session can spend a chunk suddenly. Response: re-check the stamp more often
+  and keep individual work units atomic — not "stop earlier".
 
 ## Deferred work lifecycle
 
@@ -115,6 +117,10 @@ not general context.
 
 Work normally. **Never defer, shrink, or hedge out of caution when the stamp shows
 plenty** — the budget layer exists to prevent waste, not to slow you down.
+
+**Pausing at 15–30% with 100k+ tokens left is a FAILURE MODE, not prudence** — it wastes
+exactly the capacity this layer exists to use. The only legitimate pause triggers:
+`fit_check` says defer, quota ≲5%, or the work at hand cannot be made atomic.
 
 **A low percentage is NOT a stop sign — check the absolute tokens.** ≈100k+ tokens of
 quota is hours of normal work: keep working on right-sized tasks until the *tokens* run

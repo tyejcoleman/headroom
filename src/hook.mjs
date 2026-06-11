@@ -143,7 +143,7 @@ export async function hookPostToolUse() {
           ? 'finishing moves only: commit in-flight work, checkpoint, plan_resume the rest — start nothing new'
           : fhLeft <= 10
             ? 'descend: small atomic steps only — no new subagents or long tasks, commit each piece at a clean boundary, defer the indivisible (plan_resume)'
-            : 're-check that remaining work fits; defer what does not';
+            : 'plenty remains — keep working; just check that big new tasks fit before the reset';
       const estTok = s.burn?.est_tokens_left != null ? ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)` : '';
       parts.push(`5h window now ${Math.round(fhLeft)}% left${estTok}${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
@@ -313,7 +313,7 @@ export async function hookUserPromptSubmit() {
     const bands = readJSON(join(headroomDir(), 'bands.json')) ?? {};
     const nowSec = Date.now() / 1000;
     const others = Object.entries(bands).filter(([k, v]) => k !== (mySession ?? 'unknown') && nowSec - (v.t ?? 0) < 30 * 60).length;
-    if (others > 0) parts.push(`${others + 1} sessions sharing this quota — leave extra margin`);
+    if (others > 0) parts.push(`${others + 1} sessions sharing this quota (their burn is already included in these figures — do not re-discount; just expect bursts and re-check more often)`);
   } catch {
     // disclosure is best-effort
   }
