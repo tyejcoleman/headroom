@@ -14,7 +14,7 @@ headlessly. *Why:* the project's credibility — and its users' accounts — dep
 **Enforced by:** gates G3/G4; review.
 
 ## ADR-2 — Zero-dependency single package
-Plain ESM, `node:` builtins only, no build step, one npm package (`headroom-cc`). *Why:*
+Plain ESM, `node:` builtins only, no build step, one npm package (`headroom-harness`). *Why:*
 a tool that wires into people's harness must be auditable in one sitting and npx-able;
 supply-chain surface stays zero. The original TS/pnpm monorepo plan was deliberately
 dropped (2026-06-09). **Enforced by:** gates G1/G2.

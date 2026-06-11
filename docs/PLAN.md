@@ -7,7 +7,7 @@ Conventions: every task carries acceptance criteria (AC). Hard rule across all p
 ## Phase 0 — Foundation (days 1–2) — ✅ shipped 2026-06-09
 
 > **Implementation note:** shipped as a single **zero-dependency** npm package
-> (`headroom-cc`, plain ESM + `node:test`) instead of the TS/pnpm monorepo — npx-able,
+> (`headroom-harness`, plain ESM + `node:test`) instead of the TS/pnpm monorepo — npx-able,
 > auditable, no build step. Revisit a split only if the package grows real dependencies.
 
 - [x] **T0.1 Repo scaffold.** ~~TypeScript monorepo~~ → single zero-dep package: `bin/`, `src/`, `skill/`, `schema/`, `test/`. AC met: tests run in CI (GitHub Actions, node 18/20/22 × linux/macOS).
@@ -19,7 +19,7 @@ Conventions: every task carries acceptance criteria (AC). Hard rule across all p
 - [x] **T1.1 `headroom-mcp`.** stdio MCP server (hand-rolled newline-delimited JSON-RPC, zero-dep), read-only over `state.json`. Tools: `resource_state`, `estimate_remaining`, `fit_check({est_tokens, est_calls})` → `fits | tight | exceeds | defer`. AC met: registered via `claude mcp add` by the installer; no writes, no network; round-trip tested.
 - [x] **T1.2 Push injection.** `UserPromptSubmit` hook returns an `additionalContext` stamp — **remaining-first wording** (eval v0 found "X% used" gets misread): `[headroom] 5h: 58% left, resets 14:00 · 7d: 85% left · ctx: ~38k tokens before compaction`. AC met: ≤40 tokens (length-tested); silent when stale/missing/disabled (`HEADROOM_DISABLE=1` or config).
 - [x] **T1.3 SKILL.md v1.** Policies: size-to-fit against both budgets (fit_check verdict table); cheap-first under pressure; batch tool calls; defer-past-reset with a named resume time; checkpoint before the ceiling; compress-don't-reread; anti-timidity clause. AC met ahead of build: the scripted eval exists (`eval/v1/`) and this policy passed it on two models (zero 429-exposed work; no timidity) — see `eval/v1/results/`.
-- [x] **T1.4 Installer.** `headroom install`: sets the statusline command, registers the MCP server, hook, and skill; idempotent; `uninstall` restores any pre-existing statusline from backup. AC met: sandbox-tested (double-install safe; uninstall leaves no trace). npm publish as `headroom-cc` pending → then `npx headroom-cc install`.
+- [x] **T1.4 Installer.** `headroom install`: sets the statusline command, registers the MCP server, hook, and skill; idempotent; `uninstall` restores any pre-existing statusline from backup. AC met: sandbox-tested (double-install safe; uninstall leaves no trace). npm publish as `headroom-harness` pending → then `npx headroom-harness install`.
 
 ## Phase 2 — Planner & checkpointing (weeks 2–3)
 

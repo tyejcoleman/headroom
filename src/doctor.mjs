@@ -32,7 +32,7 @@ export function doctor(argv = []) {
   const major = Number(process.versions.node.split('.')[0]);
   major >= 18 ? ok(`node ${process.versions.node}`) : bad(`node ${process.versions.node} — headroom needs ≥18`);
   pkgRoot.includes('/_npx/') || pkgRoot.includes('\\_npx\\')
-    ? bad('running from the npx cache — installed paths will evaporate', 'npm install -g headroom-cc, or run from a clone')
+    ? bad('running from the npx cache — installed paths will evaporate', 'npm install -g headroom-harness, or run from a clone')
     : ok(`install location is durable (${pkgRoot})`);
 
   // settings.json wiring

@@ -15,6 +15,6 @@ Cut a release. Follow exactly; stop and report at any failed gate.
    tag == package.json version, publishes to npm with provenance (NPM_TOKEN repo secret),
    and cuts a GitHub release from the matching CHANGELOG section. Watch it:
    `gh run watch $(gh run list --workflow release --limit 1 --json databaseId -q '.[0].databaseId')`.
-6. **Post-publish smoke:** `npm view headroom-cc version` shows the new version; in a temp
-   dir, `npm i -g headroom-cc && headroom install --dry-run` shows sane paths (NOT an npx
+6. **Post-publish smoke:** `npm view headroom-harness version` shows the new version; in a temp
+   dir, `npm i -g headroom-harness && headroom install --dry-run` shows sane paths (NOT an npx
    cache path — the installer must refuse those).

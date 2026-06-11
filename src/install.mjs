@@ -44,7 +44,7 @@ export function install(argv = []) {
       'headroom install: refusing to install from the npx cache.\n' +
         'npx runs from an evictable cache directory; the absolute paths written into\n' +
         'settings.json would silently break when npm prunes it. Install persistently:\n' +
-        '  npm install -g headroom-cc && headroom install\n' +
+        '  npm install -g headroom-harness && headroom install\n' +
         'or clone the repo and run: node bin/headroom.mjs install'
     );
     process.exitCode = 1;

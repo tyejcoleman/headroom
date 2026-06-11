@@ -61,7 +61,7 @@ If a task seems to require crossing one of these lines, stop and surface it — 
 
 ## Stack
 
-Single **zero-dependency** npm package (`headroom-cc`): plain ESM under `bin/` + `src/`,
+Single **zero-dependency** npm package (`headroom-harness`): plain ESM under `bin/` + `src/`,
 `node:test` suites, skill in `skill/`, JSON Schema in `schema/`. No build step — this is
 deliberate (auditability + npx-ability); don't add dependencies without strong cause.
 State lives at `~/.headroom/state.json` (atomic temp-file + rename writes only).

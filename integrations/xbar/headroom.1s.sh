@@ -3,7 +3,7 @@
 # <xbar.version>v0.2</xbar.version>
 # <xbar.author>tyejcoleman</xbar.author>
 # <xbar.desc>Live Claude Code budgets in the menu bar: rate-limit windows, context headroom, exhaustion warnings.</xbar.desc>
-# <xbar.dependencies>node, headroom-cc</xbar.dependencies>
+# <xbar.dependencies>node, headroom-harness</xbar.dependencies>
 #
 # Works with SwiftBar and xbar. Install: copy this file into your plugin folder
 # (the .1s. in the name = refresh every second). If `headroom` is not on PATH,
