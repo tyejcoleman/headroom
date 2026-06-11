@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.1 — 2026-06-11
+
+### Added
+- **Descent profile:** work divisibility shrinks with quota — atomic steps in descent
+  (5–10%), finishing moves on approach (2–5%), land at ≤2%; the opt-in launch gate now
+  denies indivisible subagent/workflow launches in late descent (≤5%).
+- **Concurrency disclosure:** stamps report "N sessions sharing this quota" with the
+  correct mental model (account-level figures already include everyone's burn).
+- **Reset-crossing detection:** dead-window data (any `resets_at` in the past) reports
+  "window RESET — quota FRESH, disregard earlier figures" across stamp, mid-turn, HUD,
+  and fit_check — never a stale "nearly dry".
+- Release preflight (`scripts/release-preflight.mjs`) + fully agent-executable /release.
+
+### Fixed
+- Budget conflation (two wild sightings): stamps relabeled `quota —`/`context —` with
+  the probe-validated "(quota resets do NOT restore context)" clause; low-context
+  coaching now says checkpoint-then-KEEP-WORKING (compaction is automatic + survivable).
+- Timidity: token-proportional advice (pausing at 15–30% with 100k+ tokens is named a
+  failure mode); concurrency margin double-count corrected.
+- Receipts: cross-window baselines rebaseline silently (no phantom "≈64%" bills).
+
+### Changed
+- README rewritten around the harness-awareness narrative + descent profile.
+
 ## 0.3.0 — 2026-06-10
 
 ### Added

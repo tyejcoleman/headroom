@@ -1,6 +1,6 @@
 {
   "name": "headroom-harness",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Resource-aware layer for Claude Code: feeds rate-limit and context headroom to the agent itself, so it plans work that fits the budget.",
   "type": "module",
   "bin": {
