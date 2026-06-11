@@ -6,14 +6,23 @@ Cut a release. Follow exactly; stop and report at any failed gate. Everything be
 agent-executable EXCEPT the one human ceremony in step 0.
 
 0. **Token ceremony (HUMAN, once — and after any credential exposure):** CI publishes
-   with the `NPM_TOKEN` repo secret, which must be a **Classic → Automation** token.
-   *Why Automation:* the npm account requires 2FA for writes; publish-type tokens then
-   demand an OTP on every publish, which CI cannot provide — npm rejects them with
-   `E403 You may not perform that action with these credentials` AT THE PUBLISH STEP
-   ONLY, after all gates pass (field-learned 2026-06-10, run 27315632200). The human
-   creates it at npmjs.com → Access Tokens → Generate Classic Token → Automation, then
-   `gh secret set NPM_TOKEN`, then revokes the old token (`npm token list` / `npm token
-   revoke <id>`). Agents must NEVER print, commit, or echo token values (gate G6).
+   with the `NPM_TOKEN` repo secret, which must be a **granular access token** with
+   **Read and write / All packages** AND **"Bypass two-factor authentication" ENABLED**.
+   (Classic "Automation" tokens are retired — npm offers granular only now.) All-packages
+   scope is required for FIRST publishes (an unpublished name can't be selected). Both
+   failure signatures fire at the publish step only, after all gates pass:
+   - `E403 You may not perform that action with these credentials` — wrong token type
+     (field 2026-06-10, run 27315632200);
+   - `E403 Two-factor authentication or granular access token with bypass 2fa enabled
+     is required` — granular token created WITHOUT the bypass toggle (field 2026-06-11,
+     run 27385109918). If the toggle is absent from the token form, the account's 2FA
+     write-requirement setting is pinned to "always" — relax it to the granular-bypass
+     option first. Granular tokens EXPIRE (~90d cap): calendar the renewal.
+   After creating: `gh secret set NPM_TOKEN`, revoke the previous token. Fallback that
+   needs no token changes: a human runs `npm publish --access public --otp=<code>`
+   locally (loses provenance for that release). Agents must NEVER print, commit, or
+   echo token values (gate G6); a failed publish is re-run with `gh run rerun <id>` —
+   tags never move.
 1. **Preflight:** `node scripts/release-preflight.mjs` — tree, tests, gates, dated
    CHANGELOG section, tag state, tarball scope, registry collision, secret presence.
    Fix every ✗ before proceeding. (CI runs it with `--offline`.)
