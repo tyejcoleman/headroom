@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2 — 2026-06-12
+
+### Added
+- **Weekly cruise control:** the 7d window is paced, not just measured — pace ratio
+  (used-fraction vs elapsed-fraction), sustainable %/day allowance, and projected weekly
+  exhaustion, surfaced in stamps ("weekly pace is HOT… ≈5%/day sustains"), HUD
+  (`week 26% left ⚠hot pace`), `fit_check` advice, and `burn.weekly` in the state schema.
+  Agents throttle bulk work when hot and cruise the week to its reset without going dark.
+
 ## 0.3.1 — 2026-06-11
 
 ### Added

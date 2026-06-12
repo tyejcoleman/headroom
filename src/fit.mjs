@@ -45,6 +45,12 @@ export function fitCheck(state, { est_tokens, est_calls } = {}, nowSec = Date.no
     }
   }
 
+  const wk = state?.burn?.weekly;
+  if (wk?.hot) {
+    out.week = wk;
+    out.advice.push(`Weekly pace is HOT (${wk.pace_ratio}x sustainable) — prefer deferring bulk/batch work; ≈${wk.daily_allowance_pct}%/day sustains to the weekly reset.`);
+  }
+
   const verdicts = [out.context?.verdict, out.window?.verdict].filter(Boolean);
   if (verdicts.length) {
     out.overall = verdicts.sort((a, b) => RANK[b] - RANK[a])[0];

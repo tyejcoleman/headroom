@@ -578,3 +578,66 @@ test('receipts: baseline from a previous window never produces a delta', () => {
   const out = run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'w1' }), env }).stdout;
   assert.doesNotMatch(out, /receipt/); // rebaselined silently, no phantom 64% bill
 });
+
+test('weekly cruise: hot pace detected, allowance computed, cool pace stays quiet', async () => {
+  const { enrichWeekly } = await import('../src/state.mjs');
+  const now = 1800000000;
+  const mk = (used, resetsInDays) => ({
+    windows: { seven_day: { used_pct: used, resets_at: now + resetsInDays * 86400 } },
+    burn: {},
+  });
+  // 5 days elapsed (resets in 2d), 90% used → pace 1.26, exhaustion well before reset
+  const hot = enrichWeekly(mk(90, 2), now);
+  assert.equal(hot.burn.weekly.hot, true);
+  assert.equal(hot.burn.weekly.pace_ratio, 1.26);
+  assert.equal(hot.burn.weekly.daily_allowance_pct, 5); // 10% over 2 days
+  assert.ok(hot.burn.weekly.projected_exhaustion < now + 2 * 86400);
+  // same elapsed, 50% used → pace 0.7, no exhaustion before reset → cool
+  const cool = enrichWeekly(mk(50, 2), now);
+  assert.equal(cool.burn.weekly.hot, false);
+  assert.equal(cool.burn.weekly.projected_exhaustion, null);
+});
+
+test('weekly cruise: stamp coaches throttling when HOT; HUD flags it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-week-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'wk1',
+      windows: {
+        five_hour: { used_pct: 30, resets_at: now + 3600 },
+        seven_day: { used_pct: 90, resets_at: now + 2 * 86400 },
+      },
+      context: null,
+      burn: { weekly: { pace_ratio: 1.26, daily_allowance_pct: 5, projected_exhaustion: now + 86400, hot: true } },
+      session: {},
+    })
+  );
+  const stamp = JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'wk1' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(stamp, /weekly pace is HOT \(1\.26x sustainable\)/);
+  assert.match(stamp, /≈5%\/day sustains/);
+  assert.match(stamp, /deferring bulk work/);
+});
+
+test('weekly cruise: full tap pipeline computes pace from a raw payload', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-week2-'));
+  const now = Math.round(Date.now() / 1000);
+  const out = run(['tap'], {
+    input: JSON.stringify({
+      session_id: 'wk2',
+      rate_limits: {
+        five_hour: { used_percentage: 30, resets_at: now + 3600 },
+        seven_day: { used_percentage: 90, resets_at: now + 2 * 86400 },
+      },
+    }),
+    env: { HEADROOM_DIR: dir },
+  }).stdout;
+  assert.match(out, /week 10% left ⚠hot pace/);
+  const st = JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8'));
+  assert.equal(st.burn.weekly.hot, true);
+});

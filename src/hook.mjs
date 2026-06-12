@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readState } from './state.mjs';
-import { readConfig, modeProfile, fmtClock, fmtTokens, headroomDir, readJSON, atomicWriteJSON, ensureDir, crossedReset } from './util.mjs';
+import { readConfig, modeProfile, fmtClock, fmtTokens, fmtDelta, headroomDir, readJSON, atomicWriteJSON, ensureDir, crossedReset } from './util.mjs';
 import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
 import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
@@ -309,7 +309,16 @@ export async function hookUserPromptSubmit() {
     }
     parts.push(seg);
   }
-  if (sd?.used_pct != null) parts.push(`7d: ${Math.round(100 - sd.used_pct)}% left`);
+  if (sd?.used_pct != null) {
+    let wkSeg = `7d: ${Math.round(100 - sd.used_pct)}% left`;
+    const wk = s.burn?.weekly;
+    if (wk?.hot && wk.projected_exhaustion && sd.resets_at) {
+      wkSeg += ` — weekly pace is HOT (${wk.pace_ratio}x sustainable): on track to exhaust the WEEK in ~${fmtDelta(wk.projected_exhaustion - Date.now() / 1000)}, ${fmtDelta(sd.resets_at - wk.projected_exhaustion)} before its reset; ≈${wk.daily_allowance_pct}%/day sustains — prefer deferring bulk work and tighter batching until pace cools`;
+    } else if (wk && 100 - sd.used_pct < 40) {
+      wkSeg += ` (cruising: ≈${wk.daily_allowance_pct}%/day sustains to the weekly reset)`;
+    }
+    parts.push(wkSeg);
+  }
   // the 5h window is ACCOUNT-level: other open sessions burn it too. Sessions whose
   // hooks touched bands.json recently are live burners — disclose them (field 2026-06-10:
   // a 29-point single-call "receipt" was a concurrent session's burn, co-attributed).

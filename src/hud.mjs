@@ -25,7 +25,10 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
     parts.push(seg);
   }
   // weekly window is only news when it's the binding constraint
-  if (sd?.used_pct != null && 100 - sd.used_pct < 30) parts.push(`week ${Math.round(100 - sd.used_pct)}% left`);
+  const wkHot = state.burn?.weekly?.hot;
+  if (sd?.used_pct != null && (100 - sd.used_pct < 30 || wkHot)) {
+    parts.push(`week ${Math.round(100 - sd.used_pct)}% left${wkHot ? ' ⚠hot pace' : ''}`);
+  }
   if (ctx?.used_pct != null) {
     const left = Math.max(0, Math.round((ctx.compact_ceiling_pct ?? 80) - ctx.used_pct));
     let s = `ctx ${left}%${ctx.tokens_to_ceiling != null ? ` (${fmtTokens(ctx.tokens_to_ceiling)})` : ''}`;

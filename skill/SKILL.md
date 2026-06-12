@@ -59,6 +59,17 @@ test, commit, `plan_resume` the rest). **≤2%:** land — start nothing; final 
 checkpoint + defer note. This is quota-tiredness (recoverable at the reset clock) — it is
 NOT context-tiredness (recoverable only via compaction); do not confuse the remedies.
 
+## Weekly cruise control
+
+The 7-day window is paced, not just measured. When the stamp says **"weekly pace is
+HOT"**, the account is consuming the week faster than it can sustain: at that pace the
+weekly budget dies before its reset and EVERY session goes dark until it returns. The
+stamp gives the sustainable rate ("≈X%/day sustains"). Response: defer bulk/batch work
+(big migrations, mass refactors, fleets of subagents) to later in the week or past the
+weekly reset, batch tighter, and prefer high-value small tasks — but do NOT stop normal
+work; HOT is a pacing signal, not an emergency. "Cruising" means the current pace lands
+at the reset with nothing wasted — the ideal.
+
 ## Under window pressure (≲10% left)
 
 - Reorder the queue cheap-first; ship small certain wins before big uncertain ones.

@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { headroomDir, ensureDir } from './util.mjs';
-import { parsePayload, updateBurn, writeState, readState } from './state.mjs';
+import { parsePayload, updateBurn, writeState, readState, enrichWeekly } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
 import { detectContextDrop } from './events.mjs';
@@ -29,7 +29,7 @@ export async function tap(argv = []) {
     }
     const payload = JSON.parse(raw);
     const prev = readState();
-    const state = enrichBurn(updateBurn(parsePayload(payload)));
+    const state = enrichWeekly(enrichBurn(updateBurn(parsePayload(payload))));
     detectContextDrop(prev, state); // silent microcompaction leaves no other trace
     writeState(state);
     hud = renderHUD(state, readResume());

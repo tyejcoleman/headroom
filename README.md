@@ -199,6 +199,15 @@ to expire unused; now it's spent in pieces nothing can take back. And the skill 
 blunt about the failure mode this replaces: *pausing at 15–30% with 100k+ tokens left
 isn't prudence, it's waste.*
 
+**And the same control loop runs at week scale.** The 7-day window is paced like a
+flight plan: headroom compares the fraction of the week elapsed against the fraction of
+budget used. Running **hot** (on track to exhaust the week early — the worst failure,
+because every session goes dark until the weekly reset), the stamp says so with the
+numbers that matter: *"weekly pace is HOT (1.3x sustainable): on track to exhaust the
+WEEK in ~1d 4h, 22h before its reset; ≈5%/day sustains — prefer deferring bulk work."*
+Agents throttle the big-batch work, keep the normal work flowing, and the week lands at
+its reset with nothing wasted and nothing dark. Cruise, don't crash — at both timescales.
+
 ## The agent sees costs while it works — not just balances
 
 - **Mid-turn updates:** stamps arrive with your prompts, but long autonomous turns used

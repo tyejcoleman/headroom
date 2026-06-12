@@ -118,6 +118,29 @@
           },
           "minItems": 2,
           "maxItems": 2
+        },
+        "weekly": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "pace_ratio": {
+              "type": "number"
+            },
+            "daily_allowance_pct": {
+              "type": "number"
+            },
+            "projected_exhaustion": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "hot": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },

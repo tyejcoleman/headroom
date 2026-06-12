@@ -114,6 +114,39 @@ export function updateBurn(state) {
   return state;
 }
 
+/**
+ * Weekly cruise control (velocity at week scale): fraction of week elapsed vs fraction
+ * of budget used → pace ratio. HOT (>1.15x sustainable, exhaustion projected before the
+ * reset) tells the agent to throttle bulk work; daily_allowance_pct is the real-time
+ * adjustment target ("≈X%/day sustains to the reset"). Account-level like all windows.
+ */
+export function enrichWeekly(state, nowSec = Date.now() / 1000) {
+  try {
+    const sd = state.windows?.seven_day;
+    if (!sd || sd.used_pct == null || !sd.resets_at) return state;
+    const WEEK = 7 * 86400;
+    const start = sd.resets_at - WEEK;
+    const elapsed = Math.min(Math.max(nowSec - start, 0), WEEK);
+    if (elapsed < 3600) return state; // too early in the window to infer pace
+    const paceRatio = sd.used_pct / 100 / (elapsed / WEEK);
+    const remainingDays = Math.max((sd.resets_at - nowSec) / 86400, 0.01);
+    let exhaustion = null;
+    if (sd.used_pct > 0) {
+      const t = nowSec + (100 - sd.used_pct) / (sd.used_pct / elapsed);
+      if (t < sd.resets_at) exhaustion = Math.round(t);
+    }
+    state.burn.weekly = {
+      pace_ratio: Math.round(paceRatio * 100) / 100,
+      daily_allowance_pct: Math.round(((100 - sd.used_pct) / remainingDays) * 10) / 10,
+      projected_exhaustion: exhaustion,
+      hot: paceRatio > 1.15 && exhaustion != null,
+    };
+  } catch {
+    // enrichment never breaks base state
+  }
+  return state;
+}
+
 export function writeState(state) {
   const dir = headroomDir();
   ensureDir(dir);
