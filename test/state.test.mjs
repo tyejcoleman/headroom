@@ -16,7 +16,7 @@ test('full subscription payload parses and validates', () => {
   const s = parsePayload(fix('statusline-full.json'));
   assert.equal(s.auth, 'subscription');
   assert.equal(s.windows.five_hour.used_pct, 42.5);
-  assert.equal(s.windows.five_hour.resets_at, 1781304000);
+  assert.equal(s.windows.five_hour.resets_at, 4102444800);
   assert.equal(s.context.window_size, 200000);
   assert.equal(s.context.tokens_to_ceiling, Math.round(200000 * (80 - 61.2) / 100));
   assert.equal(s.session.cost_usd, 0.47);
@@ -34,9 +34,9 @@ test('api-key payload (no rate_limits) degrades gracefully', () => {
 test('epoch-leak and out-of-range percentages become null, resets_at ms tolerated', () => {
   const s = parsePayload(fix('statusline-epoch-leak.json'));
   assert.equal(s.windows.five_hour.used_pct, null);
-  assert.equal(s.windows.five_hour.resets_at, 1781304000);
+  assert.equal(s.windows.five_hour.resets_at, 4102444800);
   assert.equal(s.windows.seven_day.used_pct, null);
-  assert.equal(s.windows.seven_day.resets_at, 1781800000); // ms input → seconds
+  assert.equal(s.windows.seven_day.resets_at, 4103049600); // ms input → seconds
   assert.deepEqual(validateResourceState(s), []);
 });
 

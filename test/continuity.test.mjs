@@ -81,7 +81,7 @@ test('pre-compact never crashes on garbage input or non-git cwd', () => {
 test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in stamp/session-start → clear', () => {
   const dir = mkdtempSync(join(tmpdir(), 'headroom-res-'));
   const env = { HEADROOM_DIR: dir };
-  run(['tap'], { input: fixture('statusline-full.json'), env }); // resets_at = 1781304000 (future)
+  run(['tap'], { input: fixture('statusline-full.json'), env }); // resets_at = 4102444800 (far future)
 
   // record a plan through the same code path the MCP tool uses
   const script = `
@@ -96,7 +96,7 @@ test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in sta
   });
   const rec = JSON.parse(planOut.stdout);
   assert.equal(rec.recorded, true);
-  assert.equal(rec.resume_at, 1781304000);
+  assert.equal(rec.resume_at, 4102444800);
 
   // a waiting plan is deliberately absent from the HUD (not actionable yet)
   const hud = run(['tap'], { input: fixture('statusline-full.json'), env }).stdout;

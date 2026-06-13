@@ -7,7 +7,7 @@
   "cost": { "total_cost_usd": 0.47, "total_duration_ms": 120000 },
   "context_window": { "context_window_size": 200000, "used_percentage": 61.2 },
   "rate_limits": {
-    "five_hour": { "used_percentage": 42.5, "resets_at": 1781304000 },
-    "seven_day": { "used_percentage": 15.3, "resets_at": 1781800000 }
+    "five_hour": { "used_percentage": 42.5, "resets_at": 4102444800 },
+    "seven_day": { "used_percentage": 15.3, "resets_at": 4103049600 }
   }
 }
