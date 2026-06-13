@@ -133,3 +133,16 @@ sessions. *Why:* native compaction summarizes generically at the last second; th
 knows what THIS task needs, and "already ruled out" is the single most expensive thing
 compaction loses. **Enforced by:** caps in `src/checkpoint.mjs`, lifecycle tests; new
 wording joins the eval queue (ADR-9).
+
+## ADR-17 — `suggest` is propose-only; evolution is versioned and reversible
+The self-evolving harness (docs/EVOLVING-HARNESS.md) is built in exactly one safe
+direction. `headroom suggest` and its synthesis step are **read-only**: they find and rank
+friction and draft proposals, but never mutate the harness. Every proposal must cite the
+events that motivated it (no vibes). Applying an evolution (v3+) is a separate, explicit,
+versioned, one-command-reversible step under `~/.headroom/evolution/`, and any
+behavior-changing evolution is eval-gated (ADR-9). Autonomy (auto-apply) is gated on a
+proven auto-evaluation capability that does not yet exist; until then the system is
+propose-only, forever if necessary. *Why:* a harness that silently rewrites itself is the
+highest-risk pattern in the field (drift, injection-persistence, bloat); propose-only
+captures the value with none of the danger. **Enforced by:** suggest does no writes;
+this log; ADR-9 for adoption.

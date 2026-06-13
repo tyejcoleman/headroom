@@ -73,6 +73,24 @@ only. Every feature here doubles as a Pro demo — never gate it.
   detection from flow samples — the "tired agent" beyond budgets. Eval-gated (ADR-9)
   before any injection wording ships.
 
+## Phase 2.6 — Self-evolving harness (propose-only; docs/EVOLVING-HARNESS.md, SUGGEST.md)
+
+- [x] **T2.22 `headroom suggest` miner (v0).** *(shipped 2026-06-12, ADR-17)* Deterministic
+  zero-dep friction miner over `events.jsonl`: detector registry → cluster by
+  class+signature → score (recency-weighted support × cost amplifier, MIN_SUPPORT floor) →
+  ranked markdown report + synthesis protocol. Read-only. Verified on real telemetry
+  (surfaced context-cliff + install-health from this machine's own history). AC: tested
+  clustering, support floor, recency ranking, malformed-input tolerance.
+- [ ] **T2.23 Synthesis protocol → artifact.** Agent drafts a concrete evolution from the
+  top signal (skill/workflow/pin/config/removal) with cited evidence + a validation spec.
+- [ ] **T2.24 Workflow mining.** Sequential-pattern mining over the transcript tool stream
+  (frequent ordered n-grams) → propose codifying recurring "dances" as workflows.
+- [ ] **T2.25 Evolution ledger + reversible apply.** `~/.headroom/evolution/`, one-command
+  revert; dedup proposals against the ledger (EVOLVING-HARNESS V2).
+- [ ] **T2.26 The pruner.** Removal proposals by ROI (benefit prevented vs context cost) —
+  the thinness fitness function (EVOLVING-HARNESS V3).
+- [ ] **T2.27 Auto-eval.** The gate to any autonomy; until it passes, propose-only.
+
 ## Phase 3 — Beyond one harness (month 2)
 
 - [ ] **T3.1 Programmatic-credit meter.** Track the post–June 15 2026 Agent SDK / `claude -p` credit pool: spend at API rates, budget config, dollar-denominated ResourceState mode. AC: matches console billing within rounding on test runs.
