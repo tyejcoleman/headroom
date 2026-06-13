@@ -81,15 +81,18 @@ only. Every feature here doubles as a Pro demo — never gate it.
   ranked markdown report + synthesis protocol. Read-only. Verified on real telemetry
   (surfaced context-cliff + install-health from this machine's own history). AC: tested
   clustering, support floor, recency ranking, malformed-input tolerance.
-- [ ] **T2.23 Synthesis protocol → artifact.** Agent drafts a concrete evolution from the
-  top signal (skill/workflow/pin/config/removal) with cited evidence + a validation spec.
-- [ ] **T2.24 Workflow mining.** Sequential-pattern mining over the transcript tool stream
-  (frequent ordered n-grams) → propose codifying recurring "dances" as workflows.
-- [ ] **T2.25 Evolution ledger + reversible apply.** `~/.headroom/evolution/`, one-command
-  revert; dedup proposals against the ledger (EVOLVING-HARNESS V2).
-- [ ] **T2.26 The pruner.** Removal proposals by ROI (benefit prevented vs context cost) —
-  the thinness fitness function (EVOLVING-HARNESS V3).
-- [ ] **T2.27 Auto-eval.** The gate to any autonomy; until it passes, propose-only.
+- [x] **T2.23 Friction feed contract.** *(satisfied by T2.22)* `headroom suggest --json` is
+  the provider-neutral friction signal Keyoku (the actuator) consumes — the documented seam
+  (docs/EVOLVING-HARNESS.md "Where this lives"). headroom observes + reports; it does not
+  evolve the harness.
+
+> **Boundary (2026-06-12):** the evolution FRAMEWORK is Keyoku's, not headroom's —
+> awareness vs. action. The items below read headroom's friction feed but are built in
+> Keyoku (confirm against Keyoku's charter): synthesis (draft skill/workflow/pin/removal
+> with cited evidence + validation), workflow mining (sequential patterns from the
+> transcript), evolution ledger + reversible apply, the pruner (ROI-based removal — the
+> thinness fitness function), auto-eval (the gate to any autonomy). headroom stays the
+> thin, zero-dep, OSS awareness layer; the sensors + miner are its whole role here.
 
 ## Phase 3 — Beyond one harness (month 2)
 

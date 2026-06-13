@@ -120,7 +120,29 @@ proven auto-eval capability before any rung above "propose to a human" is contem
 - **V4 — Auto-eval.** Only after V1–V3: can a proposal be validated without a human? The
   gate to any autonomy; fail it and the system stays propose-only forever (still valuable).
 
-## On Keyoku
+## Where this lives: the headroom ↔ Keyoku seam (decision, 2026-06-12)
+
+The defining test is **awareness vs. action**:
+
+- **headroom = awareness.** Observe, measure, report. Thin, zero-dep, no-network, OSS.
+  It owns the **sensors** and the **friction miner** (`headroom suggest`, read-only — the
+  same category as `doctor`/`audit`). Its output `suggest --json` is the **friction feed**:
+  a provider-neutral signal, exactly like ResourceState.
+- **Keyoku (or the framework product) = action.** Consume the friction feed and *evolve
+  the harness*: synthesis (draft skills/workflows), the ledger, apply/revert, the pruner
+  policy, workflow authoring, any marketplace. Opinionated and feature-rich — the things
+  that would wreck headroom's focused, auditable identity if bolted on.
+
+So the evolution **framework** is NOT headroom's to build. headroom emits friction +
+context-cost; Keyoku acts on it. One observer, one actuator, a documented contract
+(`suggest --json`) between them — the same discipline that kept RESOURCE-STATE clean and
+that this doc's own warning demands ("don't fork the loop into two tools that both observe
+and both mutate"). The miner shipped in headroom (T2.22) is correctly scoped as read-only
+awareness; phases T2.23–T2.27 (synthesis → apply → pruner → auto-eval) belong to Keyoku's
+roadmap, reading headroom's feed. Caveat: this hinges on Keyoku being the framework play —
+confirm against Keyoku's actual charter before building the actuator anywhere.
+
+## On Keyoku (capabilities map)
 
 The capabilities map cleanly — Keyoku could be the actuator/workflow-authoring surface,
 headroom stays the sensors + budget substrate + thinness GC, the proposal engine bridges
