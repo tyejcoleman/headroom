@@ -29,7 +29,18 @@ jobs:
             echo "tag $TAG_V does not match package.json $PKG_V — fix the version or the tag"; exit 1
           fi
       - name: Publish to npm (with provenance)
-        run: npm publish --access public --provenance
+        # idempotent: if this version is already on the registry (e.g. a human published
+        # it manually with an OTP, or a failed run is being re-run after a fix), skip
+        # publish and still cut the GitHub release. A version mismatch is the real error,
+        # caught by the step above — never the "already published" 403.
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+            echo "$PKG@$VER already on the registry — skipping publish, proceeding to release"
+          else
+            npm publish --access public --provenance
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: GitHub release from CHANGELOG
