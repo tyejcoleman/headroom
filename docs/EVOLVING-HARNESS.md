@@ -129,6 +129,29 @@ proven auto-eval capability before any rung above "propose to a human" is contem
 - **V4 — Auto-eval.** Only after V1–V3: can a proposal be validated without a human? The
   gate to any autonomy; fail it and the system stays propose-only forever (still valuable).
 
+## How evolutions promote: local → PR (the gate IS git)
+
+The safe-apply model is a ladder, and git is the gate — self-evolution flows *through*
+review, never around it:
+
+1. **Propose** — `headroom suggest` (resource friction) or Keyoku's slow-brain (harness
+   intelligence) emits a read-only, evidence-cited artifact. No mutation (ADR-17).
+2. **Apply locally, reversible** — the user tests the evolution on their own machine;
+   one-command revert. This is the "test it locally" rung (Keyoku's apply for harness
+   changes; a local config tweak for resource ones).
+3. **Promote via PR** — if it proves out and is generally useful, it graduates to a
+   branch/PR gated by the machinery THIS repo already has: `scripts/check-invariants.mjs`,
+   CI, ADR-9 evals for behavior changes, the PR template, human review. "Self-evolving in
+   a gated, safe way" = the gate is the PR, and we already built the gate.
+
+Two destinations — don't conflate:
+- **User-harness evolutions** (your own skills/workflows/config) promote to the USER's
+  dotfiles/config repo — Keyoku's actuator domain, not the headroom project.
+- **Tool improvements** (a new headroom detector, a better heuristic, a wording fix that
+  `suggest`'s own friction implies) promote as PRs to the headroom/Keyoku project itself —
+  the **contribution flywheel**: real user friction becomes upstream improvements, gated by
+  the repo-as-harness. This is the part genuinely in headroom's domain.
+
 ## Where this lives: the headroom ↔ Keyoku seam (decision, 2026-06-12)
 
 The defining test is **awareness vs. action**:
