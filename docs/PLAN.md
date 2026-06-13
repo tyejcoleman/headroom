@@ -75,7 +75,7 @@ only. Every feature here doubles as a Pro demo — never gate it.
 
 ## Phase 2.6 — Self-evolving harness (propose-only; docs/EVOLVING-HARNESS.md, SUGGEST.md)
 
-- [x] **T2.22 `headroom suggest` miner (v0).** *(shipped 2026-06-12, ADR-17)* Deterministic
+- [~] **T2.22 `headroom suggest` miner (v0).** *(built + shipped in 0.3.2, then DEFERRED 2026-06-13 — code removed, design kept in docs/SUGGEST.md; re-enter post-adoption when there is real telemetry to mine. Thinness fitness function applied to ourselves.)* Deterministic
   zero-dep friction miner over `events.jsonl`: detector registry → cluster by
   class+signature → score (recency-weighted support × cost amplifier, MIN_SUPPORT floor) →
   ranked markdown report + synthesis protocol. Read-only. Verified on real telemetry

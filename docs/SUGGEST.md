@@ -1,5 +1,13 @@
 # `headroom suggest` — architecture & algorithm
 
+> **DEFERRED 2026-06-13 — design kept, code removed.** Shipped briefly in 0.3.2, then
+> pulled before launch: with zero users there is no real telemetry to mine, its concept
+> overlaps Keyoku's domain, and `doctor`/`audit` already cover read-only diagnostics. By
+> our own thinness fitness function it does not yet earn its place. This doc is retained
+> as the re-entry design; rebuild (`git show` the removal commit to restore) once adoption
+> produces varied friction worth mining. The miner was correct and tested — only its
+> timing was early.
+
 *2026-06-12 · headroom's **resource-hygiene advisor** + the **friction-feed contract**
 Keyoku consumes. NOT the self-evolving harness (that is Keyoku — see EVOLVING-HARNESS.md).*
 
