@@ -1,7 +1,7 @@
 # `headroom suggest` — architecture & algorithm
 
-> **DEFERRED 2026-06-13 — design kept, code removed.** Shipped briefly in 0.3.2, then
-> pulled before launch: with zero users there is no real telemetry to mine, its concept
+> **DEFERRED 2026-06-13 — design kept, code removed.** Built after the 0.3.2 tag and
+> pulled before its first release (never published): with zero users there is no real telemetry to mine, its concept
 > overlaps Keyoku's domain, and `doctor`/`audit` already cover read-only diagnostics. By
 > our own thinness fitness function it does not yet earn its place. This doc is retained
 > as the re-entry design; rebuild (`git show` the removal commit to restore) once adoption
