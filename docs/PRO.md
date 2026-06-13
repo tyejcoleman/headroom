@@ -20,6 +20,30 @@ ResourceState** — per team, per agent fleet, per key — and feeds it DOWN to 
 through the same stamps/MCP/hooks the free tool uses, plus org-set custom budgets and
 policy push (governor modes, launch gates, compact guards per team).
 
+## Sharpened paid wedge (2026-06-12): evolution is the lever — at org scale only
+
+The strongest paid feature is the **fleet version of the self-evolving harness**
+(`docs/EVOLVING-HARNESS.md`), and the line is exact:
+
+- **Free, forever:** `headroom suggest` learns from **one dev, one machine** — proposes
+  evolutions from *your* friction. This is the viral core; it MUST be free, because the
+  wow features (suggest, recap, the evolution proposals) are the distribution engine —
+  they get screenshotted and shared. Paywalling your best demo strangles adoption before
+  it starts.
+- **Paid (Fleet):** the same engine learning from **fifty devs at once** — aggregate
+  friction across a team, propose *shared* skills/workflows/policies, let an admin approve
+  once and push the approved evolution to everyone, with governance/audit of what the
+  harness layer is doing org-wide. This is genuinely more powerful (more signal → better
+  proposals), genuinely org-scoped (a single machine cannot aggregate a team), and sits on
+  the real data moat (seat/usage signal exists only client-side, invisible to gateways).
+  A platform team pays per-seat for "our agents get smarter about our codebase
+  automatically, under our governance." That is the sophisticated feature worth money.
+
+**Rule unchanged:** never gate an individual-dev capability. The paywall is the *plane*
+(one machine = free, the org = paid), never the *feature*. And not yet — see sequencing:
+adoption first, demand signal second, build for the buyer who shows up third. Paywalling
+before adoption is the canonical open-core failure, and it's the one most tempting here.
+
 ## The honest competitive read
 
 **The crowded part we must NOT compete in:** gateway enforcement. LiteLLM, Portkey,
