@@ -1,9 +1,9 @@
 import { recentEvents } from './events.mjs';
 
-// `headroom suggest` — the propose-only seed of the self-evolving harness (docs/SUGGEST.md).
-// The MINER: deterministic, zero-dep, no model. It turns the telemetry we already collect
-// (events.jsonl) into ranked, evidence-backed friction signals. Synthesis (drafting the
-// actual evolution) is the agent's job — this only finds and ranks the friction.
+// `headroom suggest` — headroom's RESOURCE-HYGIENE advisor + the friction-feed Keyoku
+// consumes (docs/SUGGEST.md). The MINER: deterministic, zero-dep, no model. It ranks
+// resource-domain friction (context/budget/pacing/cost/install) from events.jsonl. It does
+// NOT generate skills or workflows — that is Keyoku's harness intelligence (EVOLVING-HARNESS.md).
 
 const HALFLIFE_SEC = 3 * 86400; // recency: friction 3 days ago counts half as much
 const MIN_SUPPORT = 3; // below this it's an incident, not a pattern

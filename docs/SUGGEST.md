@@ -1,7 +1,15 @@
 # `headroom suggest` — architecture & algorithm
 
-*2026-06-12 · the propose-only seed of the self-evolving harness (EVOLVING-HARNESS.md V1).
-This is the design; the heart (the deterministic miner) ships first, the rest is phased.*
+*2026-06-12 · headroom's **resource-hygiene advisor** + the **friction-feed contract**
+Keyoku consumes. NOT the self-evolving harness (that is Keyoku — see EVOLVING-HARNESS.md).*
+
+**Scope (hard line).** `suggest` proposes only **resource-domain** evolutions — context
+hygiene, pacing, cost, install health, budget priors — the things a budget layer is
+uniquely positioned to see. It NEVER generates skills, workflows, memory, or context
+graphs; that is Keyoku's harness intelligence. Every detector below is resource-domain by
+construction. `suggest --json` is the seam: Keyoku's slow-brain reads it as one input to
+its broader evolution, and replaces its own crude `session-budget.ts` estimate by
+consuming headroom's ResourceState.
 
 ## The shape (respects every hard constraint)
 

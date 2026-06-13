@@ -1,8 +1,17 @@
 # The self-evolving harness (assessment + north star)
 
-*2026-06-12 · strategy doc, not a commitment. The biggest idea in this project and the
-most dangerous; held to the same discipline as PRO.md — name the real thing, the trap,
-the guardrail, and gate it hard before any build.*
+*2026-06-12 · strategy doc, not a commitment.*
+
+> **RESOLVED 2026-06-12, after reading Keyoku's actual code/specs:** the self-evolving
+> harness **is Keyoku** — not a headroom north star. Keyoku v1.6.0 ships memory +
+> heartbeat + observe/suggest/**act** autonomy; Keyoku v2 (ADR-0007) is a per-user
+> 11-layer harness with a two-brain (Haiku/Sonnet), reflexion, constitutional checks, and
+> a slow-brain that **proposes harness updates queued for user review** — exactly the
+> propose-not-apply evolution loop this doc designed. **headroom does NOT build this.**
+> headroom's role narrowed to two things: (1) the **resource-hygiene advisor**
+> (`headroom suggest` — budget/context/pacing/cost/install frictions only, never skill or
+> workflow generation), and (2) the **resource sensor / friction feed** Keyoku consumes.
+> The vision below stands — as **Keyoku's** charter. Kept here only as the reasoning record.
 
 ## The idea
 
