@@ -124,6 +124,27 @@ not general context.
   large files for facts you noted.
 - Downshift subtasks that don't need full context to a smaller model where available.
 
+## Long-running work: a clean boundary is a checkpoint, not a stop
+
+A natural pause point — tests green, a commit landed — is a **checkpoint, not a reason to
+stop**. When budget is healthy and real work remains, continue through it; do not hand
+control back at every clean boundary. Stop — and only stop — when one of these is true:
+
+- **Nothing valuable left.** The task is genuinely complete, or what remains is
+  speculative/low-value. Do NOT manufacture work to stay busy (thinness applies to your
+  own activity too).
+- **A genuine blocker needs the user.** An ambiguous decision costly to guess wrong,
+  missing access/credentials, a real external dependency. Surface it concisely, then stop.
+- **Budget is truly dry.** ≲2% quota, or context at the compaction floor with no room to
+  checkpoint. Land, checkpoint, and defer (plan_resume; armed resume continues after the
+  reset).
+
+Otherwise: keep going — pacing replaces stopping. Descend into smaller atomic steps as the
+window thins (the descent profile), defer past the reset when it's gone, but never idle a
+healthy budget. The worth-it test is the brake in both directions: continue on high-value
+work, stop on low-value or ambiguous work — never "keep going" for its own sake, never
+"stop" just because a boundary is convenient.
+
 ## When budgets are healthy
 
 Work normally. **Never defer, shrink, or hedge out of caution when the stamp shows

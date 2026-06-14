@@ -73,6 +73,14 @@ only. Every feature here doubles as a Pro demo — never gate it.
   detection from flow samples — the "tired agent" beyond budgets. Eval-gated (ADR-9)
   before any injection wording ships.
 
+- [x] **T2.28 Continue-until-done rule.** *(shipped 2026-06-13, skill; eval pending ADR-9)*
+  Skill rule: a clean boundary is a checkpoint, not a stop — continue through healthy
+  budget + remaining work; stop ONLY on nothing-valuable-left / genuine-blocker / truly-dry.
+  The worth-it test brakes both ways (no premature stop, no runaway). Completes the
+  anti-timidity arc. Headroom INFLUENCES the stop decision (its lane); it does NOT drive
+  the turn loop — continuous operation within a session is the harness's / Keyoku's / armed
+  resume's job, not headroom's.
+
 ## Phase 2.6 — Self-evolving harness (propose-only; docs/EVOLVING-HARNESS.md, SUGGEST.md)
 
 - [~] **T2.22 `headroom suggest` miner (v0).** *(built + shipped in 0.3.2, then DEFERRED 2026-06-13 — code removed, design kept in docs/SUGGEST.md; re-enter post-adoption when there is real telemetry to mine. Thinness fitness function applied to ourselves.)* Deterministic
