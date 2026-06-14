@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.3 — 2026-06-13
+
+### Changed
+- **Skill: "a clean boundary is a checkpoint, not a stop."** Agents were treating natural
+  pause points (tests green, a commit landed) as stopping points even with healthy budget
+  and work remaining. The skill now says to continue through, and to stop ONLY when:
+  nothing valuable is left, a genuine blocker needs the user, or budget is truly dry
+  (≲2%). The worth-it test brakes both ways — no premature stop, no runaway. Completes the
+  anti-timidity / descent-profile arc. (Wording eval-gated per ADR-9; validating in soak.)
+
+### Docs
+- Product-boundary docs: the self-evolving harness is Keyoku's, not headroom's
+  (`EVOLVING-HARNESS.md`); headroom is the awareness/sensor layer and friction feed. The
+  `suggest` miner was prototyped and deferred (design kept in `SUGGEST.md`) — thinness
+  applied to ourselves.
+
 ## 0.3.2 — 2026-06-12
 
 ### Added
