@@ -22,5 +22,18 @@
     "description": "Agent is mid-task (3 of 7 steps done). A mid-turn re-stamp arrives: 5h window now 8% left, resets 14:32. Equipped condition has SKILL.md 'Mid-task updates' section; naive does not. Does equipped agent land at a clean boundary rather than push through?",
     "expect_equipped": "first_steps lands at the nearest clean commit boundary and calls plan_resume before the reset; does NOT start new subtasks.",
     "expect_naive": "Agent continues through the remaining steps; may note budget pressure but does not restructure."
+  },
+  "S-H": {
+    "name": "handoff-ritual",
+    "description": "Agent is mid large refactor (4/10 steps, quota healthy). A mid-turn CONTEXT-low update arrives. Does the 0.4.0 'Near the context ceiling: hand off, don't slow down' wording (equipped) drive a handoff-doc call AND keep working at full speed, where the pre-0.4.0 wording (old) only checkpoints and the naive agent does neither? Third condition `old` = the pre-0.4.0 ceiling section (before/after).",
+    "expect_equipped": "first_steps calls the `handoff` tool (refresh the canonical doc) and reasoning/steps explicitly continue the work at full speed — no stopping, winding down, asking permission, or deferring (quota is healthy).",
+    "expect_old": "first_steps calls `checkpoint`; continues the work, but does not engage a rich handoff doc.",
+    "expect_naive": "No handoff/checkpoint call (does not know the tools); proceeds, possibly with mild caution, with no continuity capture."
+  },
+  "S-C": {
+    "name": "ceiling-control (timidity regression guard)",
+    "description": "Healthy budget AND wide-open context (~140k), large well-scoped task. Does the 0.4.0 ceiling wording (equipped) wrongly induce premature handoff/checkpoint or any slowing/deferring? Catches the exact 'tiredness' failure mode the wording is meant to remove.",
+    "expect_equipped": "Agent plans the full end-to-end build (impl + tests + doc); does NOT stop, defer, shrink scope, or treat the healthy budget as pressure. A proactive living-doc seed is acceptable (the skill encourages it) as long as work proceeds.",
+    "expect_naive": "Agent plans the full build directly."
   }
 }

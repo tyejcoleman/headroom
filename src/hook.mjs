@@ -163,7 +163,7 @@ export async function hookPostToolUse() {
     }
     if (ctxLeft != null && ctxBand > prev.ctx) {
       parts.push(
-        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — this is a HANDOFF signal, not a slow-down signal: update your handoff doc NOW via the headroom \`handoff\` tool (mission, state, exact next steps, references, decisions, the user's directives, improvements), then KEEP WORKING at full speed. Compaction is automatic and survivable — your handoff doc + ground truth are re-injected right after it, so the next you resumes in one read. Do NOT stop, slow down, or hedge to "save" context — no clock restores it; only compaction or /clear change it`
+        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — this is a HANDOFF signal, not a slow-down signal: update your handoff doc NOW via the headroom \`handoff\` tool (mission, state, exact next steps, references, decisions, the user's directives, improvements), then KEEP WORKING at full speed until auto-compaction fires on its own (you can't trigger it and don't need to — never stop to "wait for" it). Compaction is automatic and survivable: your handoff doc + ground truth are re-injected right after it, so the next you resumes in one read. Do NOT stop, slow down, or hedge to "save" context — no clock restores it; only compaction or /clear change it. (Rate-limit/quota is the different budget — that one you pace and defer at the reset.)`
       );
     }
 

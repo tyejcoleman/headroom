@@ -45,6 +45,7 @@ test('pre-compact snapshots git ground truth; session-start(compact) re-injects 
   assert.equal(pre.status, 0);
   const snap = JSON.parse(readFileSync(join(dir, 'handoffs', 'sess-1.json'), 'utf8'));
   assert.match(snap.git.dirty[0], /a\.txt/);
+  assert.match(snap.git.last_edited, /a\.txt/); // the most-recently-edited file is captured
   assert.match(snap.git.recent_commits[0], /first commit/);
 
   const start = run(['hook', 'session-start'], {
@@ -54,6 +55,7 @@ test('pre-compact snapshots git ground truth; session-start(compact) re-injects 
   const ctx = JSON.parse(start.stdout).hookSpecificOutput.additionalContext;
   assert.match(ctx, /post-compaction ground truth/);
   assert.match(ctx, /a\.txt/);
+  assert.match(ctx, /most recently editing/); // restart directive: open the last-edited file first
   assert.match(ctx, /first commit/);
   assert.match(ctx, /Trust this snapshot/);
 });

@@ -94,9 +94,10 @@ ready work without saying so.
 
 If a `[headroom] post-compaction ground truth` block appears at session start, it is a
 pre-compaction snapshot of hard repository facts (branch, uncommitted files, recent
-commits). **Trust it over the compacted summary** when they disagree: check the
-uncommitted files first, then resume the in-flight task — do not redo work the snapshot
-shows as already done.
+commits). **Trust it over the compacted summary** when they disagree. It names the file you
+were **most recently editing** — open that file first to see exactly where you left off,
+then check the other uncommitted files and resume the in-flight task. Do not redo work the
+snapshot shows as already done.
 
 If a `[headroom] your canonical handoff doc … survived compaction` block appears, **read
 that file first** — it is the doc you wrote for exactly this moment (mission, state, exact
@@ -126,6 +127,14 @@ is automatic and survivable, and throttling work to "save" context wastes the ex
 capacity this layer exists to burn. Let the window fill all the way to the floor. The one
 thing that changes near the ceiling: you keep an excellent handoff so the post-compaction
 you continues seamlessly — across as many compactions as the task takes.
+
+**Keep working until you are *super close* to the ceiling, and let auto-compaction fire on
+its own.** You cannot trigger compaction and you do not need to — never stop, wind down, or
+hand control back to "wait for" it; just keep going and it will fire automatically, after
+which your handoff doc + ground truth are re-injected and you continue. This is about
+**context only**. Rate-limit/quota exhaustion is the *different* budget — that one you DO
+pace and defer at its reset clock (the descent profile above). Do not apply quota caution to
+context, or context fearlessness to quota.
 
 The handoff ritual — do this, then immediately keep working at full speed:
 

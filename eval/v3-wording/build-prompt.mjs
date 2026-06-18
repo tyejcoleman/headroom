@@ -15,15 +15,12 @@
 //
 // Deterministic: no clocks, no randomness — same cell = same prompt, every time.
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const here = dirname(fileURLToPath(import.meta.url));
+// Pure deterministic string composer — no file I/O, no clocks, no randomness.
 
 const [scenarioId, condition] = process.argv.slice(2);
-if (!['S-P', 'S-T', 'S-D', 'S-M'].includes(scenarioId) || !['naive', 'equipped'].includes(condition)) {
-  console.error('usage: node eval/v3-wording/build-prompt.mjs <S-P|S-T|S-D|S-M> <naive|equipped>');
+// S-H/S-C add a third condition `old` (the pre-0.4.0 ceiling wording) for before/after.
+if (!['S-P', 'S-T', 'S-D', 'S-M', 'S-H', 'S-C'].includes(scenarioId) || !['naive', 'equipped', 'old'].includes(condition)) {
+  console.error('usage: node eval/v3-wording/build-prompt.mjs <S-P|S-T|S-D|S-M|S-H|S-C> <naive|equipped|old>');
   process.exit(1);
 }
 
@@ -57,6 +54,43 @@ const SKILL_MID_TASK = `## Mid-task updates
 During long multi-step work a \`[headroom] mid-task update\` may arrive after a tool call
 — it means a budget crossed a threshold *while you were working*. Treat it as a
 re-planning point: re-check fit, land at a clean boundary, or defer (\`plan_resume\`).`;
+
+// The pre-0.4.0 ceiling wording (before/after baseline for S-H).
+const SKILL_CEILING_OLD = `## Near the context ceiling
+
+- When a \`[headroom]\` update says context is running low (or before starting anything
+  that won't fit): call the **\`checkpoint\`** tool with your task, current state,
+  decisions made (with why), approaches already ruled out, and exact next steps —
+  headroom re-injects it to you after compaction. Update it as the task evolves; the
+  latest call wins.
+- Compress instead of re-reading: summarize long outputs you already saw; don't reopen
+  large files for facts you noted.
+- Downshift subtasks that don't need full context to a smaller model where available.`;
+
+// The 0.4.0 wording under test: context-pressure is a write-the-handoff signal, not a stop.
+const SKILL_CEILING_NEW = `## Near the context ceiling: hand off, don't slow down
+
+Context filling up is **not** a reason to stop, slow, hedge, or get cautious. Compaction
+is automatic and survivable, and throttling work to "save" context wastes the exact
+capacity this layer exists to burn. Let the window fill all the way to the floor. The one
+thing that changes near the ceiling: you keep an excellent handoff so the post-compaction
+you continues seamlessly — across as many compactions as the task takes.
+
+The handoff ritual — do this, then immediately keep working at full speed:
+
+1. **Maintain a living handoff doc.** Call the **\`handoff\`** tool to write/refresh your
+   canonical markdown working-doc — what a fresh instance of you must read to be fully up
+   to speed: mission, current state, progress, exact next steps (file:line), key
+   references, decisions and why, the USER's own directives and corrections, system/process
+   improvements you discovered, and open questions. Latest call wins.
+2. **When a \`[headroom]\` update says context is low, refresh the handoff doc — then
+   continue without pausing.** Don't wind down, don't "land early to be safe," don't ask
+   permission to keep going. Reflect for one beat, update the doc, keep building.
+3. **Write the doc FOR your post-compaction self.** Front-load what to do first, name the
+   dead ends already ruled out, and \`pin_fact\` any exact value that must survive verbatim.
+
+Context-tiredness is never a stop sign — it is a *write-the-handoff* sign. Only
+quota-tiredness throttles work, and it recovers only at the reset clock.`;
 
 // ── Response format (shared; no demand-characteristic slots) ───────────────────
 
@@ -139,5 +173,32 @@ Steps remaining:
   return parts.join('\n\n');
 }
 
-const builders = { 'S-P': buildSP, 'S-T': buildST, 'S-D': buildSD, 'S-M': buildSM };
+function buildSH(cond) {
+  // Neutral context-low stamp: NO guidance in the stamp itself — the ceiling SKILL
+  // section is the only thing that differs, so it is what is under test.
+  const stamp = `[headroom] mid-task update: context now ~9k tokens before compaction`;
+  const parts = [];
+  parts.push(`You are a coding agent partway through a large, multi-file refactor in the \`acme-api\` repository. You have completed about 4 of ~10 planned steps and there is substantial, well-defined work still remaining (more modules to migrate, tests to update, a docs pass). The 5h and 7d rate-limit windows are both healthy (plenty of quota). After your last tool call, this update arrived:`);
+  parts.push(stamp);
+  if (cond === 'equipped') parts.push(SKILL_CEILING_NEW);
+  else if (cond === 'old') parts.push(SKILL_CEILING_OLD);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+function buildSC(cond) {
+  // Control for timidity regression: budget is plentiful AND context is wide open.
+  // The ceiling wording must NOT make the agent hand off / checkpoint / slow down here.
+  const stamp = `[headroom] 5h: 88% left, resets 18:00 · 7d: 92% left · context — ~140k tokens before compaction`;
+  const parts = [];
+  parts.push(`You are a coding agent starting a fresh session in the \`acme-api\` repository with a large but well-scoped feature to build. This stamp arrived with the user's message:`);
+  parts.push(stamp);
+  parts.push(`The user said: "Build the new rate-limiting middleware end to end — implementation, tests, and a short doc. Take it all the way."`);
+  if (cond === 'equipped') parts.push(SKILL_CEILING_NEW);
+  else if (cond === 'old') parts.push(SKILL_CEILING_OLD);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+const builders = { 'S-P': buildSP, 'S-T': buildST, 'S-D': buildSD, 'S-M': buildSM, 'S-H': buildSH, 'S-C': buildSC };
 process.stdout.write(builders[scenarioId](condition) + '\n');

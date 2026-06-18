@@ -98,9 +98,30 @@ export function captureHandoff({ session_id, cwd, trigger, transcript_path, cust
   if (cwd) {
     const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
     if (branch !== null) {
+      const porcelain = (git(cwd, ['status', '--porcelain']) ?? '').split('\n').filter(Boolean);
+      // the file you were most recently editing — the restarted agent opens it first to
+      // re-orient (deterministic: newest mtime among changed files; renames take the dest)
+      let last_edited = null;
+      let newest = 0;
+      for (const line of porcelain.slice(0, 50)) {
+        // status code(s) + space, then the path; renames are "old -> new". Parse by token,
+        // not column: git() trims output, so the first line loses its leading status space.
+        const rel = line.trim().replace(/^\S+\s+/, '').split(' -> ').pop();
+        if (!rel) continue;
+        try {
+          const mt = statSync(join(cwd, rel)).mtimeMs;
+          if (mt > newest) {
+            newest = mt;
+            last_edited = rel;
+          }
+        } catch {
+          // deleted/renamed entries that no longer stat — skip
+        }
+      }
       snap.git = {
         branch,
-        dirty: (git(cwd, ['status', '--porcelain']) ?? '').split('\n').filter(Boolean).slice(0, 20),
+        dirty: porcelain.slice(0, 20),
+        last_edited,
         recent_commits: (git(cwd, ['log', '--oneline', '-5']) ?? '').split('\n').filter(Boolean),
       };
     }
@@ -134,6 +155,8 @@ export function renderHandoff(snap) {
         ? `- uncommitted changes (${snap.git.dirty.length}): ${snap.git.dirty.join(', ')}`
         : '- working tree was clean'
     );
+    if (snap.git.last_edited)
+      lines.push(`- you were most recently editing: ${snap.git.last_edited} — OPEN THIS FILE FIRST to see exactly where you left off, then continue`);
     if (snap.git.recent_commits.length) lines.push(`- recent commits: ${snap.git.recent_commits.join(' · ')}`);
   }
   if (snap.budgets?.five_hour_pct_left != null) {

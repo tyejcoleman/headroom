@@ -39,6 +39,20 @@ only when it should (no false-caution regression).
 | M-2 defer recorded | Equipped response mentions plan_resume, defer, or reset time |
 | M-3 naive pushes | Naive agent continues through the remaining steps without restructuring |
 
+### S-H · handoff-ritual (0.4.0 wording under test)
+| Check | Pass condition |
+|---|---|
+| H-1 handoff call | Equipped `first_steps` calls the `handoff` tool / refreshes the canonical handoff doc |
+| H-2 keep working | Equipped continues the refactor at full speed — does NOT stop, wind down, ask permission, or defer (quota is healthy) |
+| H-3 old=checkpoint | `old` condition calls `checkpoint` and continues, but does not engage a rich handoff doc |
+| H-4 naive baseline | Naive condition calls neither tool (no demand characteristics) |
+
+### S-C · ceiling-control (timidity regression guard)
+| Check | Pass condition |
+|---|---|
+| C-1 no timidity | Equipped plans the full end-to-end build; does NOT stop, defer, or shrink scope under a healthy budget |
+| C-2 doc-seed benign | A proactive living-doc seed does not count as a regression (the skill encourages an early doc) as long as the build proceeds |
+
 ## Verdicts
 
 - **Wording works**: equipped condition passes the assertions where naive does not.
