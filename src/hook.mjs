@@ -94,13 +94,14 @@ export async function hookPostToolUse() {
     for (const k of Object.keys(all)) if (now - (all[k].t ?? 0) > 24 * 3600) delete all[k];
     const prev = all[mySession];
     const fhUsed = s.windows?.five_hour?.used_pct ?? null;
+    const ctxUsed = ctx?.used_pct ?? null;
     const cost = !foreign && typeof s.session?.cost_usd === 'number' ? s.session.cost_usd : null;
     const save = (entry) => {
-      all[mySession] = { ...entry, u: fhUsed, c: cost, t: now };
+      all[mySession] = { ...entry, u: fhUsed, c: cost, cu: ctxUsed, t: now };
       ensureDir(headroomDir());
       atomicWriteJSON(bandsPath, all);
     };
-    if (!prev) return save({ fh: fhBand, ctx: ctxBand, exh, at: 0 });
+    if (!prev) return save({ fh: fhBand, ctx: ctxBand, exh, sc: false, at: 0 });
 
     // Cost receipt (T2.13): a single tool call that visibly moved the budget gets a
     // one-line receipt — per-action unit economics, not just a balance. Floors keep it
@@ -129,13 +130,42 @@ export async function hookPostToolUse() {
         })
       );
 
+    // Continuity-aware ctx triggers: don't nag for a handoff once you've already saved one
+    // (kills the redundant 6%→3% re-saving), prompt at the NEXT task boundary, and fire ONE
+    // velocity-timed "super close but safe" nudge so the final save lands just before the
+    // ceiling — then the agent powers through to auto-compaction instead of stopping.
+    const tok = ctx?.tokens_to_ceiling ?? null;
+    const ceilingPct = ctx?.compact_ceiling_pct ?? 80;
+    const superClose = tok != null && tok <= 12000; // room for one ~1-2k handoff, then ride it in
+    let savedRecently = false;
+    let savedNote = '';
+    if (ctxLeft != null) {
+      const savedAt = Math.max(takeCheckpoint(p.session_id)?.at ?? 0, takeContinuity(p.session_id)?.at ?? 0);
+      const ago = savedAt ? now - savedAt : null;
+      savedRecently = ago != null && ago < 150; // ~2.5 min: already captured, don't re-prompt
+      savedNote = ago != null ? ` (handoff already saved ${ago < 90 ? 'moments' : `${Math.round(ago / 60)}m`} ago — don't re-save unless state changed)` : '';
+    }
+    // PostToolUse fires per tool call, so Δ(ctx used%) per call ≈ context burned per call →
+    // a natural "tool calls until auto-compaction" estimate
+    let callsLeft = null;
+    if (prev.cu != null && ctxUsed != null && ctxUsed > prev.cu) {
+      callsLeft = Math.max(1, Math.round((ceilingPct - ctxUsed) / (ctxUsed - prev.cu)));
+    }
+    const eta = callsLeft != null ? `, ≈${callsLeft} tool call${callsLeft === 1 ? '' : 's'} at this pace` : '';
+    const scMsg =
+      superClose && !prev.sc && !savedRecently
+        ? `SUPER CLOSE to auto-compaction (~${fmtTokens(tok)} tokens before the ceiling${eta} — still safe to write once): make your handoff current NOW via the headroom \`handoff\` tool, then POWER THROUGH — keep working until it auto-compacts. Do NOT stop "to be safe": stopping strands the task; the session resumes from your handoff right after compaction.${savedNote}`
+        : null;
+    const scLatched = superClose ? prev.sc || scMsg != null : false;
+
     const worsened = fhBand > prev.fh || ctxBand > prev.ctx || (exh && !prev.exh);
     const throttled = now - (prev.at ?? 0) < prof.throttle_sec;
     if (throttled) {
       if (worsened) logEvent({ type: 'band_change', session_id: p.session_id ?? null, held: true, fh_left: fhLeft != null ? Math.round(fhLeft) : null });
       // record improvements so a later re-worsening re-triggers; hold worsenings for retry
-      save({ fh: Math.min(prev.fh, fhBand), ctx: Math.min(prev.ctx, ctxBand), exh: prev.exh && exh, at: prev.at });
-      if (receipts.length) emit(receipts); // receipts have their own floor, not the band throttle
+      save({ fh: Math.min(prev.fh, fhBand), ctx: Math.min(prev.ctx, ctxBand), exh: prev.exh && exh, sc: scLatched, at: prev.at });
+      const urgent = [...receipts, ...(scMsg ? [scMsg] : [])]; // both bypass the band throttle
+      if (urgent.length) emit(urgent);
       return;
     }
 
@@ -161,23 +191,24 @@ export async function hookPostToolUse() {
             : `right-size: finish in-flight work at a clean boundary; defer heavy new work (plan_resume)`)
       );
     }
-    if (ctxLeft != null && ctxBand > prev.ctx) {
+    if (ctxLeft != null && ctxBand > prev.ctx && !savedRecently && !superClose) {
       parts.push(
-        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — this is a HANDOFF signal, not a slow-down signal: update your handoff doc NOW via the headroom \`handoff\` tool (mission, state, exact next steps, references, decisions, the user's directives, improvements), then KEEP WORKING at full speed until auto-compaction fires on its own (you can't trigger it and don't need to — never stop to "wait for" it). Compaction is automatic and survivable: your handoff doc + ground truth are re-injected right after it, so the next you resumes in one read. Do NOT stop, slow down, or hedge to "save" context — no clock restores it; only compaction or /clear change it. (Rate-limit/quota is the different budget — that one you pace and defer at the reset.)`
+        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — this is a HANDOFF signal, not a slow-down: capture state in your handoff at your NEXT task boundary via the headroom \`handoff\` tool, then POWER THROUGH at full speed. Do NOT stop, hand back control, or get cautious because context is filling — that prevents the auto-compaction that refreshes you. Keep working so it fires; the session resumes from your handoff right after. No need to re-save before the boundary. Context only — rate-limit/quota is the different budget you pace/defer at the reset.${savedNote}`
       );
     }
 
-    save({ fh: fhBand, ctx: ctxBand, exh, at: parts.length ? now : prev.at });
+    const emittedAny = parts.length > 0 || scMsg != null;
+    save({ fh: fhBand, ctx: ctxBand, exh, sc: scLatched, at: emittedAny ? now : prev.at });
     if (fhBand !== prev.fh || ctxBand !== prev.ctx || exh !== prev.exh) {
       logEvent({
         type: 'band_change',
         session_id: p.session_id ?? null,
-        emitted: parts.length > 0,
+        emitted: emittedAny,
         fh_left: fhLeft != null ? Math.round(fhLeft) : null,
         exh,
       });
     }
-    const lines = [...receipts, ...parts];
+    const lines = [...receipts, ...(scMsg ? [scMsg] : []), ...parts];
     if (lines.length) emit(lines);
   } catch {
     // mid-turn awareness is best-effort; never interfere with the tool loop

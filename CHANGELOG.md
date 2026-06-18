@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.1 — 2026-06-18
+
+### Changed
+- **Power through to auto-compaction — stop getting "scared" near the context ceiling.**
+  Field report: agents were stopping/handing back control as context filled, which prevents
+  the very auto-compaction that would refresh them and continue the task. The skill now
+  states it outright: stopping near the ceiling **strands the task**; keep producing work
+  until Claude Code auto-compacts, then resume from the handoff. Removed "context at the
+  compaction floor" from the legitimate stop-conditions list — **only quota (rate-limit)
+  ever justifies stopping; context never does.**
+- **Non-redundant handoff cadence (throughput).** The mid-turn ctx logic no longer nags for
+  a handoff once one was saved recently (kills the redundant 6%→3% re-saving). Cadence is
+  now: refresh at **task boundaries**, plus **one** velocity-timed "super close to
+  auto-compaction" nudge (fires once, bypasses the throttle, suppressed if already saved).
+  Updates surface "handoff already saved Nm ago" and a "≈N tool calls at this pace" estimate
+  (from per-tool-call context growth) so the agent knows it's captured and how close it is.
+
 ## 0.4.0 — 2026-06-17
 
 ### Added

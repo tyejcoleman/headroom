@@ -151,6 +151,58 @@ test('handoff doc: stale doc and wrong-session doc are not re-injected', () => {
   assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-B', source: 'compact' }), env: env2 }).stdout, '');
 });
 
+test('ctx mid-turn: super-close fires exactly once (velocity-timed, not redundant)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'headroom-sc-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = () => Math.round(Date.now() / 1000);
+  const writeState = (tok) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now(),
+        session_id: 'cx1',
+        windows: { five_hour: { used_pct: 30, resets_at: now() + 3600 } },
+        context: { used_pct: 78, compact_ceiling_pct: 80, tokens_to_ceiling: tok },
+        burn: {},
+        session: {},
+      })
+    );
+  const post = () => run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'cx1' }), env }).stdout;
+
+  writeState(40000);
+  assert.equal(post(), ''); // first sight: baseline, not super-close
+  writeState(8000);
+  assert.match(post(), /SUPER CLOSE to auto-compaction/); // the one velocity-timed nudge
+  assert.equal(post(), ''); // fires only ONCE — no redundant re-nag
+});
+
+test('ctx mid-turn: a recent handoff suppresses the super-close nag (no redundant re-save)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'headroom-sc2-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = () => Math.round(Date.now() / 1000);
+  const writeState = (tok) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now(),
+        session_id: 'cx2',
+        windows: { five_hour: { used_pct: 30, resets_at: now() + 3600 } },
+        context: { used_pct: 78, compact_ceiling_pct: 80, tokens_to_ceiling: tok },
+        burn: {},
+        session: {},
+      })
+    );
+  const post = () => run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'cx2' }), env }).stdout;
+
+  writeState(40000);
+  post(); // baseline, records the ctx sample
+  saveDoc({ mission: 'already captured', next_steps: ['continue'] }, env); // fresh handoff for cx2
+  writeState(8000); // now super-close
+  assert.equal(post(), ''); // suppressed: handoff was just saved — don't re-nag
+});
+
 test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in stamp/session-start → clear', () => {
   const dir = mkdtempSync(join(tmpdir(), 'headroom-res-'));
   const env = { HEADROOM_DIR: dir };

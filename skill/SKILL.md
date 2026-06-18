@@ -138,21 +138,27 @@ context, or context fearlessness to quota.
 
 The handoff ritual — do this, then immediately keep working at full speed:
 
-1. **Maintain a living handoff doc.** Call the **`handoff`** tool to write/refresh your
-   canonical markdown working-doc — what a fresh instance of you must read to be fully up
-   to speed: mission, current state, progress, exact next steps (file:line), key
-   references (files/paths/docs/URLs), decisions and why, the USER's own directives and
-   corrections, system/process improvements you discovered, and open questions. Latest
-   call wins, so pass the full current picture. Update it as you work, not only at the end.
-2. **When a `[headroom]` update says context is low, refresh the handoff doc — then
-   continue without pausing.** Don't wind down, don't "land early to be safe," don't ask
-   permission to keep going. Reflect for one beat ("what would confuse a fresh me?"),
-   update the doc, keep building. Compaction fires on its own; headroom re-injects the
-   doc's path + a digest right after it.
-3. **Write the doc FOR your post-compaction self.** Front-load what to do first, name the
-   dead ends already ruled out so they aren't retried, and `pin_fact` any exact value that
-   must survive verbatim. The target: the next you resumes in a single read, at full
-   velocity, redoing nothing.
+1. **Refresh the handoff at TASK BOUNDARIES.** The non-redundant, high-throughput cadence
+   is to update the **`handoff`** doc when you finish one task and are about to start the
+   next — that is when state has actually changed and is worth capturing. Pass the full
+   current picture (latest wins): mission, state, progress, exact next steps (file:line),
+   references, decisions, the USER's own directives and corrections, improvements, open
+   questions.
+2. **Do NOT re-save on every low-context nudge.** Once your handoff is current, keep
+   working — re-writing identical state wastes throughput, and headroom tracks when you
+   last saved (it tells you in the mid-task update, so you know it's captured). It will give
+   you exactly ONE "super close to auto-compaction" nudge when you are safely-but-imminently
+   near the ceiling; make the doc current THEN, and only then. Between task boundaries and
+   that final nudge, just build.
+3. **POWER THROUGH to auto-compaction — never stop near the ceiling.** This is the part
+   agents get wrong: as context fills they get cautious and stop "to be safe." That is the
+   exact opposite of correct — **stopping strands the task**, because the session can only
+   refresh and continue if you keep working until Claude Code auto-compacts (you cannot
+   trigger compaction; it fires on its own once context is full enough). So keep producing
+   work — more tool calls, more edits — straight through the ceiling. Right after it fires,
+   headroom re-injects your handoff's path + digest and you resume in one read, at full
+   velocity, redoing nothing. Front-load the doc's next-steps for that post-compaction self,
+   name the dead ends already ruled out, and `pin_fact` any exact value that must survive.
 
 `checkpoint` still exists for a fast terse survival note; **`handoff` is the richer living
 document — prefer it for anything beyond a one-liner.** Also: compress instead of
@@ -160,9 +166,10 @@ re-reading (summarize long outputs you already saw; don't reopen large files for
 noted), and downshift subtasks that don't need full context to a smaller model where
 available.
 
-Context-tiredness is never a stop sign — it is a *write-the-handoff* sign. Only
-quota-tiredness throttles work, and it recovers only at the reset clock; never confuse the
-two remedies.
+**Context-tiredness is NEVER a stop sign — it is a *write-the-handoff-then-power-through*
+sign.** Only quota (rate-limit) tiredness throttles work, and it recovers only at the reset
+clock; never confuse the two. Filling context is the path to the refresh, not a danger to
+avoid.
 
 ## Long-running work: a clean boundary is a checkpoint, not a stop
 
@@ -175,9 +182,11 @@ control back at every clean boundary. Stop — and only stop — when one of the
   own activity too).
 - **A genuine blocker needs the user.** An ambiguous decision costly to guess wrong,
   missing access/credentials, a real external dependency. Surface it concisely, then stop.
-- **Budget is truly dry.** ≲2% quota, or context at the compaction floor with no room to
-  checkpoint. Land, checkpoint, and defer (plan_resume; armed resume continues after the
-  reset).
+- **Quota (rate-limit) is truly dry.** ≲2% of the 5h/7d window — this is the ONLY budget
+  that justifies stopping. Land, checkpoint, and defer (plan_resume; armed resume continues
+  after the reset). **Context is NOT on this list: never stop because context is near the
+  compaction floor.** Near the floor you keep a current handoff and POWER THROUGH so
+  auto-compaction fires and the session restarts from it — stopping there strands the task.
 
 Otherwise: keep going — pacing replaces stopping. Descend into smaller atomic steps as the
 window thins (the descent profile), defer past the reset when it's gone, but never idle a
