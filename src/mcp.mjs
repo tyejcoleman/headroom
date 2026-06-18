@@ -7,6 +7,7 @@ import { fitCheck, estimateRemaining } from './fit.mjs';
 import { planResume } from './resume.mjs';
 import { addPin } from './pins.mjs';
 import { saveCheckpoint } from './checkpoint.mjs';
+import { saveContinuity } from './continuity.mjs';
 import { logEvent } from './events.mjs';
 import { readConfig } from './util.mjs';
 
@@ -74,6 +75,27 @@ const TOOLS = [
     },
   },
   {
+    name: 'handoff',
+    description:
+      "Update YOUR canonical handoff document — the living markdown working-doc a fresh instance of you would read to resume this work fully. Richer and more durable than `checkpoint`: write it AS YOU WORK and ALWAYS refresh it when context runs low, then keep working at full speed. When context is filling up, this is what you do INSTEAD of slowing down or stopping — headroom re-injects the doc's path + a digest to you after compaction so a long-running task continues seamlessly across as many auto-compactions as it takes. Latest call wins (pass the full current picture each time).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mission: { type: 'string', description: 'the overarching goal of this work, one or two sentences' },
+        state: { type: 'string', description: 'where things stand right now — what is done, what is in flight' },
+        progress: { type: 'array', items: { type: 'string' }, description: 'what has been accomplished so far' },
+        next_steps: { type: 'array', items: { type: 'string' }, description: 'exact next steps, file:line specific — what a fresh you should do FIRST' },
+        references: { type: 'array', items: { type: 'string' }, description: 'key files/paths/docs/URLs to read to be up to speed' },
+        decisions: { type: 'array', items: { type: 'string' }, description: 'decisions made, each with its why' },
+        rejected: { type: 'array', items: { type: 'string' }, description: 'approaches already ruled out, each with why-not (prevents retrying dead ends)' },
+        user_directives: { type: 'array', items: { type: 'string' }, description: "the user's own instructions, constraints, and corrections this session — in their words where wording matters" },
+        improvements: { type: 'array', items: { type: 'string' }, description: 'system/process improvements or insights discovered while working' },
+        open_questions: { type: 'array', items: { type: 'string' }, description: 'unresolved questions or risks to flag' },
+      },
+      required: ['mission', 'next_steps'],
+    },
+  },
+  {
     name: 'pin_fact',
     description:
       'Pin a fact that must survive context compaction VERBATIM — hard user constraints, deadlines, exact values ("no deploys before June 16", a port, an invariant). Re-injected word-for-word after every compaction until it expires (default 7 days) or is unpinned. Pin sparingly: only sentences whose exact wording matters.',
@@ -130,6 +152,16 @@ export function mcpServe() {
         result = note
           ? { saved: true, note: 'Checkpoint saved — it will be re-injected to you after compaction. Update it as the task evolves (latest wins).' }
           : { saved: false, error: 'task and next_steps are required' };
+      } else if (name === 'handoff') {
+        // works without state — the canonical handoff doc must never depend on the tap being live
+        const res = saveContinuity({ ...args, cwd: process.cwd() });
+        result = res
+          ? {
+              saved: true,
+              path: res.path,
+              note: "Handoff doc updated at the path above — its path + a digest are re-injected to you after compaction. Refresh it as the work evolves (latest wins), and keep working: context running low is a reason to handoff, not to stop.",
+            }
+          : { saved: false, error: 'mission and next_steps are required' };
       } else if (name === 'pin_fact') {
         // works without state — pinning must never depend on the tap being live
         const pin = addPin(args.text, { ttl_hours: args.ttl_hours });

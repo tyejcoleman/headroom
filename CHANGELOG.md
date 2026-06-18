@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 — 2026-06-17
+
+### Added
+- **Continuity handoff doc — the agent's living, canonical working-doc (T2.29, ADR-18).**
+  A new `handoff` MCP tool (the fourth write surface) lets the agent maintain an *evolving
+  markdown* document a fresh instance reads to resume fully: mission, current state,
+  progress, exact next steps, key references, decisions + why, **the user's own
+  directives/corrections**, system/process improvements discovered, and open questions.
+  Stored at `~/.headroom/continuity/<session>.md`, latest-wins, capped per section, session-
+  guarded, pruned after 7 days. Re-injected at SessionStart(source=compact) as a **pointer +
+  digest** (ADR-11 style — the doc lives on disk, so point, don't dump). Richer and more
+  durable than the terse `checkpoint`. `headroom handoff [--path]` prints the current doc.
+
+### Changed
+- **Skill: context-pressure is a *write-the-handoff* signal, not a stop sign.** Field report:
+  agents were getting "tired"/cautious as compaction approached and slowing down or stopping.
+  The "near the context ceiling" section is rewritten into a handoff ritual — keep a living
+  handoff doc, refresh it when context runs low, then **keep working at full speed**; let the
+  window burn to the floor because compaction is automatic and your doc + ground truth are
+  re-injected right after it. The mid-turn ctx band update now says the same. (Wording
+  eval-gated per ADR-9; validating in soak.)
+
 ## 0.3.3 — 2026-06-13
 
 ### Changed

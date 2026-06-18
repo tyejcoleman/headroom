@@ -7,10 +7,14 @@ export const headroomDir = () => process.env.HEADROOM_DIR || join(homedir(), '.h
 
 export const ensureDir = (dir) => mkdirSync(dir, { recursive: true });
 
-export function atomicWriteJSON(path, obj) {
+export function atomicWrite(path, text) {
   const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
-  writeFileSync(tmp, JSON.stringify(obj, null, 2));
+  writeFileSync(tmp, text);
   renameSync(tmp, path);
+}
+
+export function atomicWriteJSON(path, obj) {
+  atomicWrite(path, JSON.stringify(obj, null, 2));
 }
 
 export function readJSON(path) {

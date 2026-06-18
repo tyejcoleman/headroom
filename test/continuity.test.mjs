@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,14 @@ const run = (args, { input = '', env = {} } = {}) =>
   spawnSync(process.execPath, [bin, ...args], { input, encoding: 'utf8', env: { ...process.env, ...env } });
 
 const sh = (cwd, cmd, args) => spawnSync(cmd, args, { cwd, encoding: 'utf8' });
+
+const contMod = JSON.stringify(join(root, 'src', 'continuity.mjs'));
+const saveDoc = (args, env) =>
+  spawnSync(process.execPath, ['--input-type=module', '-e', `const { saveContinuity } = await import(${contMod}); console.log(JSON.stringify(saveContinuity(${JSON.stringify(args)})));`], {
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+    input: '',
+  }).stdout.trim();
 
 function makeGitRepo() {
   const repo = mkdtempSync(join(tmpdir(), 'headroom-repo-'));
@@ -76,6 +84,69 @@ test('pre-compact never crashes on garbage input or non-git cwd', () => {
   assert.equal(run(['hook', 'pre-compact'], { input: JSON.stringify({ session_id: 's', cwd: plain }), env }).status, 0);
   const snap = JSON.parse(readFileSync(join(dir, 'handoffs', 's.json'), 'utf8'));
   assert.equal(snap.git, null);
+});
+
+test('handoff doc: saveContinuity writes a canonical markdown doc; missing fields rejected', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'headroom-h1-'));
+  const env = { HEADROOM_DIR: dir };
+
+  assert.equal(saveDoc({ state: 'no mission, no next steps' }, env), 'null');
+
+  const out = JSON.parse(
+    saveDoc(
+      {
+        mission: 'ship the continuity handoff feature',
+        next_steps: ['wire the MCP tool', 'add tests'],
+        references: ['src/continuity.mjs'],
+        user_directives: ['let it burn to the ground'],
+        improvements: ['reframe context-pressure as a handoff signal'],
+      },
+      env
+    )
+  );
+  assert.ok(out.path);
+  const md = readFileSync(out.path, 'utf8');
+  assert.match(md, /# Headroom handoff/);
+  assert.match(md, /ship the continuity handoff feature/);
+  assert.match(md, /wire the MCP tool/);
+  assert.match(md, /let it burn to the ground/);
+  assert.match(md, /reframe context-pressure/);
+});
+
+test('handoff doc: session-start(compact) re-injects pointer+digest; startup is silent', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'headroom-h2-'));
+  const env = { HEADROOM_DIR: dir };
+  saveDoc({ mission: 'long-running migration', next_steps: ['resume at step 4'] }, env);
+
+  const ctx = JSON.parse(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-1', source: 'compact' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(ctx, /canonical handoff doc/);
+  assert.match(ctx, /READ IT FIRST/);
+  assert.match(ctx, /resume at: resume at step 4/);
+
+  // a normal (non-compact) startup must stay silent — does not break existing behavior
+  assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-1', source: 'startup' }), env }).stdout, '');
+});
+
+test('handoff doc: stale doc and wrong-session doc are not re-injected', () => {
+  // stale
+  const dir = mkdtempSync(join(tmpdir(), 'headroom-h3-'));
+  const env = { HEADROOM_DIR: dir };
+  saveDoc({ mission: 'x', next_steps: ['y'] }, env);
+  const metaP = join(dir, 'continuity', 'session.meta.json');
+  const m = JSON.parse(readFileSync(metaP, 'utf8'));
+  m.at -= 25 * 3600;
+  writeFileSync(metaP, JSON.stringify(m));
+  assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-1', source: 'compact' }), env }).stdout, '');
+
+  // wrong session: a doc tagged sess-A must not surface for sess-B
+  const dir2 = mkdtempSync(join(tmpdir(), 'headroom-h4-'));
+  const env2 = { HEADROOM_DIR: dir2 };
+  const now = Math.round(Date.now() / 1000);
+  mkdirSync(join(dir2, 'continuity'), { recursive: true });
+  writeFileSync(join(dir2, 'continuity', 'sess-A.meta.json'), JSON.stringify({ session_id: 'sess-A', at: now, digest: { mission: 'x', next: 'y' } }));
+  writeFileSync(join(dir2, 'continuity', 'sess-A.md'), '# doc\n');
+  assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-B', source: 'compact' }), env: env2 }).stdout, '');
 });
 
 test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in stamp/session-start → clear', () => {

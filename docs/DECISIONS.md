@@ -146,3 +146,24 @@ propose-only, forever if necessary. *Why:* a harness that silently rewrites itse
 highest-risk pattern in the field (drift, injection-persistence, bloat); propose-only
 captures the value with none of the danger. **Enforced by:** suggest does no writes;
 this log; ADR-9 for adoption.
+
+## ADR-18 — Continuity handoff doc: the model's living markdown working-doc (amends ADR-6, extends ADR-15)
+ADR-15 added `checkpoint` for the model's TERSE last-second survival note. The continuity
+handoff doc is its richer sibling: a model-authored, EVOLVING **markdown** working-document
+— mission, current state, progress, exact next steps, key references, decisions + why, the
+**user's own directives**, system/process improvements discovered, open questions — written
+throughout a long-running task, not just at the ceiling. It is the **fourth MCP write
+surface** (after plan_resume, pin_fact, checkpoint; ADR-6 enumerated the write surfaces and
+is amended again here). Stored as markdown under `~/.headroom/continuity/<session>.md`
+(+ `.meta.json` for the digest), session-scoped with the same tag-and-guard rule as
+checkpoint (MCP carries no session id → tag with the latest tap session; injection guard
+accepts a match or an untagged doc), capped per section, latest-wins, 24h staleness, pruned
+after 7 days. Re-injected at SessionStart(source=compact) as a **pointer + digest**
+(ADR-11: the doc lives on disk; compaction just freed the context, so point — don't dump).
+*Why:* native compaction summarizes generically, and a terse checkpoint captures the resume
+pointer but not the accumulated working knowledge (references, the user's exact directives,
+improvements found) that lets a long-running process survive REPEATED auto-compactions at
+full velocity. It reframes context-pressure from a stop-signal into a write-the-handoff
+ritual — the field report that motivated it was an agent getting "tired"/cautious near
+compaction instead of handing off and continuing. **Enforced by:** caps + session guards in
+`src/continuity.mjs`, lifecycle tests; skill + ctx-band wording joins the eval queue (ADR-9).

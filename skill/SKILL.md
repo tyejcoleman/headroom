@@ -98,6 +98,12 @@ commits). **Trust it over the compacted summary** when they disagree: check the
 uncommitted files first, then resume the in-flight task — do not redo work the snapshot
 shows as already done.
 
+If a `[headroom] your canonical handoff doc … survived compaction` block appears, **read
+that file first** — it is the doc you wrote for exactly this moment (mission, state, exact
+next steps, references, decisions, the user's directives, improvements). Resume straight
+from its next steps at full speed; don't reconstruct from the compacted summary, and don't
+redo work it shows as already done.
+
 If the block names a **transcript or extracts path**, the full pre-compaction history is
 still on disk. For exact error text, file contents you saw earlier, or the user's exact
 wording, search those files (grep the transcript JSONL) instead of reconstructing from
@@ -113,16 +119,41 @@ word-for-word after each compaction. When a pin is satisfied or obsolete, say so
 `headroom unpin <id>`. Pin sparingly: pins are for sentences whose exact wording matters,
 not general context.
 
-## Near the context ceiling
+## Near the context ceiling: hand off, don't slow down
 
-- When a `[headroom]` update says context is running low (or before starting anything
-  that won't fit): call the **`checkpoint`** tool with your task, current state,
-  decisions made (with why), approaches already ruled out, and exact next steps —
-  headroom re-injects it to you after compaction. Update it as the task evolves; the
-  latest call wins.
-- Compress instead of re-reading: summarize long outputs you already saw; don't reopen
-  large files for facts you noted.
-- Downshift subtasks that don't need full context to a smaller model where available.
+Context filling up is **not** a reason to stop, slow, hedge, or get cautious. Compaction
+is automatic and survivable, and throttling work to "save" context wastes the exact
+capacity this layer exists to burn. Let the window fill all the way to the floor. The one
+thing that changes near the ceiling: you keep an excellent handoff so the post-compaction
+you continues seamlessly — across as many compactions as the task takes.
+
+The handoff ritual — do this, then immediately keep working at full speed:
+
+1. **Maintain a living handoff doc.** Call the **`handoff`** tool to write/refresh your
+   canonical markdown working-doc — what a fresh instance of you must read to be fully up
+   to speed: mission, current state, progress, exact next steps (file:line), key
+   references (files/paths/docs/URLs), decisions and why, the USER's own directives and
+   corrections, system/process improvements you discovered, and open questions. Latest
+   call wins, so pass the full current picture. Update it as you work, not only at the end.
+2. **When a `[headroom]` update says context is low, refresh the handoff doc — then
+   continue without pausing.** Don't wind down, don't "land early to be safe," don't ask
+   permission to keep going. Reflect for one beat ("what would confuse a fresh me?"),
+   update the doc, keep building. Compaction fires on its own; headroom re-injects the
+   doc's path + a digest right after it.
+3. **Write the doc FOR your post-compaction self.** Front-load what to do first, name the
+   dead ends already ruled out so they aren't retried, and `pin_fact` any exact value that
+   must survive verbatim. The target: the next you resumes in a single read, at full
+   velocity, redoing nothing.
+
+`checkpoint` still exists for a fast terse survival note; **`handoff` is the richer living
+document — prefer it for anything beyond a one-liner.** Also: compress instead of
+re-reading (summarize long outputs you already saw; don't reopen large files for facts you
+noted), and downshift subtasks that don't need full context to a smaller model where
+available.
+
+Context-tiredness is never a stop sign — it is a *write-the-handoff* sign. Only
+quota-tiredness throttles work, and it recovers only at the reset clock; never confuse the
+two remedies.
 
 ## Long-running work: a clean boundary is a checkpoint, not a stop
 

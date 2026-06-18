@@ -43,7 +43,7 @@ test('mcp: initialize → tools/list → fit_check round-trip', async () => {
     send({ jsonrpc: '2.0', method: 'notifications/initialized' });
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     const list = await next();
-    assert.deepEqual(list.result.tools.map((t) => t.name).sort(), ['checkpoint', 'estimate_remaining', 'fit_check', 'pin_fact', 'plan_resume', 'resource_state']);
+    assert.deepEqual(list.result.tools.map((t) => t.name).sort(), ['checkpoint', 'estimate_remaining', 'fit_check', 'handoff', 'pin_fact', 'plan_resume', 'resource_state']);
 
     send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'fit_check', arguments: { est_tokens: 5000 } } });
     const fit = await next();
@@ -59,6 +59,16 @@ test('mcp: initialize → tools/list → fit_check round-trip', async () => {
     const planned = JSON.parse((await next()).result.content[0].text);
     assert.equal(planned.recorded, true);
     assert.equal(typeof planned.resume_at_clock, 'string');
+
+    send({
+      jsonrpc: '2.0',
+      id: 6,
+      method: 'tools/call',
+      params: { name: 'handoff', arguments: { mission: 'ship continuity handoff', next_steps: ['run the suite'], references: ['src/continuity.mjs'] } },
+    });
+    const handoff = JSON.parse((await next()).result.content[0].text);
+    assert.equal(handoff.saved, true);
+    assert.ok(handoff.path && readFileSync(handoff.path, 'utf8').includes('ship continuity handoff'));
   } finally {
     child.kill();
   }

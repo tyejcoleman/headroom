@@ -6,6 +6,7 @@ import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
 import { listPins, renderPins } from './pins.mjs';
 import { takeCheckpoint, renderCheckpoint } from './checkpoint.mjs';
+import { takeContinuity, renderContinuityInjection } from './continuity.mjs';
 import { sampleFlow } from './flow.mjs';
 
 const STALE_SEC = 30 * 60;
@@ -162,7 +163,7 @@ export async function hookPostToolUse() {
     }
     if (ctxLeft != null && ctxBand > prev.ctx) {
       parts.push(
-        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — save a checkpoint NOW via the headroom \`checkpoint\` tool (task, state, decisions, ruled-out approaches, exact next steps), then KEEP WORKING: compaction happens automatically and your checkpoint + ground truth will be re-injected after it. Do NOT stop to wait — no clock restores context; only compaction or /clear change it`
+        `context now ${ctx.tokens_to_ceiling != null ? `~${fmtTokens(ctx.tokens_to_ceiling)} tokens` : `${Math.round(ctxLeft)}%`} before compaction — this is a HANDOFF signal, not a slow-down signal: update your handoff doc NOW via the headroom \`handoff\` tool (mission, state, exact next steps, references, decisions, the user's directives, improvements), then KEEP WORKING at full speed. Compaction is automatic and survivable — your handoff doc + ground truth are re-injected right after it, so the next you resumes in one read. Do NOT stop, slow down, or hedge to "save" context — no clock restores it; only compaction or /clear change it`
       );
     }
 
@@ -241,6 +242,9 @@ export async function hookSessionStart() {
     if (snap) parts.push(renderHandoff(snap));
     const note = takeCheckpoint(p.session_id);
     if (note) parts.push(renderCheckpoint(note));
+    // the rich, model-authored canonical handoff doc (ADR-18): pointer + digest, read on demand
+    const doc = takeContinuity(p.session_id);
+    if (doc) parts.push(renderContinuityInjection(doc));
     const pins = listPins();
     if (pins.length) parts.push(renderPins(pins));
   }

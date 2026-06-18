@@ -49,6 +49,14 @@ switch (cmd) {
     console.log(pins.length ? pins.map((p) => `${p.id}  ${p.text}`).join('\n') : 'no pins');
     break;
   }
+  case 'handoff': {
+    const { latestContinuity } = await import('../src/continuity.mjs');
+    const h = latestContinuity();
+    if (!h) console.log('no handoff doc yet — the agent writes one via the headroom `handoff` MCP tool');
+    else if (argv[0] === '--path') console.log(h.path);
+    else console.log(h.markdown ?? `handoff doc at ${h.path} (unreadable)`);
+    break;
+  }
   case 'unpin': {
     const n = removePins(argv[0] === '--all' ? '--all' : argv[0]);
     console.log(n ? `removed ${n} pin${n > 1 ? 's' : ''}` : 'no matching pin (`headroom pins` to list)');
@@ -109,6 +117,7 @@ usage:
   headroom resume --disarm                                       remove the scheduled resume
   headroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
   headroom pins | unpin <id|--all>                               list / remove pins
+  headroom handoff [--path]                                      print the canonical handoff doc (the agent writes it via the MCP tool)
   headroom audit [--since <hours>]                               timeline of the awareness loop (default 6h)
   headroom doctor                                                diagnose the install (wiring, freshness, conflicts)
   headroom tap [--capture]      (statusline command — wired by install)
