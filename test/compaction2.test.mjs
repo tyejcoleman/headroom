@@ -210,9 +210,46 @@ test('T2.11: post-tool-use re-stamps on worsening band crossings only — thrott
   const bands = JSON.parse(readFileSync(join(dir, 'bands.json'), 'utf8'));
   bands.m1.at = 0; // age the throttle
   writeFileSync(join(dir, 'bands.json'), JSON.stringify(bands));
-  assert.match(post(), /8% left.*clean boundary/);
+  assert.match(post(), /8% left.*full speed/); // ADR-19: 5–100% is full speed now
   write(60);
   assert.equal(post(), ''); // improvement: always silent
+});
+
+test('ADR-19 descent ladder: full speed >5%, mindful 1–5%, finishing-moves ≤1%', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-descent-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = () => Math.round(Date.now() / 1000);
+  const write = (usedPct) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now(),
+        session_id: 'd1',
+        windows: { five_hour: { used_pct: usedPct, resets_at: now() + 3600 } },
+        context: null,
+        burn: {},
+        session: {},
+      })
+    );
+  const post = () => run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'd1' }), env }).stdout;
+  const age = () => {
+    const b = JSON.parse(readFileSync(join(dir, 'bands.json'), 'utf8'));
+    b.d1.at = 0;
+    writeFileSync(join(dir, 'bands.json'), JSON.stringify(b));
+  };
+
+  write(50);
+  post(); // baseline
+  write(93);
+  age();
+  assert.match(post(), /7% left.*full speed/); // >5% → full speed, no caution
+  write(96);
+  age();
+  assert.match(post(), /4% left.*be mindful of velocity.*checkpoint often/); // 1–5% → mindful + stranding guard
+  write(99);
+  age();
+  assert.match(post(), /1% left.*finishing moves only/); // ≤1% floor
 });
 
 test('audit: renders the awareness timeline with steering-signal counts', () => {
@@ -438,7 +475,7 @@ test('T2.4: governor mode shifts when headroom speaks — powersave early, perfo
   bands.gv1.at = 0;
   writeFileSync(join(dir, 'bands.json'), JSON.stringify(bands));
   write(92);
-  assert.match(post(), /8% left.*clean boundary/);
+  assert.match(post(), /8% left.*full speed/); // ADR-19: 5–100% is full speed now
 });
 
 test('doctor: flags missing wiring in a sandbox, exits 1; clean after install', () => {

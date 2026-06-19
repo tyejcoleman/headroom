@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Aggressive descent on the rate-limit window (ADR-19).** The agent now works at FULL
+  SPEED until 5% remains (was: "descend, small atomic steps" from 10%), is told to be
+  velocity-mindful but keeps working from 5% down to a **1% floor**, and only does
+  finishing-moves at ≤1% (was: "start nothing new" at 5%). The 1–5% band keeps a stranding
+  guard (prefer small divisible steps, checkpoint often, defer huge/indivisible new tasks),
+  and the velocity-aware overrides still keep full speed when the window resets before it
+  would exhaust. Adds a `1`-band to every governor profile so the floor message fires.
+
+### Added
+- **Multi-session burn awareness (ADR-20).** The stamp now discloses the **combined burn
+  rate** across all sessions (≈tok/min) and how many are actively burning, and flags an
+  **anomalous burner** — a session burning ≥3× the median of the others — naming whether
+  it's *this* session (ease off) or another (the shared window can drop fast; re-check
+  often). Flow samples are tagged by `session_id` to attribute per-session burn.
+
 ## 0.4.2 — 2026-06-18
 
 ### Changed

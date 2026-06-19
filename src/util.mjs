@@ -72,11 +72,11 @@ export function modeProfile(mode) {
     // a wary, paced resource; that's fh_bands, which stay multi-step.) Only powersave (thrift)
     // keeps an earlier 10% context heads-up.
     case 'performance':
-      return { fh_bands: [10, 5], ctx_bands: [4], receipt_pct_floor: 5, receipt_cost_floor: 3, throttle_sec: 300 };
+      return { fh_bands: [10, 5, 1], ctx_bands: [4], receipt_pct_floor: 5, receipt_cost_floor: 3, throttle_sec: 300 };
     case 'powersave':
-      return { fh_bands: [40, 25, 10, 5], ctx_bands: [10, 4], receipt_pct_floor: 1, receipt_cost_floor: 0.5, throttle_sec: 60 };
+      return { fh_bands: [40, 25, 10, 5, 1], ctx_bands: [10, 4], receipt_pct_floor: 1, receipt_cost_floor: 0.5, throttle_sec: 60 };
     default:
-      return { fh_bands: [25, 10, 5], ctx_bands: [4], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
+      return { fh_bands: [25, 10, 5, 1], ctx_bands: [4], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
   }
 }
 
