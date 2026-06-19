@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-06-19
 
 ### Changed
 - **Aggressive descent on the rate-limit window (ADR-19).** The agent now works at FULL
