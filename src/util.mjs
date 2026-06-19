@@ -64,16 +64,19 @@ export function fmtDelta(sec) {
  */
 export function modeProfile(mode) {
   switch (mode) {
-    // ctx_bands fire the context handoff-nudge as context fills. Held LATE on purpose:
-    // utilize context to the core — the handoff (one cheap tool call) only needs to land
-    // before compaction, so nudge near the ceiling (~4-8% left), not early. The separate
-    // "super close" token-floored message remains the final safety net.
+    // ctx_bands fire the context handoff-nudge as context fills. Context is a BURN-THROUGH
+    // resource, NOT a conserved one: held LATE on purpose so the agent uses it to the core.
+    // The handoff is one cheap tool call that only needs to land before compaction, so the
+    // default/performance modes nudge ONCE near the ceiling (~4% left) — never early; the
+    // token-floored "super close" message is the final safety net. (Quota is the opposite —
+    // a wary, paced resource; that's fh_bands, which stay multi-step.) Only powersave (thrift)
+    // keeps an earlier 10% context heads-up.
     case 'performance':
       return { fh_bands: [10, 5], ctx_bands: [4], receipt_pct_floor: 5, receipt_cost_floor: 3, throttle_sec: 300 };
     case 'powersave':
       return { fh_bands: [40, 25, 10, 5], ctx_bands: [10, 4], receipt_pct_floor: 1, receipt_cost_floor: 0.5, throttle_sec: 60 };
     default:
-      return { fh_bands: [25, 10, 5], ctx_bands: [8, 4], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
+      return { fh_bands: [25, 10, 5], ctx_bands: [4], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
   }
 }
 

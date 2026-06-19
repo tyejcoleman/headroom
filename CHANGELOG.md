@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.2 — 2026-06-18
+
+### Changed
+- **Two resources, two opposite postures — made unmistakable.** Context is a *burn-through*
+  resource; quota (rate-limit) is a *wary, paced* one. The mid-turn "context getting low"
+  nudge now leads with **"BURN IT, don't conserve it"** and states outright that low context
+  is **never** a reason to slow, stop, hand back control, wrap up, or get cautious — the only
+  thing it asks is that you keep the handoff current, then keep working at full speed until
+  auto-compaction fires and refreshes you. It closes by contrasting the two budgets so the
+  agent never applies quota-caution to context (or context-fearlessness to quota). The
+  intelligent, reset-aware **quota** guidance (descend/defer unless the window resets before
+  you'd run dry) is unchanged — that resource stays wary.
+- **Default context nudge held to the core (~4% left).** `ctx_bands` default lowered from
+  `[8, 4]` to `[4]`, so the handoff nudge fires once near the ceiling instead of at 8% —
+  the agent uses nearly all its context before prepping a handoff. The token-floored
+  "super close to auto-compaction" message remains the final safety net; `powersave` keeps
+  its earlier 10% heads-up for thrift.
+
 ## 0.4.1 — 2026-06-18
 
 ### Changed

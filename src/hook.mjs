@@ -206,7 +206,7 @@ export async function hookPostToolUse() {
     }
     if (ctxLeft != null && ctxBand > prev.ctx && !savedRecently && !superClose) {
       parts.push(
-        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — this is a HANDOFF signal, not a slow-down: capture state in your handoff at your NEXT task boundary via the headroom \`handoff\` tool, then POWER THROUGH at full speed. Do NOT stop, hand back control, or get cautious because context is filling — that prevents the auto-compaction that refreshes you. Keep working so it fires; the session resumes from your handoff right after. No need to re-save before the boundary. Context only — rate-limit/quota is the different budget you pace/defer at the reset.${savedNote}`
+        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — BURN IT, don't conserve it. Low context is NEVER a reason to slow, stop, hand back control, wrap up, or get cautious — that only strands the task and blocks the auto-compaction that refreshes you. The one thing it asks: keep your handoff current (refresh at your NEXT task boundary via the headroom \`handoff\` tool — no need to re-save before then), then keep working at full speed until auto-compaction fires; the session resumes seamlessly from your handoff. This is CONTEXT — quota/rate-limit is the OTHER budget: THAT one you stay wary of and pace/defer at the reset, never the reverse.${savedNote}`
       );
     }
 
