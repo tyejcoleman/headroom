@@ -167,3 +167,34 @@ full velocity. It reframes context-pressure from a stop-signal into a write-the-
 ritual — the field report that motivated it was an agent getting "tired"/cautious near
 compaction instead of handing off and continuing. **Enforced by:** caps + session guards in
 `src/continuity.mjs`, lifecycle tests; skill + ctx-band wording joins the eval queue (ADR-9).
+
+## ADR-19 — Aggressive descent: full speed to 5%, mindful to a 1% floor
+The 5h/7d rate-limit windows are spent down AGGRESSIVELY. The agent works at FULL SPEED
+until 5% remains; from 5% down to a 1% floor it is told to be velocity-mindful (but keeps
+working); at ≤1% it does finishing-moves only (commit in-flight work, checkpoint,
+plan_resume, start nothing new). Quota left unspent before a reset is wasted, so the goal is
+to use the window right down to the floor — never to stop early "to be safe". The 1–5% band
+keeps ONE guard so aggression doesn't cause loss: prefer small divisible steps, checkpoint
+often, and defer a genuinely huge/indivisible new task (plan_resume). The velocity-aware
+optimism overrides still win — if the window resets before the burn would exhaust it, stay
+full speed even under 5%. *Why:* the prior ladder cautioned at 10% and stopped new work at
+5%, leaving usable capacity unspent every reset; the field directive was to burn to the
+floor while keeping a stranding guard for indivisible work. **Enforced by:** the advice
+ladder in `src/hook.mjs`, a `1`-band in every `modeProfile` (`src/util.mjs`) so the floor
+message fires, the launch gate's ≤5% indivisible-launch block, and the descent-ladder test
+in `test/compaction2.test.mjs`; stamp wording joins the eval queue (ADR-9).
+
+## ADR-20 — Multi-session disclosure: combined burn rate + anomalous-burner flag
+The 5h/7d windows are ACCOUNT-level, so concurrent sessions share them. Beyond the existing
+"N sessions sharing" count, the stamp now discloses the COMBINED burn rate (the flow log
+already aggregates every session's transcript, so `out_per_min` over it IS the combined
+rate) and flags an ANOMALOUS burner — a session burning ≥3× the median of the others, above
+a floor — naming whether it's THIS session (ease off) or another (the shared window can drop
+fast; re-check often). To attribute per-session, flow samples are tagged with their
+`session_id` at sample time (the only new data; pre-tag samples fold into "unknown" and
+degrade gracefully). *Why:* on shared-quota nights a single runaway session can drain the
+window for everyone; the agent should see the combined velocity and know if it — or a
+sibling — is the one burning hot. Stays within official extension points (transcript
+`usage` + hook stdin); no per-session identity beyond the harness's own session id. **Enforced
+by:** `sessionFlowStats` in `src/flow.mjs`, the disclosure line in `src/hook.mjs`, and the
+anomaly test in `test/flow.test.mjs`; wording joins the eval queue (ADR-9).

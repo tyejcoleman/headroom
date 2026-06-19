@@ -7,7 +7,7 @@ import { logEvent, recentEvents } from './events.mjs';
 import { listPins, renderPins } from './pins.mjs';
 import { takeCheckpoint, renderCheckpoint } from './checkpoint.mjs';
 import { takeContinuity, renderContinuityInjection } from './continuity.mjs';
-import { sampleFlow } from './flow.mjs';
+import { sampleFlow, sessionFlowStats } from './flow.mjs';
 
 const STALE_SEC = 30 * 60;
 
@@ -182,16 +182,20 @@ export async function hookPostToolUse() {
       // Optimism requires a POSITIVE signal: we KNOW the reset lands before we'd run dry.
       // Unknown burn → stay cautious (don't assume safety we can't prove).
       const resetBeatsExhaustion = !!(s.burn?.projected_exhaustion && resetsAt && s.burn.projected_exhaustion >= resetsAt);
+      // Descent policy (ADR-19): use the window aggressively — full speed until 5% left,
+      // then be velocity-mindful (but keep working) down to a 1% floor, where it's
+      // finishing-moves only. The 1–5% band keeps a stranding guard: prefer divisible
+      // steps + frequent checkpoints so a long task isn't lost at the reset.
       const advice =
         minsToReset != null && minsToReset > 0 && minsToReset <= 10
           ? `reset in ~${Math.max(1, Math.round(minsToReset))}m — quota refills imminently; do NOT slow down or defer, keep full speed (you refill well before you could run dry)`
           : resetBeatsExhaustion && fhLeft <= 15
-            ? `${fhLeft <= 10 ? 'quota is low' : 'quota getting low'}, BUT at current burn you reset BEFORE you'd run dry — keep working at full speed; only defer a genuinely huge new task`
-            : fhLeft <= 5
-              ? 'finishing moves only: commit in-flight work, checkpoint, plan_resume the rest — start nothing new'
-              : fhLeft <= 10
-                ? 'descend: small atomic steps only — no new subagents or long tasks, commit each piece at a clean boundary, defer the indivisible (plan_resume)'
-                : 'plenty remains — keep working; just check that big new tasks fit before the reset';
+            ? `${fhLeft <= 5 ? 'quota is low' : 'quota getting low'}, BUT at current burn you reset BEFORE you'd run dry — keep working at full speed; only defer a genuinely huge new task`
+            : fhLeft <= 1
+              ? 'at the 1% floor — finishing moves only: commit in-flight work, checkpoint, plan_resume the rest, start nothing new'
+              : fhLeft <= 5
+                ? 'be mindful of velocity — keep working, but prefer small divisible steps and checkpoint often so nothing is stranded at the reset; defer a genuinely huge or indivisible new task (plan_resume)'
+                : 'plenty remains — keep working at full speed; just check that big new tasks fit before the reset';
       const estTok = s.burn?.est_tokens_left != null ? ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)` : '';
       parts.push(`5h window now ${Math.round(fhLeft)}% left${estTok}${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
@@ -381,7 +385,18 @@ export async function hookUserPromptSubmit() {
     const bands = readJSON(join(headroomDir(), 'bands.json')) ?? {};
     const nowSec = Date.now() / 1000;
     const others = Object.entries(bands).filter(([k, v]) => k !== (mySession ?? 'unknown') && nowSec - (v.t ?? 0) < 30 * 60).length;
-    if (others > 0) parts.push(`${others + 1} sessions sharing this quota (their burn is already included in these figures — do not re-discount; just expect bursts and re-check more often)`);
+    if (others > 0) {
+      let line = `${others + 1} sessions sharing this quota`;
+      const sf = sessionFlowStats(nowSec, mySession);
+      if (sf && sf.combinedPerMin > 0) line += `, combined burn ≈${fmtTokens(sf.combinedPerMin)} tok/min across ${sf.burning} actively burning`;
+      line += ` (their burn is already in these figures — do not re-discount; expect bursts, re-check often)`;
+      if (sf?.anomaly) {
+        line += sf.anomaly.isMine
+          ? ` — ⚠ YOU are the hot burner (~${sf.anomaly.ratio}× the others, ≈${fmtTokens(sf.anomaly.perMin)} tok/min): ease off so you don't drain the shared window`
+          : ` — ⚠ one other session is burning ~${sf.anomaly.ratio}× the rest (≈${fmtTokens(sf.anomaly.perMin)} tok/min): the shared window can drop fast, re-check often`;
+      }
+      parts.push(line);
+    }
   } catch {
     // disclosure is best-effort
   }

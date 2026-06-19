@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 const dir = mkdtempSync(join(tmpdir(), 'hr-flow-'));
 process.env.HEADROOM_DIR = dir;
-const { sampleFlow, flowStats, calibrate, enrichBurn } = await import('../src/flow.mjs');
+const { sampleFlow, flowStats, calibrate, enrichBurn, sessionFlowStats } = await import('../src/flow.mjs');
 
 const NOW = Math.round(Date.now() / 1000);
 const iso = (t) => new Date(t * 1000).toISOString();
@@ -32,6 +32,36 @@ test('flowStats: recent flow and idle detection', () => {
   assert.equal(stats.idle, false);
   const later = flowStats(NOW + 30 * 60); // half an hour of silence
   assert.equal(later.idle, true);
+});
+
+test('sessionFlowStats: combined rate, active count, anomaly + isMine', () => {
+  const write = (rows) => writeFileSync(join(dir, 'flow.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+  // s1 hot (60k out → 6000/min), s2 cool (6k → 600/min), all in the last 10min
+  write([
+    { t: NOW - 300, out: 30000, s: 's1' },
+    { t: NOW - 100, out: 30000, s: 's1' },
+    { t: NOW - 200, out: 6000, s: 's2' },
+  ]);
+  const sf = sessionFlowStats(NOW);
+  assert.equal(sf.burning, 2);
+  assert.equal(sf.combinedPerMin, 6600); // (60000 + 6000) / 10
+  assert.equal(sf.anomaly.ratio, 10); // 6000 vs median-of-others 600
+  assert.equal(sf.anomaly.isMine, false);
+  assert.equal(sessionFlowStats(NOW, 's1').anomaly.isMine, true); // it's me
+
+  // balanced burners → no anomaly
+  write([
+    { t: NOW - 100, out: 10000, s: 'a' },
+    { t: NOW - 100, out: 9000, s: 'b' },
+  ]);
+  assert.equal(sessionFlowStats(NOW).anomaly, null);
+
+  // restore the shared flow log so later tests' expectations hold
+  write([
+    { t: NOW - 300, out: 5000, s: 'f1' },
+    { t: NOW - 200, out: 7000, s: 'f1' },
+    { t: NOW - 100, out: 3000, s: 'f1' },
+  ]);
 });
 
 test('calibrate: learns tokens-per-percent from a %-step, re-anchors on reset', () => {

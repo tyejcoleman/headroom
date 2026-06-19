@@ -59,7 +59,7 @@ export function sampleFlow(transcriptPath, sessionId, nowSec = Date.now() / 1000
       const u = o?.message?.usage;
       if (!u || o.type !== 'assistant') continue;
       const t = o.timestamp ? Math.round(Date.parse(o.timestamp) / 1000) : Math.round(nowSec);
-      samples.push({ t, out: u.output_tokens ?? 0, inp: u.input_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0 });
+      samples.push({ t, out: u.output_tokens ?? 0, inp: u.input_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0, s: sessionId ?? null });
     }
     atomicWriteJSON(cursorsPath(), cursors);
     if (!samples.length) return;
@@ -105,6 +105,44 @@ export function flowStats(nowSec = Date.now() / 1000) {
     out_per_min_90m: Math.round(sum(samples) / (span / 60)),
     idle: recentOut < IDLE_OUT_TOKENS,
   };
+}
+
+/**
+ * Per-session burn over the last 10 min, for the multi-session disclosure. The flow
+ * log aggregates every session's transcript, so this both gives the COMBINED rate and
+ * lets us flag an anomalous burner. Sessions are identified by the `s` tag added at
+ * sample time; pre-tag samples (no `s`) fold into "unknown" and degrade gracefully.
+ * Anomaly = a session burning >= ANOMALY_RATIO x the median of the others, above a
+ * floor (so two quiet sessions don't trip it). Returns null when there's nothing to say.
+ */
+const ANOMALY_RATIO = 3;
+const ANOMALY_FLOOR_PER_MIN = 200; // out-tokens/min below this is "not really burning"
+export function sessionFlowStats(nowSec = Date.now() / 1000, mySession = null) {
+  const recent = readFlow(nowSec).filter((s) => nowSec - s.t <= 10 * 60);
+  if (!recent.length) return null;
+  const bySession = new Map();
+  for (const s of recent) {
+    const k = s.s ?? 'unknown';
+    bySession.set(k, (bySession.get(k) ?? 0) + (s.out ?? 0));
+  }
+  const per = [...bySession.entries()]
+    .map(([id, out]) => ({ id, perMin: Math.round(out / 10) }))
+    .filter((p) => p.perMin > 0);
+  const combinedPerMin = per.reduce((a, p) => a + p.perMin, 0);
+  const burning = per.length;
+  // anomaly: compare each session to the median of the OTHERS
+  let anomaly = null;
+  if (burning >= 2) {
+    for (const p of per) {
+      const others = per.filter((o) => o.id !== p.id).map((o) => o.perMin).sort((a, b) => a - b);
+      const med = others.length % 2 ? others[others.length >> 1] : Math.round((others[(others.length >> 1) - 1] + others[others.length >> 1]) / 2);
+      if (med > 0 && p.perMin >= ANOMALY_FLOOR_PER_MIN && p.perMin >= ANOMALY_RATIO * med) {
+        anomaly = { isMine: mySession != null && p.id === mySession, ratio: Math.round((p.perMin / med) * 10) / 10, perMin: p.perMin };
+        break;
+      }
+    }
+  }
+  return { burning, combinedPerMin, anomaly };
 }
 
 /**
