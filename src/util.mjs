@@ -64,12 +64,16 @@ export function fmtDelta(sec) {
  */
 export function modeProfile(mode) {
   switch (mode) {
+    // ctx_bands fire the context handoff-nudge as context fills. Held LATE on purpose:
+    // utilize context to the core — the handoff (one cheap tool call) only needs to land
+    // before compaction, so nudge near the ceiling (~4-8% left), not early. The separate
+    // "super close" token-floored message remains the final safety net.
     case 'performance':
-      return { fh_bands: [10, 5], ctx_bands: [10], receipt_pct_floor: 5, receipt_cost_floor: 3, throttle_sec: 300 };
+      return { fh_bands: [10, 5], ctx_bands: [4], receipt_pct_floor: 5, receipt_cost_floor: 3, throttle_sec: 300 };
     case 'powersave':
-      return { fh_bands: [40, 25, 10, 5], ctx_bands: [40, 25, 10], receipt_pct_floor: 1, receipt_cost_floor: 0.5, throttle_sec: 60 };
+      return { fh_bands: [40, 25, 10, 5], ctx_bands: [10, 4], receipt_pct_floor: 1, receipt_cost_floor: 0.5, throttle_sec: 60 };
     default:
-      return { fh_bands: [25, 10, 5], ctx_bands: [25, 10], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
+      return { fh_bands: [25, 10, 5], ctx_bands: [8, 4], receipt_pct_floor: 2, receipt_cost_floor: 1, throttle_sec: 120 };
   }
 }
 

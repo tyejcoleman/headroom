@@ -16,6 +16,22 @@
   auto-compaction" nudge (fires once, bypasses the throttle, suppressed if already saved).
   Updates surface "handoff already saved Nm ago" and a "≈N tool calls at this pace" estimate
   (from per-tool-call context growth) so the agent knows it's captured and how close it is.
+- **Context handoff-nudge held later — utilize context to the core.** `ctx_bands` lowered so the
+  "context getting low" nudge fires near the ceiling (~4–8% left) instead of at 25%/40%. The
+  handoff is one cheap call that only needs to land before compaction, and the velocity-timed
+  "super close" message remains the final safety net — so the agent uses nearly all its context
+  before prepping a handoff, rather than slowing down early.
+
+### Added
+- **Current time + timezone awareness.** Every prompt stamp now leads with the user's local wall
+  clock (e.g. `now Thu, Jun 18, 17:53 America/Los_Angeles`) so the agent can reason about
+  time-of-day, scheduling, and deadlines. Labelled distinctly from quota to avoid the
+  clock-time/budget conflation the stamp already guards against.
+- **Reset-aware quota guidance.** Mid-task advice no longer says "descend / slow down" when the
+  5h window will RESET before the velocity engine projects exhaustion (or a reset is ≤10 min
+  away) — the real risk is running dry *before* the reset, not a low %. Deterministic from
+  `resets_at` + `projected_exhaustion`; optimism requires a positive signal, so unknown burn
+  stays cautious.
 
 ## 0.4.0 — 2026-06-17
 

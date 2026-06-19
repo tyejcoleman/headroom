@@ -42,10 +42,10 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   assert.equal(r.status, 0);
   const out = JSON.parse(r.stdout);
   const stamp = out.hookSpecificOutput.additionalContext;
-  assert.match(stamp, /^\[headroom\] quota — 5h: 58% left/);
+  assert.match(stamp, /^\[headroom\] now .+ · quota — 5h: 58% left/); // leads with the wall clock, then quota
   assert.match(stamp, /7d: 85% left/);
   assert.match(stamp, /tokens before compaction/);
-  assert.ok(stamp.length < 220, `stamp too long: ${stamp.length}`);
+  assert.ok(stamp.length < 260, `stamp too long: ${stamp.length}`);
 
   // stale state → no output
   const statePath = join(dir, 'state.json');

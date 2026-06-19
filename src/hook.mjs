@@ -173,12 +173,25 @@ export async function hookPostToolUse() {
     if (fhLeft != null && fhBand > prev.fh) {
       // advice keyed to the absolute level, not the band index — bands vary by mode
       // descent profile: work all the way down, but shrink work DIVISIBILITY with quota
+      // Smart override: the real risk is running dry BEFORE the reset, not low %.
+      // If the window resets soon — or velocity says you'll reset before you'd exhaust —
+      // do NOT slow down; you refill before it matters. Deterministic from resets_at +
+      // projected_exhaustion (the velocity engine's burn projection).
+      const resetsAt = s.windows.five_hour.resets_at;
+      const minsToReset = resetsAt ? (resetsAt - now) / 60 : null;
+      // Optimism requires a POSITIVE signal: we KNOW the reset lands before we'd run dry.
+      // Unknown burn → stay cautious (don't assume safety we can't prove).
+      const resetBeatsExhaustion = !!(s.burn?.projected_exhaustion && resetsAt && s.burn.projected_exhaustion >= resetsAt);
       const advice =
-        fhLeft <= 5
-          ? 'finishing moves only: commit in-flight work, checkpoint, plan_resume the rest — start nothing new'
-          : fhLeft <= 10
-            ? 'descend: small atomic steps only — no new subagents or long tasks, commit each piece at a clean boundary, defer the indivisible (plan_resume)'
-            : 'plenty remains — keep working; just check that big new tasks fit before the reset';
+        minsToReset != null && minsToReset > 0 && minsToReset <= 10
+          ? `reset in ~${Math.max(1, Math.round(minsToReset))}m — quota refills imminently; do NOT slow down or defer, keep full speed (you refill well before you could run dry)`
+          : resetBeatsExhaustion && fhLeft <= 15
+            ? `${fhLeft <= 10 ? 'quota is low' : 'quota getting low'}, BUT at current burn you reset BEFORE you'd run dry — keep working at full speed; only defer a genuinely huge new task`
+            : fhLeft <= 5
+              ? 'finishing moves only: commit in-flight work, checkpoint, plan_resume the rest — start nothing new'
+              : fhLeft <= 10
+                ? 'descend: small atomic steps only — no new subagents or long tasks, commit each piece at a clean boundary, defer the indivisible (plan_resume)'
+                : 'plenty remains — keep working; just check that big new tasks fit before the reset';
       const estTok = s.burn?.est_tokens_left != null ? ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)` : '';
       parts.push(`5h window now ${Math.round(fhLeft)}% left${estTok}${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
@@ -307,6 +320,13 @@ export async function hookUserPromptSubmit() {
     logEvent({ type: 'stamp_skipped', session_id: mySession, reason: 'disabled' });
     return;
   }
+  // Current local time + timezone — the agent otherwise has no reliable "now" for
+  // time-of-day / scheduling / deadline decisions. Kept tiny here (every prompt); the
+  // fuller "use it for decisions, not a budget figure" framing rides SessionStart once.
+  const nowD = new Date();
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+  const nowPart = `now ${nowD.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} ${tz}`;
+
   const s = readState();
   if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) {
     logEvent({ type: 'stamp_skipped', session_id: mySession, reason: s ? 'stale_state' : 'no_state' });
@@ -387,7 +407,7 @@ export async function hookUserPromptSubmit() {
     logEvent({ type: 'drop_announced', ref: drop.at });
   }
 
-  if (!parts.length) return;
+  parts.unshift(nowPart); // lead with the wall clock so the agent always knows "now"
 
   // Fresh and 25-minutes-old look identical otherwise; disclose age once it's not "now".
   const ageSec = Date.now() / 1000 - s.updated_at;
