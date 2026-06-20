@@ -139,7 +139,12 @@ export function enrichWeekly(state, nowSec = Date.now() / 1000) {
       pace_ratio: Math.round(paceRatio * 100) / 100,
       daily_allowance_pct: Math.round(((100 - sd.used_pct) / remainingDays) * 10) / 10,
       projected_exhaustion: exhaustion,
-      hot: paceRatio > 1.15 && exhaustion != null,
+      // Only flag HOT once a material share of the weekly budget is actually
+      // used (>=15% ~ one day's sustainable allowance). Below that there's ample
+      // buffer and pace_ratio is dominated by a tiny post-reset sample — e.g. 4%
+      // used in the first ~4h extrapolates to "you'll exhaust the week" with 96%
+      // left, a false positive that isn't actionable.
+      hot: paceRatio > 1.15 && exhaustion != null && sd.used_pct >= 15,
     };
   } catch {
     // enrichment never breaks base state

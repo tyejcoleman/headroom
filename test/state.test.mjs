@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-state-'));
-const { parsePayload, updateBurn } = await import('../src/state.mjs');
+const { parsePayload, updateBurn, enrichWeekly } = await import('../src/state.mjs');
 const { validateResourceState } = await import('../src/schema.mjs');
 const { fitCheck } = await import('../src/fit.mjs');
 
@@ -95,4 +95,30 @@ test('fit_check verdicts: context exceeds, window defer, healthy fits', () => {
   assert.equal(fitCheck(exhausted, { est_tokens: 1000 }).overall, 'defer');
 
   assert.equal(fitCheck(null, { est_tokens: 1000 }).overall, 'unknown');
+});
+
+test('enrichWeekly: HOT requires material weekly usage, not just a high post-reset pace', () => {
+  const RESET = 2000000000;
+  const WEEK = 7 * 86400;
+  const start = RESET - WEEK;
+  const mk = (used_pct) => ({ windows: { seven_day: { used_pct, resets_at: RESET } }, burn: {} });
+
+  // 4% used ~4h into the week: the extrapolated pace is high, but with 96% left this is
+  // a false positive (field 2026-06-20) — must NOT be HOT.
+  const early = mk(4);
+  enrichWeekly(early, start + 4 * 3600);
+  assert.ok(early.burn.weekly.pace_ratio > 1.15, `sanity: pace high, got ${early.burn.weekly.pace_ratio}`);
+  assert.equal(early.burn.weekly.hot, false);
+
+  // 25% used ~1 day in: genuinely ahead of pace with a material amount spent — HOT.
+  const hot = mk(25);
+  enrichWeekly(hot, start + 86400);
+  assert.ok(hot.burn.weekly.pace_ratio > 1.15);
+  assert.equal(hot.burn.weekly.hot, true);
+
+  // Boundary: just under the 15% floor stays calm even when genuinely ahead of pace.
+  const under = mk(14);
+  enrichWeekly(under, start + 14 * 3600);
+  assert.ok(under.burn.weekly.pace_ratio > 1.15, `sanity: pace high, got ${under.burn.weekly.pace_ratio}`);
+  assert.equal(under.burn.weekly.hot, false);
 });

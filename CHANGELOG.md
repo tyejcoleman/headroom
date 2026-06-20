@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.1 — 2026-06-20
+
+### Fixed
+- **Weekly "HOT pace" no longer false-fires right after the reset.** `enrichWeekly`
+  flagged `hot` whenever the extrapolated pace exceeded 1.15× sustainable, even when only
+  a sliver of the week had elapsed — so a short burst in the first hours (e.g. 4% used in
+  ~4h) projected "you'll exhaust the week" with 96% left, which isn't actionable. HOT now
+  additionally requires that a material share of the weekly budget is actually used
+  (`seven_day.used_pct >= 15`, ≈ one day's sustainable allowance); below that the stamp
+  shows the calm "cruising" form. Deliberately a usage floor (not an elapsed-time floor),
+  so a genuine heavy early burn still surfaces.
+
 ## 0.5.0 — 2026-06-19
 
 ### Changed
