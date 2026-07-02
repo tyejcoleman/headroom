@@ -8,7 +8,7 @@ import { fmtClock, fmtTokens, fmtDelta, crossedReset } from './util.mjs';
  * - times of day are written so they cannot be misread as durations
  *   (field 2026-06-10: "⚠exh 00:34" was read as "34 minutes").
  */
-export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
+export function renderHUD(state, resume = null, nowSec = Date.now() / 1000, alt = null) {
   const parts = [];
   const fh = state.windows?.five_hour;
   const sd = state.windows?.seven_day;
@@ -42,6 +42,13 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   const exh = state.burn?.projected_exhaustion;
   if (band && fh?.resets_at && band[0] < fh.resets_at) parts.push(`⚠ empty ~${fmtClock(band[0])}–${fmtClock(band[1])}`);
   else if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠ empty by ~${fmtClock(exh)}`);
+  // The OTHER known profile, terse (ADR-24): a human deciding whether to /login-switch
+  // needs one number; `⇄ switch-ready` appears only when switching is actually the move.
+  if (alt) {
+    const fhLeft = fh?.used_pct != null ? 100 - fh.used_pct : null;
+    const switchable = fhLeft != null && fhLeft < 15 && (alt.reset || alt.fh_left >= 40);
+    parts.push(`alt '${alt.label}' ${alt.reset ? 'fresh' : `≈${Math.round(alt.fh_left)}%`}${switchable ? ' ⇄ switch-ready' : ''}`);
+  }
   // deferred work appears only when actionable — a waiting plan is noise (tokenroom resume shows it)
   if (resume?.resume_at && nowSec >= resume.resume_at) parts.push('✓ deferred work ready');
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);

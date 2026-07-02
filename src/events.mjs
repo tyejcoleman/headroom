@@ -80,6 +80,10 @@ export function renderAudit(sinceSec = 6 * 3600, nowSec = Date.now() / 1000) {
         return `context  silent cliff: -${e.dropped_tokens != null ? `${Math.round(e.dropped_tokens / 1000)}k tokens` : `${e.dropped_pct}%`} (no compaction event)`;
       case 'drop_announced':
         return `context  cliff disclosed in next stamp`;
+      case 'account_switch':
+        return `account  switched mid-session: ${e.from} → ${e.to} (payload wins; remapped instantly)`;
+      case 'switch_announced':
+        return `account  switch disclosed in next stamp`;
       default:
         return `${e.type}`;
     }

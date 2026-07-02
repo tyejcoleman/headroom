@@ -3,10 +3,11 @@ import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { readJSON, fmtDelta } from './util.mjs';
+import { readJSON, fmtDelta, fmtClock, listAccountKeys } from './util.mjs';
 import { readState } from './state.mjs';
 import { listPins } from './pins.mjs';
 import { readResume } from './resume.mjs';
+import { readProfiles, profileQuota, suggestFold, fmtAge } from './accounts.mjs';
 
 // `tokenroom doctor` — one command that answers "why isn't it working?" before anyone
 // has to file an issue. Born from field incidents: a THIRD-PARTY hook's failure being
@@ -15,6 +16,7 @@ import { readResume } from './resume.mjs';
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MARK = 'tokenroom.mjs';
+const PROFILE_STALE_SEC = 6 * 3600; // beyond a reset clock, a snapshot is history, not a balance
 
 export function doctor(argv = []) {
   const ci = argv.indexOf('--config-dir');
@@ -91,6 +93,28 @@ export function doctor(argv = []) {
   if (pins.length) info(`${pins.length} pin(s) active (tokenroom pins)`);
   const plan = readResume();
   if (plan) info(`deferred plan recorded${plan.resume_at ? ` (resume ${fmtDelta(plan.resume_at - Date.now() / 1000)})` : ''}`);
+
+  // multi-account profiles (ADR-24): labels are identity; phase buckets without one drift
+  const now = Date.now() / 1000;
+  const profiles = readProfiles();
+  const entries = Object.entries(profiles);
+  for (const [label, p] of entries) {
+    const q = profileQuota(p, now);
+    const quota = !q
+      ? 'no data yet'
+      : q.reset
+        ? `window reset ${fmtClock(q.fh_resets)} — fresh quota (as of ${fmtAge(q.age_sec)} ago)`
+        : `5h ${q.fh_left != null ? Math.round(q.fh_left) : '?'}% left${q.age_sec > PROFILE_STALE_SEC ? ` — STALE (as of ${fmtAge(q.age_sec)} ago; a reset likely passed)` : ` (as of ${fmtAge(q.age_sec)} ago)`}`;
+    info(`profile '${label}': ${quota} · ${(p.keys ?? []).length} bucket(s)${p.config_dir ? ` · config-dir ${p.config_dir}` : ''}`);
+  }
+  if (entries.length) {
+    const labeledKeys = new Set(entries.flatMap(([, p]) => p.keys ?? []));
+    const unfolded = listAccountKeys().filter((k) => !labeledKeys.has(k));
+    if (unfolded.length) info(`${unfolded.length} unlabeled account bucket(s) — inspect and fold: tokenroom account list`);
+    for (const sug of suggestFold(now, profiles)) {
+      info(`new bucket ${sug.key} is probably '${sug.label}' — fold with: tokenroom account fold ${sug.key} ${sug.label}`);
+    }
+  }
 
   // stale pre-rename state dir (ADR-23: install COPIES ~/.headroom → ~/.tokenroom, never deletes)
   if (existsSync(join(homedir(), '.headroom')))

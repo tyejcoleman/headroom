@@ -181,14 +181,29 @@ export function listAccountKeys() {
  *  present. Mapped → that account. Unmapped but exactly ONE account exists → that one (a
  *  single-account user keeps the stamp even before the map is written). No accounts yet →
  *  the legacy global layout. ≥2 accounts and unmapped → the global dir but DON'T show quota:
- *  we cannot tell which account is this session's, and showing the wrong one is the bug. */
+ *  we cannot tell which account is this session's, and showing the wrong one is the bug.
+ *  `key` is the resolved account key (null in the legacy/withheld cases) — profile-aware
+ *  consumers (pair advice, switch banner) need the identity, not just the directory. */
 export function quotaScope(sessionId, nowSec = Date.now() / 1000) {
   const mapped = accountForSession(sessionId, nowSec);
-  if (mapped) return { dir: accountDir(mapped), show: true };
+  if (mapped) return { dir: accountDir(mapped), show: true, key: mapped };
   const keys = listAccountKeys();
-  if (keys.length === 1) return { dir: accountDir(keys[0]), show: true };
-  if (keys.length === 0) return { dir: tokenroomDir(), show: true };
-  return { dir: tokenroomDir(), show: false };
+  if (keys.length === 1) return { dir: accountDir(keys[0]), show: true, key: keys[0] };
+  if (keys.length === 0) return { dir: tokenroomDir(), show: true, key: null };
+  return { dir: tokenroomDir(), show: false, key: null };
+}
+
+/** Distinct account keys with a session seen in the last `windowSec` — the MCP server
+ *  (which has no session id) uses this to decide whether quota attribution is ambiguous. */
+export function activeAccountKeys(windowSec = 10 * 60, nowSec = Date.now() / 1000) {
+  try {
+    const m = readJSON(sessionsPath()) ?? {};
+    const keys = new Set();
+    for (const e of Object.values(m)) if (e?.key && nowSec - (e.at ?? 0) <= windowSec) keys.add(e.key);
+    return [...keys];
+  } catch {
+    return [];
+  }
 }
 
 export function readConfig() {

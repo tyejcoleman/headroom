@@ -8,6 +8,7 @@ import { listPins, renderPins } from './pins.mjs';
 import { takeCheckpoint, renderCheckpoint } from './checkpoint.mjs';
 import { takeContinuity, renderContinuityInjection } from './continuity.mjs';
 import { sampleFlow, sessionFlowStats } from './flow.mjs';
+import { pairAdvice, staleEcho, profileForKey, fmtAge } from './accounts.mjs';
 
 const STALE_SEC = 30 * 60;
 
@@ -75,7 +76,7 @@ const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
 export async function hookPostToolUse() {
   const p = await readStdin();
   try {
-    const dir = dirForSession(p.session_id); // this session's account subtree (ADR-21)
+    const { dir, key: myKey } = quotaScope(p.session_id); // this session's account subtree (ADR-21)
     sampleFlow(p.transcript_path, p.session_id, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
     const cfg = readConfig();
     if (process.env.TOKENROOM_DISABLE === '1' || !cfg.stamp_enabled) return;
@@ -192,16 +193,24 @@ export async function hookPostToolUse() {
       // then be velocity-mindful (but keep working) down to a 1% floor, where it's
       // finishing-moves only. The 1–5% band keeps a stranding guard: prefer divisible
       // steps + frequent checkpoints so a long task isn't lost at the reset.
+      // PAIR-AWARE DESCENT (ADR-24): when another labeled profile has fresh headroom, the
+      // descent applies to the PAIR — low active quota means land-and-switch, not throttle;
+      // defer (plan_resume) only when BOTH profiles are thin.
+      const pa = fhLeft <= 15 ? pairAdvice(myKey, fhLeft, now) : null;
       const advice =
         minsToReset != null && minsToReset > 0 && minsToReset <= 10
           ? `reset in ~${Math.max(1, Math.round(minsToReset))}m — quota refills imminently; do NOT slow down or defer, keep full speed (you refill well before you could run dry)`
           : resetBeatsExhaustion && fhLeft <= 15
             ? `${fhLeft <= 5 ? 'quota is low' : 'quota getting low'}, BUT at current burn you reset BEFORE you'd run dry — keep working at full speed; only defer a genuinely huge new task`
-            : fhLeft <= 1
-              ? 'at the 1% floor — finishing moves only: commit in-flight work, checkpoint, plan_resume the rest, start nothing new'
-              : fhLeft <= 5
-                ? 'be mindful of velocity — keep working, but prefer small divisible steps and checkpoint often so nothing is stranded at the reset; defer a genuinely huge or indivisible new task (plan_resume)'
-                : 'plenty remains — keep working at full speed; just check that big new tasks fit before the reset';
+            : pa
+              ? fhLeft <= 1
+                ? `at the 1% floor — land and switch: commit in-flight work, checkpoint, then switch to profile '${pa.other.label}' (${pa.pct}) via /login or \`tokenroom switch\` — zero downtime, no defer needed`
+                : `${fhLeft <= 5 ? 'quota is low' : 'quota getting low'}, but ${pa.text}`
+              : fhLeft <= 1
+                ? 'at the 1% floor — finishing moves only: commit in-flight work, checkpoint, plan_resume the rest, start nothing new'
+                : fhLeft <= 5
+                  ? 'be mindful of velocity — keep working, but prefer small divisible steps and checkpoint often so nothing is stranded at the reset; defer a genuinely huge or indivisible new task (plan_resume)'
+                  : 'plenty remains — keep working at full speed; just check that big new tasks fit before the reset';
       const estTok = s.burn?.est_tokens_left != null ? ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)` : '';
       parts.push(`5h window now ${Math.round(fhLeft)}% left${estTok}${s.windows.five_hour.resets_at ? `, resets ${fmtClock(s.windows.five_hour.resets_at)}` : ''} — ${advice}`);
     }
@@ -328,7 +337,7 @@ export async function hookUserPromptSubmit() {
   // accounts exist and this session isn't mapped to one yet — then we withhold quota rather
   // than risk showing a concurrent account's numbers. Single-account/legacy users are
   // unaffected (showQuota stays true).
-  const { dir, show: showQuota } = quotaScope(mySession);
+  const { dir, show: showQuota, key: myKey } = quotaScope(mySession);
   sampleFlow(payload.transcript_path, mySession, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
 
   if (process.env.TOKENROOM_DISABLE === '1' || !readConfig().stamp_enabled) {
@@ -361,28 +370,60 @@ export async function hookUserPromptSubmit() {
   // quota tokens/reset clocks as CONTEXT that "comes back at HH:MM". It never does.
   // Explicit "quota —/context —" labels + the contrast clause, probe-validated
   // (eval/v3-wording results: both disambiguated cells cited the clause as decisive).
+  // One-shot switch disclosure (ADR-24): the tap logged an `account_switch` when this
+  // session's payload re-keyed to a different account (/login mid-session). Announce it
+  // ONCE, with the NEW account's numbers, then return to normal stamps.
+  let switched = null;
+  const swEvents = recentEvents(15 * 60).filter((e) => e.type === 'account_switch' && (!mySession || e.session_id === mySession));
+  const lastSw = swEvents[swEvents.length - 1];
+  if (lastSw && !recentEvents(15 * 60).some((e) => e.type === 'switch_announced' && e.ref === lastSw.at)) switched = lastSw;
+
   const resetAt = crossedReset(s);
   if (showQuota && resetAt) {
     parts.push(
       `quota — the 5h window RESET at ${fmtClock(resetAt)}: quota is FRESH (effectively full). Earlier figures in this conversation and any "nearly dry" warnings predate the reset — disregard them; exact numbers arrive with the next statusline render`
     );
   } else if (showQuota && fh?.used_pct != null) {
-    let seg = `quota — 5h: ${Math.round(100 - fh.used_pct)}% left`;
-    if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)`;
-    if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
-    const band = s.burn?.exhaustion_band;
-    const exh = s.burn?.projected_exhaustion;
-    const nowSec = Date.now() / 1000;
-    // surface the runway: WHEN constant work at this velocity stops you, AND how long that
-    // is from now (the conservative/earliest edge), so "when do I get cut off" reads instantly.
-    if (band && fh.resets_at && band[0] < fh.resets_at) {
-      const runway = band[0] > nowSec ? ` — ≈${fmtDelta(band[0] - nowSec)} of work left at this pace` : '';
-      seg += ` (at current pace, may run dry ~${fmtClock(band[0])}–${fmtClock(band[1])}${runway})`;
-    } else if (exh && fh.resets_at && exh < fh.resets_at) {
-      const runway = exh > nowSec ? ` — ≈${fmtDelta(exh - nowSec)} of work left at this pace` : '';
-      seg += ` (at current burn, may exhaust ~${fmtClock(exh)}${runway})`;
+    const echo = staleEcho(myKey, s);
+    if (switched) {
+      // the switch banner IS this stamp's quota segment — same numbers, one disclosure
+      const label = profileForKey(myKey) ?? myKey ?? switched.to;
+      let seg = `account switched — now on '${label}': 5h ${Math.round(100 - fh.used_pct)}% left`;
+      if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
+      parts.push(seg);
+      logEvent({ type: 'switch_announced', ref: switched.at });
+    } else if (echo) {
+      // ECHO HONESTY (ADR-24): a dry figure whose values haven't moved in minutes, while a
+      // sibling account has values-newer data, is probably a pre-switch echo — say so
+      // instead of asserting it as fresh. Never inject a lie (ADR-5 spirit).
+      const sib = echo.sibling;
+      const sibName = sib.label ? `profile '${sib.label}'` : `account ${sib.key}`;
+      parts.push(
+        `quota — 5h: ${Math.round(100 - fh.used_pct)}% left (UNCHANGED for ${echo.frozen_min}m — possibly a pre-switch echo; if you just ran /login, figures refresh on the next completed turn; ${sibName} last seen ${sib.fh_left != null ? `≈${Math.round(sib.fh_left)}% left` : 'with fresher data'})`
+      );
+    } else {
+      let seg = `quota — 5h: ${Math.round(100 - fh.used_pct)}% left`;
+      if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)`;
+      if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
+      const band = s.burn?.exhaustion_band;
+      const exh = s.burn?.projected_exhaustion;
+      const nowSec = Date.now() / 1000;
+      // surface the runway: WHEN constant work at this velocity stops you, AND how long that
+      // is from now (the conservative/earliest edge), so "when do I get cut off" reads instantly.
+      if (band && fh.resets_at && band[0] < fh.resets_at) {
+        const runway = band[0] > nowSec ? ` — ≈${fmtDelta(band[0] - nowSec)} of work left at this pace` : '';
+        seg += ` (at current pace, may run dry ~${fmtClock(band[0])}–${fmtClock(band[1])}${runway})`;
+      } else if (exh && fh.resets_at && exh < fh.resets_at) {
+        const runway = exh > nowSec ? ` — ≈${fmtDelta(exh - nowSec)} of work left at this pace` : '';
+        seg += ` (at current burn, may exhaust ~${fmtClock(exh)}${runway})`;
+      }
+      parts.push(seg);
     }
-    parts.push(seg);
+    // PAIR-AWARE DESCENT (ADR-24): active window low + the OTHER labeled profile fresh and
+    // healthy → the move is power-through-then-switch, never throttle. Both-thin keeps
+    // today's defer wording; healthy active says nothing here (noise discipline).
+    const pa = pairAdvice(myKey, 100 - fh.used_pct);
+    if (pa) parts.push(pa.text);
   }
   // The weekly window is hidden from the LLM until it is actually a binding constraint:
   // surface it (and any HOT-pace coaching) ONLY once <20% remains (user directive

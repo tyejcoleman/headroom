@@ -152,13 +152,14 @@ test('quotaScope: single-account and legacy layouts keep showing quota (no regre
   const root = mkdtempSync(join(tmpdir(), 'tokenroom-single-'));
   process.env.TOKENROOM_DIR = root;
   // legacy / pre-account: no accounts/ subtree at all → global dir, quota shown
-  assert.deepEqual(quotaScope('whoever'), { dir: root, show: true });
+  assert.deepEqual(quotaScope('whoever'), { dir: root, show: true, key: null });
   // exactly one account, session unmapped → still resolves to that one account, quota shown
   const k = accountKey({ five_hour: { resets_at: 4102444800 }, seven_day: { resets_at: 4103049600 } });
   writeState(parsePayload(fix('statusline-full.json')), accountDir(k));
   const sc = quotaScope('unmapped-but-only-one');
   assert.equal(sc.show, true);
   assert.equal(sc.dir, accountDir(k));
+  assert.equal(sc.key, k); // profile-aware consumers get the identity, not just the dir
 });
 
 test('enrichWeekly: HOT requires material weekly usage, not just a high post-reset pace', () => {

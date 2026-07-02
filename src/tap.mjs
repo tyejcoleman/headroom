@@ -1,11 +1,12 @@
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tokenroomDir, ensureDir, accountKey, accountDir, recordSessionAccount, gcAccounts } from './util.mjs';
+import { tokenroomDir, ensureDir, accountKey, accountDir, accountForSession, recordSessionAccount, gcAccounts } from './util.mjs';
 import { parsePayload, updateBurn, writeState, readState, enrichWeekly } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
-import { detectContextDrop } from './events.mjs';
+import { detectContextDrop, logEvent } from './events.mjs';
 import { enrichBurn } from './flow.mjs';
+import { updateProfileSnapshot, bestOther } from './accounts.mjs';
 
 /**
  * Statusline command: read the payload Claude Code pipes to stdin, persist
@@ -37,20 +38,37 @@ export async function tap(argv = []) {
     const now = Date.now() / 1000;
     const key = accountKey(fresh.windows);
     const dir = accountDir(key);
+    // INSTANT switch detection (ADR-24): the payload is ground truth for which account this
+    // session is on NOW. A render whose key differs from the session's existing mapping
+    // means the user /login-switched — remap in this same invocation (payload wins, always)
+    // and log it so the next stamp announces the switch instead of quoting the OLD account.
+    const prevKey = key && fresh.session_id ? accountForSession(fresh.session_id, now) : null;
     if (key) {
       ensureDir(dir);
       recordSessionAccount(fresh.session_id, key, now); // so hooks (no rate_limits) find us
+      if (prevKey && prevKey !== key) {
+        logEvent({ type: 'account_switch', session_id: fresh.session_id ?? null, from: prevKey, to: key }, now);
+      }
     }
     fresh.account_key = key;
     const prev = readState(dir);
+    // ECHO HONESTY (ADR-24): after /login the payload keeps echoing the OLD account's
+    // cached rate_limits until a turn completes, and every render re-stamps that echo as
+    // fresh. Track when the window VALUES last actually moved, so the hook can stop
+    // asserting a frozen dry figure while a fresher sibling account exists.
+    const winJSON = (w) => JSON.stringify([w?.five_hour?.used_pct ?? null, w?.five_hour?.resets_at ?? null, w?.seven_day?.used_pct ?? null, w?.seven_day?.resets_at ?? null]);
+    fresh.values_changed_at = prev && winJSON(prev.windows) === winJSON(fresh.windows) ? prev.values_changed_at ?? prev.updated_at : fresh.updated_at;
     const state = enrichWeekly(enrichBurn(updateBurn(fresh, dir), now, dir), now);
     detectContextDrop(prev, state); // silent microcompaction leaves no other trace
     writeState(state, dir);
     // Top-level pointer = the most-recently-active account, for the human CLIs (watch/line/
     // doctor/mcp) that have no session context. The agent-facing hook reads per-account.
-    if (key) writeState(state, tokenroomDir());
+    if (key) {
+      writeState(state, tokenroomDir());
+      updateProfileSnapshot(key, state.windows, now); // labeled profiles keep a fresh snapshot
+    }
     gcAccounts(now);
-    hud = renderHUD(state, readResume());
+    hud = renderHUD(state, readResume(), now, key ? bestOther(key, now) : null);
   } catch {
     // malformed/missing payload: keep the line, skip the write
   }

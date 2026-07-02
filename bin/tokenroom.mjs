@@ -78,6 +78,37 @@ switch (cmd) {
     }
     break;
   }
+  case 'account': {
+    const { labelCurrent, foldKey, setProfileConfigDir, renderAccountList } = await import('../src/accounts.mjs');
+    const sub = argv[0];
+    if (sub === 'label') {
+      const key = argv[1] ? labelCurrent(argv[1]) : null;
+      console.log(
+        key
+          ? `labeled the current account ${key} as '${argv[1]}' (from the most recent active session)`
+          : argv[1]
+            ? 'no current account key to label — use Claude Code once (subscription auth), then retry; keys: tokenroom account list'
+            : 'usage: tokenroom account label <name>   (letters/digits/._- only, ≤32 chars)'
+      );
+    } else if (sub === 'fold') {
+      const ok = argv[1] && argv[2] ? foldKey(argv[1], argv[2]) : null;
+      console.log(ok ? `folded bucket ${argv[1]} into profile '${argv[2]}'` : 'usage: tokenroom account fold <key> <name>   (keys: tokenroom account list)');
+    } else if (sub === 'config-dir') {
+      const ok = argv[1] && argv[2] ? setProfileConfigDir(argv[1], argv[2]) : null;
+      console.log(ok ? `profile '${argv[1]}' config dir set to ${argv[2]} — \`tokenroom run --profile ${argv[1]}\` launches claude under it` : 'usage: tokenroom account config-dir <name> <path>');
+    } else {
+      console.log(renderAccountList());
+    }
+    break;
+  }
+  case 'switch': {
+    console.log((await import('../src/accounts.mjs')).renderSwitch());
+    break;
+  }
+  case 'run': {
+    (await import('../src/accounts.mjs')).runProfile(argv);
+    break;
+  }
   case 'doctor': {
     (await import('../src/doctor.mjs')).doctor(argv);
     break;
@@ -112,6 +143,12 @@ usage:
   tokenroom watch                                                 LIVE dashboard (1s ticks) for a second pane
   tokenroom line                                                  one live line (countdowns at call time) for tmux/xbar/waybar
   tokenroom resume [--clear]                                      show or clear the deferred-work plan
+  tokenroom account [list]                                        profiles + unlabeled account buckets, with last-known quota
+  tokenroom account label <name>                                  name the account you are currently on (identity for phase buckets)
+  tokenroom account fold <key> <name>                             fold a bucket into a profile (see list for hints)
+  tokenroom account config-dir <name> <path>                      per-profile CLAUDE_CONFIG_DIR for launch-time selection
+  tokenroom switch                                                decision table: which profile has headroom + how to switch
+  tokenroom run [--profile <name>] [--dry-run]                    launch \`claude\` under the best (or named) profile's config dir
   tokenroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
   tokenroom pins | unpin <id|--all>                               list / remove pins
   tokenroom handoff [--path]                                      print the canonical handoff doc (the agent writes it via the MCP tool)
