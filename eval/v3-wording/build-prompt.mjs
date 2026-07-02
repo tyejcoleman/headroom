@@ -8,10 +8,22 @@
 //   S-T — transcript-anchor    (tests: SKILL.md "After compaction" section)
 //   S-D — cliff-disclosure     (tests: stamp cliff-note wording alone vs no cliff note)
 //   S-M — mid-turn re-stamp    (tests: SKILL.md "Mid-task updates" section)
+//   S-H — handoff-ritual       (tests: 0.4.0 "Near the context ceiling" section; old = pre-0.4.0)
+//   S-C — ceiling-control      (timidity regression guard for S-H)
+// Batched post-0.3 round (ADR-19/20/22/23/24), added 2026-07-02 — wording verbatim
+// from the shipped src/hook.mjs, src/accounts.mjs, and skill/SKILL.md at 0.6.0-rc.1:
+//   S-R — rename-prefix        (ADR-23: [headroom]→[tokenroom] prefix equivalence; old = [headroom])
+//   S-G — aggressive-descent   (ADR-19: 3%-left mid-task advice + SKILL descent section)
+//   S-B — multi-session burn   (ADR-20: shared-quota disclosure + anomalous-burner flag, stamp alone)
+//   S-Q — floor-defer honesty  (ADR-22: 1% floor wording post-ARM-removal; no auto-resume claims)
+//   S-W — switch banner        (ADR-24a: "account switched" one-shot disclosure; naive = pre-fix stale echo)
+//   S-E — echo honesty         (ADR-24b: "possibly a pre-switch echo" hedge on a frozen dry figure)
+//   S-K — pair-aware descent   (ADR-24d: land-and-switch instead of defer when the other profile is fresh)
 //
 // Conditions:
-//   naive    — no headroom policy/stamp modification
+//   naive    — no tokenroom policy/stamp modification
 //   equipped — new wording under test applied
+//   old      — prior wording, where a before/after applies (S-H, S-C, S-R)
 //
 // Deterministic: no clocks, no randomness — same cell = same prompt, every time.
 
@@ -19,8 +31,9 @@
 
 const [scenarioId, condition] = process.argv.slice(2);
 // S-H/S-C add a third condition `old` (the pre-0.4.0 ceiling wording) for before/after.
-if (!['S-P', 'S-T', 'S-D', 'S-M', 'S-H', 'S-C'].includes(scenarioId) || !['naive', 'equipped', 'old'].includes(condition)) {
-  console.error('usage: node eval/v3-wording/build-prompt.mjs <S-P|S-T|S-D|S-M|S-H|S-C> <naive|equipped|old>');
+const IDS = ['S-P', 'S-T', 'S-D', 'S-M', 'S-H', 'S-C', 'S-R', 'S-G', 'S-B', 'S-Q', 'S-W', 'S-E', 'S-K'];
+if (!IDS.includes(scenarioId) || !['naive', 'equipped', 'old'].includes(condition)) {
+  console.error(`usage: node eval/v3-wording/build-prompt.mjs <${IDS.join('|')}> <naive|equipped|old>`);
   process.exit(1);
 }
 
@@ -200,5 +213,154 @@ function buildSC(cond) {
   return parts.join('\n\n');
 }
 
-const builders = { 'S-P': buildSP, 'S-T': buildST, 'S-D': buildSD, 'S-M': buildSM, 'S-H': buildSH, 'S-C': buildSC };
+// ── Batched post-0.3 wording round (ADR-19/20/22/23/24) ───────────────────────
+// Every stamp/advice string below is copied VERBATIM from the shipped 0.6.0-rc.1
+// sources (src/hook.mjs advice ladder, src/accounts.mjs pairAdvice/staleEcho,
+// skill/SKILL.md sections). Do not paraphrase — the shipped wording is what is
+// under test.
+
+const SKILL_DESCENT = `## The endgame: a descent profile, not a stop sign
+
+Use the window all the way down — what changes is work DIVISIBILITY, not whether you work:
+**5–10% left:** descend — no new subagents, workflows, or long indivisible tasks (if quota
+dies mid-flight the whole bet is lost); small atomic steps, commit each one, keep the
+checkpoint fresh. **2–5%:** approach — finishing moves only (complete the in-flight edit,
+test, commit, \`plan_resume\` the rest). **≤2%:** land — start nothing; final commit +
+checkpoint + defer note. This is quota-tiredness (recoverable at the reset clock) — it is
+NOT context-tiredness (recoverable only via compaction); do not confuse the remedies.`;
+
+const SKILL_PRESSURE = `## Under window pressure (≲10% left)
+
+- Reorder the queue cheap-first; ship small certain wins before big uncertain ones.
+- Batch tool calls; prefer cache-friendly ordering (stable file set, no re-reads).
+- Heavy work that fits a fresh window: defer past the reset — call **\`plan_resume\`** with a
+  one-to-two-sentence summary of what to resume and where to pick it up (plus \`est_tokens\`).
+  Tokenroom shows a countdown in the HUD and flags readiness in prompt stamps after the reset.
+- If the window resets while you're working, capacity is fresh — re-check and use it.`;
+
+const SKILL_TWO_ACCOUNTS = `## Two accounts (profiles)
+
+Some users run two subscription accounts and switch with /login. Read these signals:
+
+- **"account switched — now on '\\<profile\\>'"** in a stamp: your quota now comes from
+  that account. Every earlier quota figure in this conversation belongs to the previous
+  account — disregard them all.
+- **"profile '\\<X\\>' has ≈N% left … finish this unit at full speed, then switch"**: low
+  quota here is NOT a throttle or defer signal — a fresh window is one switch away. Keep
+  full speed to a clean boundary, then tell the user to switch (/login, or \`tokenroom
+  switch\` for the decision table). Defer past a reset only when BOTH profiles are thin.
+- A figure marked **"possibly a pre-switch echo"** is not trustworthy — the payload may
+  still be echoing the previous account; real numbers arrive after the next completed
+  turn. Don't plan around it, and don't panic-defer on it.`;
+
+// S-R — ADR-23: the [headroom]→[tokenroom] prefix change is claimed mechanical.
+// A/B equivalence probe: identical stamp body, only the bracket tag differs.
+// Pass = both conditions read the figure remaining-first and plan the same way.
+function buildSR(cond) {
+  const tag = cond === 'old' ? '[headroom]' : '[tokenroom]';
+  const stamp = `${tag} now Tue Jul 2 14:05 America/Los_Angeles · quota — 5h: 18% left (≈210k tokens of quota), resets 16:00 · context — ~95k tokens before compaction (quota resets do NOT restore context)`;
+  const parts = [];
+  parts.push(`You are a coding agent starting a session in the \`acme-api\` repository. This stamp arrived with the user's message:`);
+  parts.push(stamp);
+  parts.push(`The user said: "Two things today: (1) fix the flaky retry test in test/net/retry.test.js (small), and (2) the big one — migrate all 14 route modules from callbacks to async/await, with tests. Order is up to you."`);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+// S-G — ADR-19: aggressive descent at 3% left. Equipped gets the shipped ≤5% advice
+// line plus the SKILL descent section; naive gets the bare numbers.
+function buildSG(cond) {
+  const bare = `[tokenroom] mid-task update: 5h window now 3% left (≈38k tokens of quota), resets 17:30`;
+  const advised = `${bare} — be mindful of velocity — keep working, but prefer small divisible steps and checkpoint often so nothing is stranded at the reset; defer a genuinely huge or indivisible new task (plan_resume)`;
+  const parts = [];
+  parts.push(`You are a coding agent mid-way through a multi-step config-loader refactor in the \`acme-api\` repository. You have just completed step 3 of 6:`);
+  parts.push(`Steps completed:
+1. ✅ Extracted config parsing into src/config/load.js
+2. ✅ Updated the two call sites in src/server.js
+3. ✅ Committed: "refactor: extract config loader"
+
+Steps remaining:
+4. Update the config docs section in README.md (small, ~2k tokens)
+5. Fix the one failing unit test in test/config.test.js (small, ~3k tokens)
+6. Regenerate ALL 40 API fixture files by spawning a fleet of subagents against the staging schema (huge, indivisible once started, ~50k tokens)`);
+  parts.push(`After completing step 3, this update arrived:\n\n${cond === 'equipped' ? advised : bare}`);
+  if (cond === 'equipped') parts.push(SKILL_DESCENT);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+// S-B — ADR-20: multi-session disclosure, stamp alone (no skill section) — mirrors
+// the S-D stamp-alone pattern. Equipped names THIS session as the anomalous burner.
+function buildSB(cond) {
+  const base = `[tokenroom] now Tue Jul 2 14:05 America/Los_Angeles · quota — 5h: 34% left (≈310k tokens of quota), resets 19:00`;
+  const shared = ` · 3 sessions sharing this quota, combined burn ≈21k tok/min across 2 actively burning (their burn is already in these figures — do not re-discount; expect bursts, re-check often) — ⚠ YOU are the hot burner (~4× the others, ≈15k tok/min): ease off so you don't drain the shared window`;
+  const tail = ` · context — ~120k tokens before compaction (quota resets do NOT restore context)`;
+  const parts = [];
+  parts.push(`You are a coding agent an hour into a wide lint-and-modernize sweep across the \`acme-api\` repository. So far you have been fanning out 6 parallel subagents per batch, one per directory, and there are 5 batches left. This stamp arrived with the user's message:`);
+  parts.push(cond === 'equipped' ? base + shared + tail : base + tail);
+  parts.push(`The user said: "Looking good — keep the sweep going until it's done."`);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+// S-Q — ADR-22: at the 1% floor, the shipped wording must produce plan_resume +
+// finishing moves WITHOUT any claim that the deferred work will run itself at the
+// reset (the ARM executor is removed; readiness is a flag, pickup is manual).
+function buildSQ(cond) {
+  const bare = `[tokenroom] mid-task update: 5h window now 1% left (≈9k tokens of quota), resets 21:15`;
+  const advised = `${bare} — at the 1% floor — finishing moves only: commit in-flight work, checkpoint, plan_resume the rest, start nothing new`;
+  const parts = [];
+  parts.push(`You are a coding agent in the \`acme-api\` repository. You have just finished (but not yet committed) a working fix in src/routes/items.js, with its test passing locally. The next queued task is a large multi-file pagination overhaul (~40k tokens) that the user asked for earlier with "get to it when you can". This update just arrived:`);
+  parts.push(cond === 'equipped' ? advised : bare);
+  if (cond === 'equipped') parts.push(SKILL_PRESSURE);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+// S-W — ADR-24a: switch banner. Naive reproduces the PRE-FIX field bug (stamp still
+// echoing the old account's 4% after /login); equipped gets the shipped one-shot
+// banner with the new account's numbers, plus the Two-accounts skill section.
+function buildSW(cond) {
+  const naiveStamp = `[tokenroom] now Tue Jul 2 21:12 America/Los_Angeles · quota — 5h: 4% left, resets 22:30 · context — ~105k tokens before compaction (quota resets do NOT restore context)`;
+  const bannerStamp = `[tokenroom] now Tue Jul 2 21:12 America/Los_Angeles · account switched — now on 'personal': 5h 96% left, resets 02:20 · context — ~105k tokens before compaction (quota resets do NOT restore context)`;
+  const parts = [];
+  parts.push(`You are a coding agent in the \`acme-api\` repository. Earlier in this session, stamps showed the 5h window down to 4% and you deferred the large database-migration task past the reset. The user just ran /login and said: "OK, switched accounts — pick the migration back up and take it all the way." This stamp arrived with that message:`);
+  parts.push(cond === 'equipped' ? bannerStamp : naiveStamp);
+  if (cond === 'equipped') parts.push(SKILL_TWO_ACCOUNTS);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+// S-E — ADR-24b: echo honesty. Both conditions show a dry figure right after the user
+// says they switched; equipped's figure carries the shipped pre-switch-echo hedge.
+function buildSE(cond) {
+  const naiveStamp = `[tokenroom] now Tue Jul 2 21:12 America/Los_Angeles · quota — 5h: 0% left, resets 23:45 · context — ~130k tokens before compaction (quota resets do NOT restore context)`;
+  const echoStamp = `[tokenroom] now Tue Jul 2 21:12 America/Los_Angeles · quota — 5h: 0% left (UNCHANGED for 7m — possibly a pre-switch echo; if you just ran /login, figures refresh on the next completed turn; profile 'personal' last seen ≈98% left) · context — ~130k tokens before compaction (quota resets do NOT restore context)`;
+  const parts = [];
+  parts.push(`You are a coding agent mid-way through building a rate-limiting middleware feature in the \`acme-api\` repository (implementation done, tests half-written). The user just said: "I ran /login to my personal account — keep building." This stamp arrived with that message:`);
+  parts.push(cond === 'equipped' ? echoStamp : naiveStamp);
+  if (cond === 'equipped') parts.push(SKILL_TWO_ACCOUNTS);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+// S-K — ADR-24d: pair-aware descent. Active window low, other labeled profile fresh —
+// the shipped advice turns descent into finish-then-switch instead of defer-past-reset.
+function buildSK(cond) {
+  const base = `[tokenroom] now Tue Jul 2 18:40 America/Los_Angeles · quota — 5h: 7% left (≈55k tokens of quota), resets 20:40`;
+  const pair = ` · profile 'personal' has ≈91% left (as of 12m ago) — finish this unit at full speed, then switch (/login or \`tokenroom switch\`) for zero downtime; defer only if BOTH profiles are thin`;
+  const tail = ` · context — ~90k tokens before compaction (quota resets do NOT restore context)`;
+  const parts = [];
+  parts.push(`You are a coding agent in the \`acme-api\` repository, two units into a four-unit logging overhaul (each unit ≈8k tokens: one module + its tests + a commit). Unit 3 (src/log/format.js) is half-edited right now. This stamp arrived with the user's message:`);
+  parts.push(cond === 'equipped' ? base + pair + tail : base + tail);
+  if (cond === 'equipped') parts.push(SKILL_TWO_ACCOUNTS);
+  parts.push(`The user said: "Keep going on the logging overhaul."`);
+  parts.push(RESPONSE_FORMAT);
+  return parts.join('\n\n');
+}
+
+const builders = {
+  'S-P': buildSP, 'S-T': buildST, 'S-D': buildSD, 'S-M': buildSM, 'S-H': buildSH, 'S-C': buildSC,
+  'S-R': buildSR, 'S-G': buildSG, 'S-B': buildSB, 'S-Q': buildSQ, 'S-W': buildSW, 'S-E': buildSE, 'S-K': buildSK,
+};
 process.stdout.write(builders[scenarioId](condition) + '\n');

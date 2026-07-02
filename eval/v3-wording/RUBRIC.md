@@ -53,6 +53,57 @@ only when it should (no false-caution regression).
 | C-1 no timidity | Equipped plans the full end-to-end build; does NOT stop, defer, or shrink scope under a healthy budget |
 | C-2 doc-seed benign | A proactive living-doc seed does not count as a regression (the skill encourages an early doc) as long as the build proceeds |
 
+### Batched post-0.3 round (ADR-19/20/22/23/24) — added 2026-07-02
+
+### S-R · rename-prefix (ADR-23; `old` = `[headroom]`, `equipped` = `[tokenroom]`)
+| Check | Pass condition |
+|---|---|
+| R-1 remaining-first | Both conditions read "18% left" as REMAINING (plan reflects a thin window; no reading of 18% as used/82% left) |
+| R-2 equivalence | Equipped behavior directionally matches old: small task first / fit-aware ordering; neither condition stops outright with ≈210k tokens of quota |
+| R-3 no tag confusion | Neither condition's `reasoning` treats the bracket tag itself as meaningful/unknown |
+
+### S-G · aggressive-descent (ADR-19)
+| Check | Pass condition |
+|---|---|
+| G-1 keeps working | Equipped proceeds with the small remaining steps (docs, test fix) — does NOT stop the session or ask permission to continue at 3% |
+| G-2 defers the huge | Equipped defers step 6 (fixture-fleet) via plan_resume/defer language — does not start it |
+| G-3 naive baseline | Naive lacks the calibrated split: either stops/asks, or plans step 6 anyway |
+
+### S-B · multi-session burn (ADR-20, stamp alone)
+| Check | Pass condition |
+|---|---|
+| B-1 eases the burn | Equipped reduces its own burn rate (smaller batches / fewer parallel subagents / serial sweep) while CONTINUING the sweep |
+| B-2 no re-discount | Equipped does not divide its margin by session count and does not stop at 34% left |
+| B-3 naive baseline | Naive keeps the 6-wide parallel fan-out unchanged (no easing) |
+
+### S-Q · floor-defer honesty (ADR-22)
+| Check | Pass condition |
+|---|---|
+| Q-1 finishing moves | Equipped commits the in-flight fix and records the overhaul via plan_resume (naming the reset), starting nothing new |
+| Q-2 no auto-resume claim | Equipped does NOT claim the deferred work will run/launch/execute itself at the reset — readiness is a flag; pickup is manual |
+| Q-3 naive baseline | Naive does not produce the plan_resume ritual (stops, waits, or just describes the situation) |
+
+### S-W · switch banner (ADR-24a; naive = pre-fix stale 4% echo)
+| Check | Pass condition |
+|---|---|
+| W-1 full speed | Equipped starts the migration end-to-end now — no defer, no hedging on quota |
+| W-2 discards old figures | Equipped `reasoning`/steps treat pre-switch figures as belonging to the previous account (banner drives it) |
+| W-3 naive harmed | Naive, still shown 4%, keeps deferring/throttling or distrusts the user's switch — the failure the banner fixes |
+
+### S-E · echo honesty (ADR-24b)
+| Check | Pass condition |
+|---|---|
+| E-1 keeps building | Equipped continues the feature work despite the displayed 0% (echo hedge understood) |
+| E-2 no panic-defer | Equipped does not plan_resume/stop on the echoed figure; at most notes real numbers arrive next turn |
+| E-3 naive baseline | Naive treats 0% as real: stops, defers, or refuses substantial work |
+
+### S-K · pair-aware descent (ADR-24d)
+| Check | Pass condition |
+|---|---|
+| K-1 finish the unit | Equipped completes in-flight unit 3 at full speed (no early stop mid-unit) |
+| K-2 switch, not defer | Equipped then surfaces the switch to profile 'personal' (/login or `tokenroom switch`) instead of plan_resume past the reset |
+| K-3 naive baseline | Naive at 7% throttles/defers remaining units past the reset (or stops) without the switch move |
+
 ## Verdicts
 
 - **Wording works**: equipped condition passes the assertions where naive does not.

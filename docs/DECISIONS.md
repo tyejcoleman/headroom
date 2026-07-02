@@ -263,7 +263,9 @@ amendment ADR-16 made to CLAUDE.md is withdrawn: the plain rule "never burn inte
 subscription quota headlessly" stands without a carve-out. Note: the small subtractive
 wording edits this removal forced in `skill/SKILL.md` (dropping the "armed resume
 continues after the reset" clause) have NOT yet re-run the ADR-9 wording eval — that pass
-is deferred to the harden round of the current build. *Why:* a scheduler whose economics
+is deferred to the harden round of the current build. *(Ran 2026-07-02 in the batched
+round, S-Q: PASSED — no cell claimed deferred work would run itself;
+`eval/v3-wording/results/2026-07-02-batched-post-0.3-wording.md`.)* *Why:* a scheduler whose economics
 inverted from "salvage expiring capacity" to "spend new metered credits unattended" is
 the exact pattern this project exists to refuse. **Enforced by:** the code no longer
 exists; grep gate in the removal commit; this ADR.
@@ -287,7 +289,8 @@ detected and replaced in place (nothing outside the managed block is touched); u
 removes both old- and new-named artifacts symmetrically. (c) The `[headroom]` →
 `[tokenroom]` stamp-prefix change is mechanical branding, not a wording change — the
 ADR-9 eval for it is batched with the other pending wording items into the current
-build's harden round. (d) Append-only history keeps the old name: past CHANGELOG entries,
+build's harden round. *(Ran 2026-07-02, S-R: PASSED — prefix A/B behaviorally
+indistinguishable; `eval/v3-wording/results/2026-07-02-batched-post-0.3-wording.md`.)* (d) Append-only history keeps the old name: past CHANGELOG entries,
 prior ADR bodies (including still-standing ones — read their `headroom`/`~/.headroom`
 references under this rename), and eval fixtures/results are unmodified; the `eval/`
 simulation rig keeps its on-disk `headroom` fixture naming for reproducibility.
@@ -344,4 +347,5 @@ in `src/hook.mjs`; the field-capture fixture suite in `test/accounts.test.mjs`; 
 ambiguity withholding in `src/mcp.mjs` + `test/mcp.test.mjs`. NOTE: the new stamp/advice
 WORDING (switch banner, echo honesty, pair advice) has not yet run the ADR-9 wording
 eval — it is batched with the other pending items into the harden round and gates the
-npm release.
+npm release. *(Ran 2026-07-02, S-W/S-E/S-K: PASSED on both tiers with clean naive-harm
+baselines; `eval/v3-wording/results/2026-07-02-batched-post-0.3-wording.md`.)*

@@ -28,3 +28,6 @@ launch/
 
 # eval cell outputs are runtime artifacts — regenerate via setup-cell scripts
 eval/v2-continuity/cells-large/
+
+# orchestrator working state — deliberately untracked (its own header says do-not-commit)
+ORCHESTRATION.md

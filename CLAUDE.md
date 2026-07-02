@@ -69,16 +69,16 @@ State lives at `~/.tokenroom/state.json` (atomic temp-file + rename writes only)
 
 ## Current status
 
-**0.5.x (unreleased) — renamed headroom → tokenroom (ADR-23); npm publish under the new
-name is PENDING (launch-day; the name was verified free 2026-07-01 — claim it soon).**
-Phases 0–2 complete plus the post-0.3 field-driven layers. 79 tests green on node
+**0.6.0 — renamed headroom → tokenroom (ADR-23), published to npm (`tokenroom`,
+`latest`; 0.6.0-rc.1 claimed the name 2026-07-01).**
+Phases 0–2 complete plus the post-0.3 field-driven layers. 83 tests green on node
 18/20/22 CI. ARM (the autonomous headless resume executor) was REMOVED per ADR-22 — its
 economics inverted when programmatic use moved to a separate metered pool; autonomous
 continuation belongs to the separate Conductor package, while every awareness surface
 (plan_resume, HUD countdown, readiness stamps) stays. Both load-bearing assumptions
-validated on a live Max account; ADR-9 wording gate passed for the 0.3 wording
-(`eval/v3-wording/results/`) — post-0.3 wording (ADR-19/20/22/23/24 items) is batched
-into one pending eval round that gates the npm release.
+validated on a live Max account; ADR-9 wording gate passed for the 0.3 wording AND the
+batched post-0.3 round (ADR-19/20/22/23/24 items, 2026-07-02) —
+`eval/v3-wording/results/`.
 
 Shipped surface (all dogfooding live on the author's machine): tap → ResourceState +
 velocity engine (learned tokens-per-%, exhaustion bands, idle suppression) · prompt
@@ -91,8 +91,9 @@ switch detection, echo honesty, pair-aware descent, `tokenroom account/switch/ru
 (ADR-20) · governor modes · opt-in compact guard + launch gate ·
 `tokenroom watch/line/audit/doctor` · ADR log · eval report generator.
 
-**Remaining, in order:** batched ADR-9 wording eval (harden round) → rotate the npm
-token → launch day: claim `tokenroom` on npm, `/release` (tag → CI publishes with
-provenance) + `launch/` kit → post-launch: T3.1 credit meter and T3.2 Codex adapter
+**Remaining, in order:** rotate the npm token (USER — the 0.6.0 release still rode the
+old token) → launch announcement per `launch/` kit (publish ≠ promotion; needs explicit
+user green light) → post-launch: T3.1 credit meter and T3.2 Codex adapter
 (both data-gated), Pro only per `docs/PRO.md` gates (V1 demand kill-criteria — no
-payments before two paying pilots).
+payments before two paying pilots). Follow-up from the 2026-07-02 eval: ADR-20's
+"ease off" phrasing is not acted on by small models (B-1 Haiku miss) — candidate tighten.
