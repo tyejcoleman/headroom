@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.6.0-rc.1 — 2026-07-01 (npm name claim: headroom-harness → tokenroom; `next` dist-tag, not `latest` — full release follows the ADR-9 wording eval)
+## 0.6.0 — 2026-07-02
+
+The first stable release under the new name (0.6.0-rc.1 claimed `tokenroom` on npm
+2026-07-01). Gated on — and released with — the **batched ADR-9 wording eval for every
+post-0.3 wording item (ADR-19/20/22/23/24): PASSED**, all equipped assertions green on
+the Sonnet tier with clean naive-harm baselines for the ADR-24 items
+(`eval/v3-wording/results/2026-07-02-batched-post-0.3-wording.md`).
+
+### Fixed (since 0.6.0-rc.1)
+- **Account-switch banner no longer false-fires on a same-account window rollover**, and
+  the pair advisor will never recommend switching to the profile you are already on
+  (ADR-24 hardening).
+- **Hooks never mislead:** every quota-consuming hook honors the per-account show-gate
+  (ADR-21), and a malformed `resume.json` suppresses the readiness stamp instead of
+  garbling it (ADR-5).
+- Eval harness: `eval/v3-wording/` gained the seven batched post-0.3 scenarios
+  (S-R/S-G/S-B/S-Q/S-W/S-E/S-K) + rubric.
 
 ### Added
 - **Multi-account profiles + smart switch advice (ADR-24).** For users toggling two
