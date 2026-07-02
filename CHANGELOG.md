@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0-rc.1 — 2026-07-01 (npm name claim: headroom-harness → tokenroom; `next` dist-tag, not `latest` — full release follows the ADR-9 wording eval)
 
 ### Added
 - **Multi-account profiles + smart switch advice (ADR-24).** For users toggling two
