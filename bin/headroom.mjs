@@ -63,20 +63,12 @@ switch (cmd) {
     break;
   }
   case 'resume': {
-    if (argv.includes('--arm')) {
-      (await import('../src/arm.mjs')).armResume(argv);
-    } else if (argv.includes('--disarm')) {
-      (await import('../src/arm.mjs')).disarmResume();
-    } else if (argv.includes('--clear')) {
+    if (argv.includes('--clear')) {
       console.log(clearResume() ? 'resume plan cleared' : 'no resume plan to clear');
     } else {
       const plan = readResume();
       console.log(plan ? JSON.stringify(plan, null, 2) : 'no resume plan recorded');
     }
-    break;
-  }
-  case 'resume-run': {
-    (await import('../src/arm.mjs')).resumeRun();
     break;
   }
   case 'doctor': {
@@ -113,8 +105,6 @@ usage:
   headroom watch                                                 LIVE dashboard (1s ticks) for a second pane
   headroom line                                                  one live line (countdowns at call time) for tmux/xbar/waybar
   headroom resume [--clear]                                      show or clear the deferred-work plan
-  headroom resume --arm [--max-turns N] [--cwd D] [--dry-run]    schedule the deferred work at the reset (ADR-16)
-  headroom resume --disarm                                       remove the scheduled resume
   headroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
   headroom pins | unpin <id|--all>                               list / remove pins
   headroom handoff [--path]                                      print the canonical handoff doc (the agent writes it via the MCP tool)

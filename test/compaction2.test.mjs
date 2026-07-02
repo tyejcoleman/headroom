@@ -317,23 +317,6 @@ test('pin_fact via the MCP server works without any ResourceState', () => {
   assert.match(run(['pins'], { env }).stdout, /never run migrations on prod/);
 });
 
-test('T2.15: armed-resume artifacts — prompt carries the plan, plist is one-shot-guarded, dry-run writes nothing', async () => {
-  const { buildPrompt, buildPlist } = await import('../src/arm.mjs');
-  const prompt = buildPrompt({ summary: 'finish the eval pass', resume_at: 1781087400 });
-  assert.match(prompt, /finish the eval pass/);
-  assert.match(prompt, /explicitly armed by the user/);
-  assert.match(prompt, /resume --clear/);
-  const plist = buildPlist({ nodePath: '/usr/local/bin/node', hour: 3, minute: 31 });
-  assert.match(plist, /com\.headroom\.resume/);
-  assert.match(plist, /<integer>3<\/integer>/);
-  assert.match(plist, /resume-run/);
-
-  const dir = mkdtempSync(join(tmpdir(), 'hr-arm-'));
-  const out = run(['resume', '--arm', '--dry-run'], { env: { HEADROOM_DIR: dir } }).stdout;
-  assert.match(out, /nothing to arm/); // no plan in sandbox → refuses, writes nothing
-  assert.ok(!existsSync(join(dir, 'arm.json')));
-});
-
 test('T2.12: checkpoint lifecycle — save via MCP, re-inject after compact, staleness + wrong-session guards', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-ck-'));
   const env = { HEADROOM_DIR: dir };

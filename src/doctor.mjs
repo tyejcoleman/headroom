@@ -64,12 +64,12 @@ export function doctor(argv = []) {
       ? ok('skill installed and current')
       : bad('skill installed but OUTDATED vs this version', 'headroom install (now content-compares and updates)');
 
-  // claude CLI (needed for MCP registration and armed resume)
+  // claude CLI (needed for MCP registration)
   try {
     execFileSync('/usr/bin/which', ['claude'], { stdio: 'pipe' });
     ok('claude CLI on PATH');
   } catch {
-    info('claude CLI not found on PATH — MCP auto-registration and armed resume need it');
+    info('claude CLI not found on PATH — MCP auto-registration needs it');
   }
 
   // data freshness
@@ -91,7 +91,6 @@ export function doctor(argv = []) {
   if (pins.length) info(`${pins.length} pin(s) active (headroom pins)`);
   const plan = readResume();
   if (plan) info(`deferred plan recorded${plan.resume_at ? ` (resume ${fmtDelta(plan.resume_at - Date.now() / 1000)})` : ''}`);
-  if (readJSON(join(headroomDir(), 'arm.json'))) info('armed resume is LIVE (headroom resume --disarm to cancel)');
 
   console.log(`headroom doctor — ${dir}\n${lines.join('\n')}\n${problems ? `${problems} problem(s) found` : 'no problems found'}`);
   if (problems) process.exitCode = 1;

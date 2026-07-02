@@ -9,7 +9,6 @@ import { addPin } from './pins.mjs';
 import { saveCheckpoint } from './checkpoint.mjs';
 import { saveContinuity } from './continuity.mjs';
 import { logEvent } from './events.mjs';
-import { readConfig } from './util.mjs';
 
 // package.json is the single source of truth for the version (see /release procedure)
 const pkg = JSON.parse(readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json'), 'utf8'));
@@ -176,13 +175,6 @@ export function mcpServe() {
         result = estimateRemaining(state);
       } else if (name === 'plan_resume') {
         result = planResume(args, state);
-        // auto_arm = the user's STANDING consent to schedule deferred work (ADR-16)
-        if (result?.recorded && readConfig().auto_arm) {
-          import('./arm.mjs')
-            .then((m) => m.armResume(['--cwd', process.cwd()]))
-            .catch(() => {});
-          result.auto_armed = true;
-        }
       } else {
         result = fitCheck(state, args);
       }
