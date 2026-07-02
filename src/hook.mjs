@@ -13,9 +13,10 @@ import { pairAdvice, staleEcho, profileForKey } from './accounts.mjs';
 const STALE_SEC = 30 * 60;
 
 // Hooks never receive `rate_limits`, so they resolve their session's account via the map the
-// tap maintains (ADR-21). Unknown → the global dir, and the quota stamp is suppressed there
-// because a top-level pointer may belong to a CONCURRENT session on a different account.
-const dirForSession = (sessionId) => quotaScope(sessionId).dir;
+// tap maintains (ADR-21) with quotaScope(): it returns {dir, show, key}. On a machine with ≥2
+// accounts an UNMAPPED session gets show:false — the top-level pointer may belong to a
+// CONCURRENT session on a different account, so EVERY quota-consuming hook must honor `show`
+// and withhold window-derived output rather than quote the wrong account.
 
 async function readStdin() {
   let raw = '';
@@ -37,9 +38,12 @@ async function readStdin() {
 export async function hookPreCompact() {
   const p = await readStdin();
   try {
+    // Only apply the window-derived compact guard when we can attribute this session's account
+    // (ADR-21 show-gate); the handoff snapshot below is session-level and always runs.
+    const { dir, show } = quotaScope(p.session_id);
     const guardMin = readConfig().compact_guard_min;
-    if (typeof guardMin === 'number' && guardMin > 0 && p.trigger === 'auto') {
-      const resets = readState(dirForSession(p.session_id))?.windows?.five_hour?.resets_at;
+    if (show && typeof guardMin === 'number' && guardMin > 0 && p.trigger === 'auto') {
+      const resets = readState(dir)?.windows?.five_hour?.resets_at;
       const left = resets ? resets - Date.now() / 1000 : null;
       if (left !== null && left > 0 && left <= guardMin * 60) {
         logEvent({ type: 'compact_blocked', session_id: p.session_id ?? null, minutes_to_reset: Math.round(left / 60) });
@@ -76,8 +80,12 @@ const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
 export async function hookPostToolUse() {
   const p = await readStdin();
   try {
-    const { dir, key: myKey } = quotaScope(p.session_id); // this session's account subtree (ADR-21)
+    const { dir, key: myKey, show } = quotaScope(p.session_id); // this session's account subtree (ADR-21)
     sampleFlow(p.transcript_path, p.session_id, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
+    // ≥2 accounts and this session isn't mapped yet → the resolved dir is the top-level pointer,
+    // i.e. ANOTHER account's numbers. Withhold every window-derived re-stamp (bands, receipts,
+    // exhaustion, pair advice) rather than mis-attribute a concurrent account's burn (ADR-21).
+    if (!show) return;
     const cfg = readConfig();
     if (process.env.TOKENROOM_DISABLE === '1' || !cfg.stamp_enabled) return;
     const prof = modeProfile(cfg.mode);
@@ -260,7 +268,11 @@ export async function hookPreToolUse() {
   try {
     if (!readConfig().launch_gate) return;
     if (!EXPENSIVE_TOOLS.includes(p.tool_name)) return;
-    const s = readState(dirForSession(p.session_id));
+    // ≥2 accounts and this session unmapped → we can't attribute a window to it; deny using the
+    // top-level pointer would gate on ANOTHER account's quota, so fail open (ADR-21 show-gate).
+    const { dir, show } = quotaScope(p.session_id);
+    if (!show) return;
+    const s = readState(dir);
     if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) return;
     const { fitCheck } = await import('./fit.mjs');
     const fit = fitCheck(s, { est_tokens: 40000 }); // conservative launch-sized estimate
@@ -314,7 +326,7 @@ export async function hookSessionStart() {
   const plan = readResume();
   if (plan?.resume_at && Date.now() / 1000 >= plan.resume_at) {
     parts.push(
-      `[tokenroom] deferred work is now ready (its window has reset): "${plan.summary}". Surface this to the user, and run \`tokenroom resume --clear\` once it is picked up.`
+      `[tokenroom] deferred work is now ready (its window has reset): "${String(plan.summary ?? '')}". Surface this to the user, and run \`tokenroom resume --clear\` once it is picked up.`
     );
   }
   if (!parts.length) return;
@@ -476,7 +488,7 @@ export async function hookUserPromptSubmit() {
   }
   const plan = readResume();
   if (plan?.resume_at && Date.now() / 1000 >= plan.resume_at) {
-    parts.push(`deferred work now ready: "${plan.summary.slice(0, 60)}"`);
+    parts.push(`deferred work now ready: "${String(plan.summary ?? '').slice(0, 60)}"`);
   }
 
   // Microcompaction is silent (no hook fires) — if the tap saw an unexplained context

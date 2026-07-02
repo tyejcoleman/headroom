@@ -21,12 +21,35 @@ function runHook(event, home, stdin) {
   });
 }
 
-test('session-start survives a resume.json missing its summary (exit 0, no throw)', () => {
+test('session-start survives a resume.json missing its summary (exit 0, no throw, no injected lie)', () => {
   const home = mkdtempSync(join(tmpdir(), 'tr-resil-'));
   // resume_at in the past forces the "deferred work ready" path that reads plan.summary
   writeFileSync(join(home, 'resume.json'), JSON.stringify({ resume_at: 1 }));
   const out = runHook('session-start', home, JSON.stringify({ session_id: 's1', source: 'startup' }));
   assert.ok(!out.includes('undefined slice'), 'no stack leakage');
+  // Before the fix, readResume returned the corrupt plan and session-start injected
+  // `deferred work is now ready: "undefined"` — never inject that lie (the plan is rejected
+  // at readResume, so nothing is emitted here). `undefined` appears JSON-escaped, so match loosely.
+  assert.doesNotMatch(out, /undefined/, 'no injected "deferred work: undefined" lie');
+  assert.doesNotMatch(out, /deferred work is now ready/, 'a shapeless plan is not surfaced as ready');
+});
+
+test('user-prompt-submit still stamps when resume.json is malformed — a corrupt plan cannot silence EVERY stamp', () => {
+  const home = mkdtempSync(join(tmpdir(), 'tr-resil-'));
+  const env = { ...process.env, TOKENROOM_DIR: home };
+  const nowS = Math.round(Date.now() / 1000);
+  // a fresh state via the real tap so a stamp is due
+  execFileSync(process.execPath, [bin, 'tap'], {
+    input: JSON.stringify({ session_id: 's1', rate_limits: { five_hour: { used_percentage: 20, resets_at: nowS + 8000 }, seven_day: { used_percentage: 10, resets_at: nowS + 5 * 86400 } } }),
+    env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  // the poison: resume_at in the past but NO created_at/summary. Before the fix this threw at
+  // plan.summary.slice → exit 0 with ZERO output, permanently suppressing EVERY stamp (the
+  // corrupt plan never expired because nowSec - undefined is NaN).
+  writeFileSync(join(home, 'resume.json'), JSON.stringify({ resume_at: 1 }));
+  const out = runHook('user-prompt-submit', home, JSON.stringify({ session_id: 's1' }));
+  assert.match(out, /\[tokenroom\]/, 'the stamp still emits — the corrupt resume.json is rejected, not fatal');
+  assert.doesNotMatch(out, /undefined/, 'no "undefined" leaks into the stamp');
 });
 
 test('hooks survive structurally-wrong state files and non-JSON stdin', () => {

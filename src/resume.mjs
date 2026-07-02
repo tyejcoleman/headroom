@@ -1,6 +1,6 @@
-import { writeFileSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { tokenroomDir, ensureDir, readJSON, fmtClock } from './util.mjs';
+import { tokenroomDir, ensureDir, atomicWriteJSON, readJSON, fmtClock } from './util.mjs';
 
 // Reset scheduler: when work is deferred past a window reset (fit_check → defer), the
 // model records a resume plan. The HUD shows a countdown; once the reset passes, the
@@ -19,7 +19,7 @@ export function planResume({ summary, est_tokens } = {}, state, nowSec = Date.no
     resume_at: resumeAt,
   };
   ensureDir(tokenroomDir());
-  writeFileSync(planPath(), JSON.stringify(plan, null, 2));
+  atomicWriteJSON(planPath(), plan);
   return {
     recorded: true,
     resume_at: resumeAt,
@@ -32,7 +32,12 @@ export function planResume({ summary, est_tokens } = {}, state, nowSec = Date.no
 
 export function readResume(nowSec = Date.now() / 1000) {
   const plan = readJSON(planPath());
-  if (!plan || nowSec - plan.created_at > MAX_AGE_SEC) return null;
+  // Validate shape at the SOURCE. A plan missing a string summary or a numeric created_at is
+  // corrupt: `nowSec - undefined` is NaN so the 24h expiry NEVER fires (the file would then
+  // silence every stamp forever), and consumers reading plan.summary would throw. Reject it
+  // here so both failure modes close at once (ADR-5: degrade, never let one bad file cascade).
+  if (!plan || typeof plan.summary !== 'string' || typeof plan.created_at !== 'number') return null;
+  if (nowSec - plan.created_at > MAX_AGE_SEC) return null;
   return plan;
 }
 

@@ -110,6 +110,42 @@ test('two accounts, two sessions: each session sees ITS OWN weekly, never the ot
   assert.doesNotMatch(z, /7d:/);
 });
 
+test('unmapped session on a 2-account machine: PostToolUse, PreToolUse, PreCompact all withhold the other account (ADR-21)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-scope-'));
+  const env = { TOKENROOM_DIR: dir };
+  const nowS = Math.round(Date.now() / 1000);
+  mkdirSync(dir, { recursive: true });
+  // both quota-consuming gates armed
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ launch_gate: true, compact_guard_min: 60 }));
+
+  const mk = (sid, fhReset, sdReset, fhUsed) => JSON.stringify({
+    session_id: sid,
+    rate_limits: { five_hour: { used_percentage: fhUsed, resets_at: fhReset }, seven_day: { used_percentage: 50, resets_at: sdReset } },
+  });
+  // Account A, then Account B written LAST → B is the top-level pointer. B is nearly dry with
+  // an IMMINENT reset: exactly the numbers that would leak to an unmapped session via the
+  // global pointer (a false receipt/band nudge, a bogus launch-deny, a bogus compact-block).
+  run(['tap'], { input: mk('sessA', nowS + 8000, nowS + 3 * 86400, 40), env });
+  run(['tap'], { input: mk('sessB', nowS + 1500, nowS + 5 * 86400, 99), env });
+
+  // seed a PostToolUse baseline for the unmapped session in the GLOBAL dir at a healthy band,
+  // so the OLD (buggy) code would compute a worsening band + big receipt off B's dry numbers.
+  writeFileSync(join(dir, 'bands.json'), JSON.stringify({ sessZ: { fh: 0, ctx: 0, exh: false, sc: false, u: 40, c: null, cu: null, t: nowS - 300, at: 0 } }));
+
+  const ups = run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'sessZ', tool_name: 'Read' }), env });
+  assert.equal(ups.stdout, '', 'PostToolUse emits nothing for an unmapped session — no foreign-account receipt/band leak');
+
+  const gate = run(['hook', 'pre-tool-use'], { input: JSON.stringify({ session_id: 'sessZ', tool_name: 'Task' }), env });
+  assert.doesNotMatch(gate.stdout, /deny/, "launch gate must not deny using another account's dry window");
+
+  const guard = run(['hook', 'pre-compact'], { input: JSON.stringify({ session_id: 'sessZ', trigger: 'auto' }), env });
+  assert.doesNotMatch(guard.stdout, /block/, "compact guard must not block using another account's imminent reset");
+
+  // CONTROL: a MAPPED session still gets its own gate — the show-gate withholds, it doesn't disable.
+  const gateA = run(['hook', 'pre-tool-use'], { input: JSON.stringify({ session_id: 'sessB', tool_name: 'Task' }), env });
+  assert.match(gateA.stdout, /deny/, 'the mapped dry account (B) is still gated — the fix withholds only unattributable quota');
+});
+
 test('install: idempotent into sandbox config dir; uninstall leaves no trace', () => {
   const home = mkdtempSync(join(tmpdir(), 'tokenroom-inst-'));
   const cfg = join(home, '.claude');
