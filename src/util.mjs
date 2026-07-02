@@ -124,6 +124,16 @@ export function accountKey(windows) {
   return 'a' + createHash('sha1').update(phase).digest('hex').slice(0, 10);
 }
 
+/** True when two 5h buckets share the same WEEKLY reset phase (`resets_at % 7d`). The
+ *  weekly phase is invariant within one physical account (a reset advances resets_at by
+ *  exactly one window), so it survives the idle 5h re-phasing that mints a NEW account key
+ *  for the SAME account (ADR-24). Used to tell a same-account window rollover from a real
+ *  /login switch. Null on either side → not a confident match (treat as a switch). */
+export function sameSevenDayPhase(a, b) {
+  if (typeof a !== 'number' || typeof b !== 'number') return false;
+  return a % SEVEN_DAY_SEC === b % SEVEN_DAY_SEC;
+}
+
 export const accountsRoot = () => join(tokenroomDir(), 'accounts');
 /** Directory holding one account's state/history/calib/flow/bands. Null key → global dir
  *  (api-key users and pre-account fallbacks share the legacy top-level layout). */

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { accountKey } from '../src/util.mjs';
+import { bestOther, pairAdvice } from '../src/accounts.mjs';
 
 // Multi-account profiles + instant switch awareness (ADR-24). The scenarios here replay
 // the 2026-07-01 field capture: two real subscription accounts toggled via /login, the
@@ -262,4 +263,72 @@ test("fold heuristic: a new bucket right after a labeled profile's window expire
 
   // doctor surfaces the same assist
   assert.match(run(['doctor', '--config-dir', join(dir, 'nocfg')], { env }).stdout, new RegExp(`new bucket ${newKey} is probably 'work'`));
+});
+
+test('same-account 5h rollover after an idle gap is NOT a /login switch: no banner, label follows the account (ADR-24)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tr-rollover-'));
+  const env = { TOKENROOM_DIR: dir };
+  const t = now();
+  // account 'main' first seen with a 5h window that has ALREADY reset (idle account)
+  const A1 = { five_hour: { used_percentage: 80, resets_at: t - 300 }, seven_day: { used_percentage: 40, resets_at: t + 3 * 86400 } };
+  run(['tap'], { input: payload('live', A1), env });
+  const key1 = toKey(A1);
+  run(['account', 'fold', key1, 'main'], { env });
+
+  // the SAME physical account comes back on a NEW 5h phase (new key) — SAME weekly phase
+  const A2 = { five_hour: { used_percentage: 3, resets_at: t + 9000 }, seven_day: { used_percentage: 41, resets_at: t + 3 * 86400 } };
+  run(['tap'], { input: payload('live', A2), env });
+  const key2 = toKey(A2);
+  assert.notEqual(key1, key2, 'idle re-phasing mints a new bucket key');
+
+  const ev = readFileSync(join(dir, 'events.jsonl'), 'utf8');
+  assert.doesNotMatch(ev, /account_switch/, 'a same-account rollover must not log account_switch');
+  assert.match(ev, /account_rollover/);
+
+  // the label followed the account across the phase change (auto-fold), so identity sticks
+  const profiles = JSON.parse(readFileSync(join(dir, 'profiles.json'), 'utf8')).profiles;
+  assert.ok(profiles.main.keys.includes(key2), 'the new bucket auto-folds into the same profile');
+
+  // and the next stamp does NOT announce a bogus "account switched"
+  assert.doesNotMatch(stamp('live', env), /account switched/);
+
+  // CONTROL: a real /login to a live account (old window not yet reset) still fires the switch
+  const dir2 = mkdtempSync(join(tmpdir(), 'tr-realswitch-'));
+  const env2 = { TOKENROOM_DIR: dir2 };
+  const L = { five_hour: { used_percentage: 100, resets_at: t + 1200 }, seven_day: { used_percentage: 50, resets_at: t + 2 * 86400 } }; // window still live
+  const M = { five_hour: { used_percentage: 2, resets_at: t + 9000 }, seven_day: { used_percentage: 10, resets_at: t + 5 * 86400 } };
+  run(['tap'], { input: payload('live', L), env: env2 });
+  run(['tap'], { input: payload('live', M), env: env2 });
+  assert.match(readFileSync(join(dir2, 'events.jsonl'), 'utf8'), /account_switch/, 'a genuine /login (old window live) still fires the switch');
+});
+
+test('bestOther never recommends the reset-inferred profile the unlabeled active key may BE — even while another profile is active (ADR-24)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tr-bestother-'));
+  process.env.TOKENROOM_DIR = dir;
+  const t = now();
+  const state = (key, obj) => {
+    mkdirSync(join(dir, 'accounts', key), { recursive: true });
+    writeFileSync(join(dir, 'accounts', key, 'state.json'), JSON.stringify(obj));
+  };
+
+  // profile 'A': its only bucket's 5h window reset 2h ago — "freshness" is reset-INFERRED
+  const keyA = 'aAAAAAAAAA';
+  state(keyA, { updated_at: t - 2 * 3600, windows: { five_hour: { used_pct: 88, resets_at: t - 2 * 3600 }, seven_day: { used_pct: 30, resets_at: t + 3 * 86400 } } });
+  // profile 'B': active (last_seen fresh) with LIVE data (no reset inference), 50% left
+  const keyB = 'aBBBBBBBBB';
+  state(keyB, { updated_at: t - 30, windows: { five_hour: { used_pct: 50, resets_at: t + 4000 }, seven_day: { used_pct: 20, resets_at: t + 5 * 86400 } } });
+  writeFileSync(join(dir, 'profiles.json'), JSON.stringify({ profiles: {
+    A: { keys: [keyA], last_seen: t - 2 * 3600 },
+    B: { keys: [keyB], last_seen: t - 30 }, // active in the last 10 min → old code's suggestFold went silent → no self-exclusion
+  } }));
+
+  // the re-login to physical A lands on a NEW unlabeled bucket K at 12% left
+  const keyK = 'aKKKKKKKKK';
+  state(keyK, { updated_at: t, windows: { five_hour: { used_pct: 88, resets_at: t + 8000 }, seven_day: { used_pct: 30, resets_at: t + 3 * 86400 } } });
+
+  const best = bestOther(keyK, t);
+  assert.equal(best?.label, 'B', 'recommends the live-data profile, not the reset-inferred one the session may already be on');
+  const pa = pairAdvice(keyK, 12, t);
+  assert.ok(pa && pa.other.label === 'B', 'pair advice points at B');
+  assert.notEqual(pa.other.label, 'A', 'must never advise switching to the profile the unlabeled active key probably is');
 });

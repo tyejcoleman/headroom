@@ -153,7 +153,18 @@ export function bestOther(activeKey, nowSec = Date.now() / 1000) {
     const activeLabel = profileForKey(activeKey, profiles);
     const excluded = new Set(activeLabel ? [activeLabel] : []);
     if (!activeLabel && activeKey) {
-      for (const sug of suggestFold(nowSec, profiles)) if (sug.key === activeKey) excluded.add(sug.label);
+      // The active bucket is UNLABELED — it could BE any profile whose "freshness" is merely
+      // inferred from a passed 5h reset (the idle-rephasing case ADR-24 targets: re-login to a
+      // physical account lands on a new phase-derived bucket). Advising a switch to a profile
+      // the current session may already be on is the bug, so exclude every reset-inferred-fresh
+      // profile OUTRIGHT — decoupled from suggestFold's fold-hint conservatism (which rightly
+      // stays quiet when another profile is active; here we must be conservative in the OPPOSITE
+      // direction, regardless of who else is active). Profiles with LIVE data (no reset
+      // inference) stay recommendable — that is real, switchable headroom.
+      for (const [label, prof] of Object.entries(profiles)) {
+        const q = profileQuota(prof, nowSec);
+        if (q?.reset && q.fh_resets && nowSec - q.fh_resets < PAIR_FRESH_SEC) excluded.add(label);
+      }
     }
     let best = null;
     for (const [label, prof] of Object.entries(profiles)) {

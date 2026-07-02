@@ -82,6 +82,8 @@ export function renderAudit(sinceSec = 6 * 3600, nowSec = Date.now() / 1000) {
         return `context  cliff disclosed in next stamp`;
       case 'account_switch':
         return `account  switched mid-session: ${e.from} → ${e.to} (payload wins; remapped instantly)`;
+      case 'account_rollover':
+        return `account  same-account 5h rollover: ${e.from} → ${e.to} (new phase, not a /login switch)`;
       case 'switch_announced':
         return `account  switch disclosed in next stamp`;
       default:

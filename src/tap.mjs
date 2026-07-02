@@ -1,12 +1,12 @@
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tokenroomDir, ensureDir, accountKey, accountDir, accountForSession, recordSessionAccount, gcAccounts } from './util.mjs';
+import { tokenroomDir, ensureDir, accountKey, accountDir, accountForSession, recordSessionAccount, gcAccounts, crossedReset, sameSevenDayPhase } from './util.mjs';
 import { parsePayload, updateBurn, writeState, readState, enrichWeekly } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
 import { detectContextDrop, logEvent } from './events.mjs';
 import { enrichBurn } from './flow.mjs';
-import { updateProfileSnapshot, bestOther } from './accounts.mjs';
+import { updateProfileSnapshot, bestOther, profileForKey, foldKey } from './accounts.mjs';
 
 /**
  * Statusline command: read the payload Claude Code pipes to stdin, persist
@@ -47,7 +47,24 @@ export async function tap(argv = []) {
       ensureDir(dir);
       recordSessionAccount(fresh.session_id, key, now); // so hooks (no rate_limits) find us
       if (prevKey && prevKey !== key) {
-        logEvent({ type: 'account_switch', session_id: fresh.session_id ?? null, from: prevKey, to: key }, now);
+        // ROLLOVER vs /login SWITCH (ADR-24): an idle account starts its NEXT 5h window at a
+        // new phase → a new account key for the SAME physical account. That is not a switch.
+        // Classify against the previous bucket: if its 5h window has ALREADY reset AND the new
+        // payload's weekly phase matches the previous bucket's, this is a same-account window
+        // rollover — don't cry "account switched" (a false banner), and let any profile label
+        // follow the account across phases (auto-fold). A genuine /login still fires because
+        // the old window had not yet reset (you left a live account) or the 7d phase differs.
+        const prevState = readState(accountDir(prevKey));
+        const rolledOver =
+          !!crossedReset(prevState, now) &&
+          sameSevenDayPhase(prevState?.windows?.seven_day?.resets_at, fresh.windows?.seven_day?.resets_at);
+        if (rolledOver) {
+          logEvent({ type: 'account_rollover', session_id: fresh.session_id ?? null, from: prevKey, to: key }, now);
+          const label = profileForKey(prevKey);
+          if (label) foldKey(key, label, now); // the label follows the account to its new bucket
+        } else {
+          logEvent({ type: 'account_switch', session_id: fresh.session_id ?? null, from: prevKey, to: key }, now);
+        }
       }
     }
     fresh.account_key = key;
