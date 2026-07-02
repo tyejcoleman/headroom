@@ -68,8 +68,9 @@ One idempotent command wires up (and `uninstall` reverts, restoring any statusli
 1. **Statusline tap** — collects `rate_limits` + `context_window` from the payload Claude
    Code already pipes to statuslines; atomically maintains `~/.tokenroom/state.json`.
 2. **Prompt stamp** — ~30 tokens of live budget context with each prompt:
-   `[tokenroom] 5h: 58% left, resets 14:00 · 7d: 85% left · ctx: ~38k tokens before compaction`.
-   Age-disclosed when stale; silent rather than wrong; `TOKENROOM_DISABLE=1` to mute.
+   `[tokenroom] now Tue, Jul 1, 09:12 Asia/Tokyo · quota — 5h: 58% left, resets 14:00 · context — ~38k tokens before compaction`.
+   Leads with the wall clock; the weekly (7d) window stays hidden until it's binding (<20%
+   left); age-disclosed when stale; silent rather than wrong; `TOKENROOM_DISABLE=1` to mute.
 3. **MCP tools** — `resource_state`, `estimate_remaining`, `fit_check({est_tokens})` →
    `fits | tight | exceeds | defer`, `plan_resume` for deferred work, `checkpoint` (the
    agent's own pre-compaction survival note), and `pin_fact` (facts that must survive

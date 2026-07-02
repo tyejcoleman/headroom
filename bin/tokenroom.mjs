@@ -155,6 +155,6 @@ usage:
   tokenroom audit [--since <hours>]                               timeline of the awareness loop (default 6h)
   tokenroom doctor                                                diagnose the install (wiring, freshness, conflicts)
   tokenroom tap [--capture]      (statusline command — wired by install)
-  tokenroom hook <user-prompt-submit|pre-compact|session-start|post-compact>   (hook commands — wired by install)
+  tokenroom hook <user-prompt-submit|pre-tool-use|post-tool-use|pre-compact|post-compact|session-start>   (hook commands — wired by install)
   tokenroom mcp                                    (stdio MCP server — wired by install)`);
 }

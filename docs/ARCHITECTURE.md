@@ -26,7 +26,8 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 | `src/tap.mjs` | statusline entry: parse → persist → HUD | never crashes, always prints (ADR-5); `--capture` appends raw payloads |
 | `src/state.mjs` | payload → ResourceState; burn model; atomic state I/O | clamp/null bad fields; median-of-buckets burn ≥10min baseline (ADR-4/5) |
 | `src/hud.mjs` | human one-liner | remaining-first (ADR-3); actionable signals only (ADR-4) |
-| `src/hook.mjs` | UserPromptSubmit stamp · PreCompact snapshot/guard · SessionStart re-inject · PostCompact log | session-scoping (ADR-7); age disclosure; silence > lying; guard fail-open (ADR-13) |
+| `src/hook.mjs` | UserPromptSubmit stamp · PostToolUse mid-turn re-stamp/cost receipts · PreToolUse launch gate · PreCompact snapshot/guard · SessionStart re-inject · PostCompact log | session-scoping + per-account `show`-gate (ADR-7/21); age disclosure; silence > lying; guard/gate fail-open (ADR-13) |
+| `src/accounts.mjs` | multi-account profiles: label/fold/config-dir, window snapshot, pair advice, echo honesty, `switch`/`run` CLIs | labels are identity, phase keys are isolation only (ADR-24/21); advice + launch-time config selection only — never a credential swap (ADR-1) |
 | `src/handoff.mjs` | ground-truth snapshot capture/render + transcript extracts | facts not prose (ADR-8); 6h staleness guard; pointer not payload (ADR-11) |
 | `src/pins.mjs` | must-survive-verbatim facts, re-injected after compaction | capped + TTL'd (ADR-12) |
 | `src/events.mjs` | compaction event log + silent-cliff detection + `audit` renderer | best-effort only; never breaks tap/hooks (ADR-5) |
@@ -53,11 +54,13 @@ resolve their own account via `quotaScope`. api-key users (no windows) keep the 
 layout. Dormant account subtrees are GC'd after 14 days.
 
 **Global / session-scoped:** the top-level `state.json` pointer (ResourceState v0, atomic) ·
+`sessions.json` (`session_id → account key` map for hooks) · `profiles.json` (multi-account
+labels/identity: label → `{keys[], config_dir?, last_seen, last_windows_snapshot}`, ADR-24) ·
 `handoffs/<session>.json` (pre-compaction snapshots) · `handoffs/<session>.extracts.json`
 (verbatim transcript extracts, ADR-11) · `resume.json` (deferred-work plan) · `pins.json`
-(must-survive facts, ADR-12) · `events.jsonl` (compaction lifecycle + context anomalies,
-capped) · `config.json` (user config: `stamp_enabled`, `ceiling_pct`, `mode`,
-`compact_guard_min`) · `raw-sample.jsonl` (only with `tap --capture`).
+(must-survive facts, ADR-12) · `events.jsonl` (compaction lifecycle + context anomalies +
+account switch/rollover, capped) · `config.json` (user config: `stamp_enabled`, `ceiling_pct`,
+`mode`, `compact_guard_min`, `launch_gate`) · `raw-sample.jsonl` (only with `tap --capture`).
 
 ## Extension points
 
