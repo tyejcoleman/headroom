@@ -23,12 +23,19 @@ switch (cmd) {
     console.log(renderLine(readState(), readResume()));
     break;
   case 'hook': {
-    if (argv[0] === 'user-prompt-submit') await hookUserPromptSubmit();
-    else if (argv[0] === 'pre-compact') await hookPreCompact();
-    else if (argv[0] === 'session-start') await hookSessionStart();
-    else if (argv[0] === 'post-compact') await hookPostCompact();
-    else if (argv[0] === 'post-tool-use') await hookPostToolUse();
-    else if (argv[0] === 'pre-tool-use') await hookPreToolUse();
+    // ADR-5 at the choke point: whatever a hook hits (hand-corrupted state files,
+    // malformed stdin), it degrades to silence — a hook must never break the harness
+    // or surface an error banner the user will misattribute to the wrong tool.
+    try {
+      if (argv[0] === 'user-prompt-submit') await hookUserPromptSubmit();
+      else if (argv[0] === 'pre-compact') await hookPreCompact();
+      else if (argv[0] === 'session-start') await hookSessionStart();
+      else if (argv[0] === 'post-compact') await hookPostCompact();
+      else if (argv[0] === 'pre-tool-use') await hookPreToolUse();
+      else if (argv[0] === 'post-tool-use') await hookPostToolUse();
+    } catch {
+      process.exitCode = 0;
+    }
     // unknown hook events exit silently — a hook must never break the harness
     break;
   }
