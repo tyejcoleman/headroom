@@ -3,7 +3,7 @@ import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { headroomDir, readJSON, fmtDelta } from './util.mjs';
+import { readJSON, fmtDelta } from './util.mjs';
 import { readState } from './state.mjs';
 import { listPins } from './pins.mjs';
 import { readResume } from './resume.mjs';
