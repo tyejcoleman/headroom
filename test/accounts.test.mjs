@@ -56,6 +56,14 @@ test('field capture 2026-07-01: /login switch remaps in the SAME tap invocation;
   const s2 = stamp('live', env);
   assert.doesNotMatch(s2, /account switched/);
   assert.match(s2, /quota — 5h: 98% left/);
+
+  // a SECOND switch — even inside the same second as the first announcement — must get
+  // its own banner (the announce ref carries the destination key, not just a timestamp)
+  const C = { five_hour: { used_percentage: 30, resets_at: now() + 5000 }, seven_day: { used_percentage: 20, resets_at: now() + 6 * 86400 } };
+  run(['tap'], { input: payload('live', C), env });
+  const s3 = stamp('live', env);
+  assert.match(s3, new RegExp(`account switched — now on '${toKey(C)}': 5h 70% left`));
+  assert.doesNotMatch(stamp('live', env), /account switched/);
 });
 
 test('echo honesty: a frozen dry figure with a values-fresher sibling is disclosed as a possible pre-switch echo, then recovers on the real switch', () => {

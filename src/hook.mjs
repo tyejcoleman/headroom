@@ -376,7 +376,10 @@ export async function hookUserPromptSubmit() {
   let switched = null;
   const swEvents = recentEvents(15 * 60).filter((e) => e.type === 'account_switch' && (!mySession || e.session_id === mySession));
   const lastSw = swEvents[swEvents.length - 1];
-  if (lastSw && !recentEvents(15 * 60).some((e) => e.type === 'switch_announced' && e.ref === lastSw.at)) switched = lastSw;
+  // ref carries the destination key too: two switches inside the same second (A→B→C)
+  // must not let the first announcement swallow the second
+  const swRef = lastSw ? `${lastSw.at}:${lastSw.to}` : null;
+  if (lastSw && !recentEvents(15 * 60).some((e) => e.type === 'switch_announced' && e.ref === swRef)) switched = lastSw;
 
   const resetAt = crossedReset(s);
   if (showQuota && resetAt) {
@@ -391,7 +394,7 @@ export async function hookUserPromptSubmit() {
       let seg = `account switched — now on '${label}': 5h ${Math.round(100 - fh.used_pct)}% left`;
       if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
       parts.push(seg);
-      logEvent({ type: 'switch_announced', ref: switched.at });
+      logEvent({ type: 'switch_announced', ref: swRef });
     } else if (echo) {
       // ECHO HONESTY (ADR-24): a dry figure whose values haven't moved in minutes, while a
       // sibling account has values-newer data, is probably a pre-switch echo — say so
