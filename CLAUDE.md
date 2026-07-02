@@ -37,9 +37,10 @@ These are the project's reason to exist responsibly. Any change that touches the
   `~/.claude` / `~/.codex` files.
 - **Never** reuse a subscription OAuth token outside the official client, call
   undocumented endpoints (e.g. `api/oauth/usage`), spoof harness identity headers, read
-  `.credentials.json` to make API calls, or burn interactive subscription quota headlessly
-  — headless spend is allowed ONLY under ADR-16's consent contract (the user arms it,
-  per-plan or via `auto_arm`; transparent, guard-railed, disarmable).
+  `.credentials.json` to make API calls, or burn interactive subscription quota headlessly.
+  (The ADR-16 carve-out that once allowed user-armed headless spend is withdrawn — ADR-22
+  removed the ARM executor; autonomous continuation belongs to the separate Conductor
+  package on in-session surfaces.)
 - **Defensive parsing always:** every field we read may be absent, malformed, or buggy
   (e.g. epoch values leaking into `used_percentage`). Degrade gracefully, clamp to valid
   ranges, never crash the statusline.
@@ -79,9 +80,9 @@ Shipped surface (all dogfooding live on the author's machine): tap → ResourceS
 velocity engine (learned tokens-per-%, exhaustion bands, idle suppression) · prompt
 stamps + mid-turn band updates + cost receipts · compaction survival (fact snapshot +
 transcript anchor + model-authored `checkpoint` + verbatim `pin_fact` pins + silent-trim
-detection) · reset scheduler + ARMED resume (launchd + headless `claude -p`, consent-first
-per ADR-16) · governor modes · opt-in compact guard + launch gate · `headroom
-watch/line/audit/doctor` · 16 ADRs · eval report generator.
+detection) · reset scheduler (plan_resume + HUD countdown + readiness stamps; the ARM
+executor was removed per ADR-22) · governor modes · opt-in compact guard + launch gate ·
+`headroom watch/line/audit/doctor` · ADR log · eval report generator.
 
 **Remaining, in order:** soak week (dogfood; fixture any oddity) → rotate the npm token →
 launch day: `/release` (tag v0.3.0 → CI publishes with provenance) + `launch/` kit →

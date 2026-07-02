@@ -107,7 +107,7 @@ are silent. *Why:* per-tool-call stamps would drown the context and train the mo
 ignore them — band crossings are the only mid-turn news that changes decisions.
 **Enforced by:** tests; new wording joins the ADR-9 eval queue before publish.
 
-## ADR-16 — Armed resume: the user schedules the spend (amends the headless rule)
+## ADR-16 — Armed resume: the user schedules the spend (amends the headless rule) — SUPERSEDED by ADR-22
 The hard rule "never burn interactive subscription quota headlessly" exists to stop
 TOOLS from spending quota the user didn't choose to spend. Armed resume does not cross
 it — it inverts it: the USER schedules the spend, either per-plan (`headroom resume
@@ -119,7 +119,9 @@ log; `--disarm` removes everything; the firing entry point self-disarms after on
 headroom NEVER arms without one of the two consents. *Why:* deferred work that resumes
 itself at the reset is the product's whole point — done with consent it's a feature,
 done without it's malware. **Enforced by:** consent checks in code, dry-run output,
-audit-log `armed`/`resume_run` events, this ADR.
+audit-log `armed`/`resume_run` events, this ADR. **Superseded by ADR-22 (2026-07-01):**
+the execution half (the ARM executor) is removed; the consent principle carries over to
+the Conductor package. The headless-rule amendment is withdrawn — the plain rule stands.
 
 ## ADR-15 — Facts from hooks, judgment from models (amends ADR-8)
 ADR-8 holds: hooks have no model, so hook-captured handoffs carry only facts. The
@@ -238,3 +240,30 @@ tests in `test/state.test.mjs` and `test/cli.test.mjs`. Stays within official ex
 (statusline stdin only); introduces no new identity source. Stamp WORDING is unchanged (the
 quota line text is identical; isolation only changes WHICH account's numbers fill it, and
 withholding is an omission per "never inject a lie") — so ADR-9's eval gate is not triggered.
+
+## ADR-22 — ARM mode removed (supersedes ADR-16)
+The autonomous headless resume executor — `src/arm.mjs`, the launchd plist machinery,
+headless `claude -p` invocation, `headroom resume --arm/--disarm`, `resume-run`, and the
+`auto_arm` standing-consent flag — is removed entirely. Three reasons, in order:
+(a) The 2026-06-15 platform change split programmatic use (`claude -p`, the Agent SDK)
+into a separate monthly API-priced credit pool, distinct from the interactive
+subscription windows. ARM's entire economic premise was "use quota that would otherwise
+expire at the reset"; a headless run no longer draws from that expiring pool, so an armed
+resume now spends NEW metered money instead of salvaging sunk quota. The feature's why is
+gone. (b) Autonomous continuation moves to a separate **Conductor** package built on
+official in-session surfaces — Stop-hook continuation, scheduled wakeups past resets, and
+official cron routines — where the work runs inside the interactive session whose quota
+it was deferred from. (c) ADR-16 is superseded for execution, but its consent principle
+(the USER schedules/authorizes autonomous spend; the tool never arms itself; transparent,
+guard-railed, disarmable) carries over to Conductor as a design requirement. The
+awareness half of deferral is untouched and stays: `plan_resume` (the MCP write surface,
+ADR-6), `resume.json`, the HUD reset countdown / `✓ deferred work ready`, the
+"deferred work is now ready" stamps, and `headroom resume [--clear]`. The headless-rule
+amendment ADR-16 made to CLAUDE.md is withdrawn: the plain rule "never burn interactive
+subscription quota headlessly" stands without a carve-out. Note: the small subtractive
+wording edits this removal forced in `skill/SKILL.md` (dropping the "armed resume
+continues after the reset" clause) have NOT yet re-run the ADR-9 wording eval — that pass
+is deferred to the harden round of the current build. *Why:* a scheduler whose economics
+inverted from "salvage expiring capacity" to "spend new metered credits unattended" is
+the exact pattern this project exists to refuse. **Enforced by:** the code no longer
+exists; grep gate in the removal commit; this ADR.

@@ -202,8 +202,8 @@ control back at every clean boundary. Stop — and only stop — when one of the
 - **A genuine blocker needs the user.** An ambiguous decision costly to guess wrong,
   missing access/credentials, a real external dependency. Surface it concisely, then stop.
 - **Quota (rate-limit) is truly dry.** ≲2% of the 5h/7d window — this is the ONLY budget
-  that justifies stopping. Land, checkpoint, and defer (plan_resume; armed resume continues
-  after the reset). **Context is NOT on this list: never stop because context is near the
+  that justifies stopping. Land, checkpoint, and defer (plan_resume; the reset makes it
+  ready again). **Context is NOT on this list: never stop because context is near the
   compaction floor.** Near the floor you keep a current handoff and POWER THROUGH so
   auto-compaction fires and the session restarts from it — stopping there strands the task.
 

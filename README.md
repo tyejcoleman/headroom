@@ -14,7 +14,7 @@ to the bottom in safe atomic pieces, checkpoints before the cliff, defers past r
 with a plan, and resumes from ground truth instead of a lossy summary.
 
 > **Status: 0.3.0, ship-ready.** Working end-to-end and dogfooded hard by its author
-> (including surviving its own compactions and scheduling its own resumes); every
+> (including surviving its own compactions); every
 > behavioral claim eval-tested (below); macOS/Linux; Windows untested. npm package lands
 > with the public launch — install from source today. [Report sharp edges](.github/ISSUE_TEMPLATE).
 
@@ -165,19 +165,12 @@ Three more layers ride the same loop:
 
 Continuity eval results (including the honest nulls): [`eval/REPORT.md`](eval/REPORT.md).
 
-## Defer now, resume when the window resets — or wake up and do it
+## Defer now, resume when the window resets
 
 When `fit_check` says work won't fit the current window, the model records a plan with
 `plan_resume`. The moment the window resets, prompt stamps, new sessions, and the HUD
 (`✓ deferred work ready`) announce it. Capacity that used to expire silently now has a
 queue (`headroom resume` to inspect, `--clear` when picked up).
-
-And with **armed resume** (`headroom resume --arm`), the deferred work runs *itself* at
-the reset: a launchd one-shot fires the official `claude -p` headless mode with the plan
-as its prompt, guard-railed (`--max-turns`, pinned cwd, output to a reviewable log),
-self-disarming after one run. Strictly consent-first (ADR-16): you arm it per-plan — or
-set `auto_arm: true` for the fully autonomous defer → wake → resume loop. Headroom never
-schedules your quota by itself.
 
 ## It flies the window like a descent profile — never wasting the tail, never crashing
 
@@ -258,7 +251,7 @@ included. Methodology rules in [ADR-9](docs/DECISIONS.md).
 And one more kind of evidence: **headroom was built under its own supervision.** Every
 feature shipped with the tool running live on its own author — receipts billed the
 commits that created receipts, mid-task updates called the clean boundaries during its
-own development, the first armed resume worked overnight while its author slept, and
+own development, and
 three wrong agent mental-models were caught in the field, probed within hours, and fixed
 evidence-sized (the escalation criteria were pre-registered in the eval results *before*
 the recurrence). The repo history is the field journal.

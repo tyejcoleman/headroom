@@ -32,7 +32,6 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 | `src/events.mjs` | compaction event log + silent-cliff detection + `audit` renderer | best-effort only; never breaks tap/hooks (ADR-5) |
 | `src/checkpoint.mjs` | model-authored survival note (save/take/render) | facts from hooks, judgment from models (ADR-15); capped, 6h staleness |
 | `src/flow.mjs` | velocity engine: transcript flow sampling, calibration, burn enrichment | learned tokens-per-% labeled ≈; idle suppresses warnings; enrichment never breaks base state |
-| `src/arm.mjs` | armed resume: launchd scheduling of deferred work | consent-first (ADR-16); files-before-unload in self-disarm; fail loud to log |
 | `src/doctor.mjs` | install diagnosis | flags foreign hooks sharing events; exit 1 on problems |
 | `src/resume.mjs` | deferred-work plan lifecycle | 24h expiry; single file |
 | `src/fit.mjs` | fit_check + estimate_remaining verdict logic | context = real tokens; window = labeled heuristic |

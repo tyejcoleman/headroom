@@ -112,7 +112,8 @@ re-stamps: the stamp wording ALONE drives correct behavior (skill section refine
 not create). Transcript anchor: confounded probe — the handoff rendering itself already
 instructs transcript use, and it works in both conditions; skill section kept as
 redundant reinforcement. No timidity regression. Provenance: cells were executed by the
-first ARMED resume run (launchd → headless claude -p, 03:31) and verified against real
+first ARMED resume run (launchd → headless claude -p, 03:31; the ARM executor has since
+been removed — ADR-22 — but the results stand) and verified against real
 subagent transcripts. Caveats and confounds recorded in the results file — they are part
 of the result.
 

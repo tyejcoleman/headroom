@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- **ARM mode (armed resume, the autonomous headless executor) — removed entirely
+  (ADR-22, supersedes ADR-16).** `src/arm.mjs`, the launchd plist machinery, headless
+  `claude -p` invocation, `headroom resume --arm`/`--disarm`, the `resume-run` entry
+  point, the `auto_arm` config flag, and their tests are gone. The 2026-06-15 platform
+  change moved programmatic use (`claude -p`, SDK) to a separate monthly API-priced
+  credit pool, so an armed resume no longer salvages expiring subscription quota — it
+  spends new metered credits. Autonomous continuation moves to the separate Conductor
+  package on official in-session surfaces (Stop hook + scheduled wakeups + cron
+  routines), carrying ADR-16's consent principle with it. The awareness half stays
+  untouched: `plan_resume`, the resume-plan file, the HUD reset countdown /
+  `✓ deferred work ready`, readiness stamps, and `headroom resume [--clear]`.
+
 ## 0.5.2 — 2026-06-22
 
 ### Added
