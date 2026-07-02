@@ -6,13 +6,13 @@ this doc is *what talks to what*.
 ## Data flow
 
 ```
-Claude Code                      headroom                            consumers
+Claude Code                      tokenroom                            consumers
 ───────────                      ────────                            ─────────
-statusline render ──stdin──▶ tap ──▶ ~/.headroom/state.json ◀──read── MCP server (4 tools)
-                              │      ~/.headroom/history.jsonl        UserPromptSubmit hook → stamp
+statusline render ──stdin──▶ tap ──▶ ~/.tokenroom/state.json ◀──read── MCP server (4 tools)
+                              │      ~/.tokenroom/history.jsonl        UserPromptSubmit hook → stamp
                               └──▶ HUD line (stdout)                  SessionStart hook → re-inject
-PreCompact event ──stdin──▶ pre-compact hook ──▶ ~/.headroom/handoffs/<session>.json
-plan_resume (MCP) ────────────────────────────▶ ~/.headroom/resume.json
+PreCompact event ──stdin──▶ pre-compact hook ──▶ ~/.tokenroom/handoffs/<session>.json
+plan_resume (MCP) ────────────────────────────▶ ~/.tokenroom/resume.json
 ```
 
 Everything is event-driven off official surfaces; there is no daemon, no polling, no
@@ -22,7 +22,7 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 
 | File | Responsibility | Key invariants |
 |---|---|---|
-| `bin/headroom.mjs` | CLI dispatch only — no logic | unknown commands print help, hooks exit silently |
+| `bin/tokenroom.mjs` | CLI dispatch only — no logic | unknown commands print help, hooks exit silently |
 | `src/tap.mjs` | statusline entry: parse → persist → HUD | never crashes, always prints (ADR-5); `--capture` appends raw payloads |
 | `src/state.mjs` | payload → ResourceState; burn model; atomic state I/O | clamp/null bad fields; median-of-buckets burn ≥10min baseline (ADR-4/5) |
 | `src/hud.mjs` | human one-liner | remaining-first (ADR-3); actionable signals only (ADR-4) |
@@ -41,7 +41,7 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 | `skill/SKILL.md` | the behavioral policy installed into Claude Code | wording is eval-tested — change only with eval evidence (ADR-9) |
 | `scripts/check-invariants.mjs` | the hard gates | cites ADR numbers; <100ms |
 
-## Runtime files (`~/.headroom/`)
+## Runtime files (`~/.tokenroom/`)
 
 **Account-scoped (ADR-21):** every account gets its own subtree `accounts/<key>/` holding
 `state.json`, `history.jsonl`, `calib.json`, `flow.jsonl`, `flow-cursors.json`, `bands.json`.
@@ -72,6 +72,6 @@ capped) · `config.json` (user config: `stamp_enabled`, `ceiling_pct`, `mode`,
 ## Testing strategy
 
 Unit + spawn-based CLI tests (`test/`, node:test, no mocks — real processes, temp
-`HEADROOM_DIR`s, real git repos); a fixture corpus for every observed payload shape
+`TOKENROOM_DIR`s, real git repos); a fixture corpus for every observed payload shape
 (add one per new failure mode — see `/add-fixture`); invariant gates in the same suite;
 behavioral eval harnesses in `eval/` for anything claiming to change model behavior.

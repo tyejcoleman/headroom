@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { headroomDir, ensureDir, atomicWriteJSON, readJSON, fmtClock } from './util.mjs';
+import { tokenroomDir, ensureDir, atomicWriteJSON, readJSON, fmtClock } from './util.mjs';
 import { readState } from './state.mjs';
 
 // Model-authored checkpoint (T2.12 / ADR-15): hooks snapshot FACTS (ADR-8); only the
@@ -13,7 +13,7 @@ import { readState } from './state.mjs';
 // match or an untagged note. Single-session use (the normal case) is exact; concurrent
 // sessions can mislabel — documented in ADR-15.
 
-const ckPath = () => join(headroomDir(), 'checkpoint.json');
+const ckPath = () => join(tokenroomDir(), 'checkpoint.json');
 const MAX_AGE_SEC = 6 * 3600;
 const CAP = { task: 300, state: 600, item: 250, list: 8, values: 12 };
 
@@ -38,7 +38,7 @@ export function saveCheckpoint(args, nowSec = Date.now() / 1000) {
     }
   }
   if (!note.task && !note.state && !note.next_steps.length) return null;
-  ensureDir(headroomDir());
+  ensureDir(tokenroomDir());
   atomicWriteJSON(ckPath(), note);
   return note;
 }
@@ -51,7 +51,7 @@ export function takeCheckpoint(session_id, nowSec = Date.now() / 1000) {
 }
 
 export function renderCheckpoint(note) {
-  const lines = [`[headroom] your own pre-compaction checkpoint (saved ${fmtClock(note.at)} — you wrote this; trust it):`];
+  const lines = [`[tokenroom] your own pre-compaction checkpoint (saved ${fmtClock(note.at)} — you wrote this; trust it):`];
   if (note.task) lines.push(`- task: ${note.task}`);
   if (note.state) lines.push(`- state: ${note.state}`);
   if (note.decisions.length) lines.push(`- decisions made: ${note.decisions.join(' · ')}`);

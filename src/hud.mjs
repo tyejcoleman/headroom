@@ -37,28 +37,28 @@ export function renderHUD(state, resume = null, nowSec = Date.now() / 1000) {
   }
   // Raw %/h confused everyone in the field; surface burn only when it predicts trouble.
   // Clock, not countdown: the statusline re-renders on Claude Code's schedule, and a
-  // frozen "in 25m" lies — "by ~00:39" stays true. Live countdowns: headroom watch/line.
+  // frozen "in 25m" lies — "by ~00:39" stays true. Live countdowns: tokenroom watch/line.
   const band = state.burn?.exhaustion_band;
   const exh = state.burn?.projected_exhaustion;
   if (band && fh?.resets_at && band[0] < fh.resets_at) parts.push(`⚠ empty ~${fmtClock(band[0])}–${fmtClock(band[1])}`);
   else if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠ empty by ~${fmtClock(exh)}`);
-  // deferred work appears only when actionable — a waiting plan is noise (headroom resume shows it)
+  // deferred work appears only when actionable — a waiting plan is noise (tokenroom resume shows it)
   if (resume?.resume_at && nowSec >= resume.resume_at) parts.push('✓ deferred work ready');
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
 
-  return parts.length ? `⛶ ${parts.join(' · ')}` : '⛶ headroom: awaiting data';
+  return parts.length ? `⛶ ${parts.join(' · ')}` : '⛶ tokenroom: awaiting data';
 }
 
 /**
- * `headroom line` — the live-display primitive. Unlike the statusline HUD (rendered on
+ * `tokenroom line` — the live-display primitive. Unlike the statusline HUD (rendered on
  * Claude Code's schedule, so it uses absolute clocks), this computes countdowns at
  * call time: poll it every second (tmux status-right, SwiftBar/xbar, waybar/polybar)
  * and the display is genuinely live.
  */
 export function renderLine(state, resume = null, nowSec = Date.now() / 1000) {
-  if (!state) return 'headroom: no data';
+  if (!state) return 'tokenroom: no data';
   const age = nowSec - state.updated_at;
-  if (age > 30 * 60) return `headroom: idle ${Math.round(age / 60)}m`;
+  if (age > 30 * 60) return `tokenroom: idle ${Math.round(age / 60)}m`;
 
   const parts = [];
   const fh = state.windows?.five_hour;
@@ -77,5 +77,5 @@ export function renderLine(state, resume = null, nowSec = Date.now() / 1000) {
   if (exh && fh?.resets_at && exh < fh.resets_at) parts.push(`⚠exh ${fmtDelta(exh - nowSec)}`);
   if (resume?.resume_at) parts.push(nowSec >= resume.resume_at ? '✓ready' : `⏲${fmtDelta(resume.resume_at - nowSec)}`);
   if (state.session?.cost_usd >= 0.01) parts.push(`$${state.session.cost_usd.toFixed(2)}`);
-  return parts.length ? parts.join(' · ') : 'headroom: no data';
+  return parts.length ? parts.join(' · ') : 'tokenroom: no data';
 }

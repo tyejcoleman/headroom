@@ -1,6 +1,6 @@
-# Headroom
+# Tokenroom
 
-[![CI](https://github.com/tyejcoleman/headroom/actions/workflows/ci.yml/badge.svg)](https://github.com/tyejcoleman/headroom/actions/workflows/ci.yml)
+[![CI](https://github.com/tyejcoleman/tokenroom/actions/workflows/ci.yml/badge.svg)](https://github.com/tyejcoleman/tokenroom/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 
@@ -8,7 +8,7 @@
 limits, its context ceiling, its own costs, or the compaction that's about to eat its
 working memory — so it plans as if all of them were infinite, and pays for it: work dies
 at 429 walls, tasks lose their thread mid-compaction, and whole windows of paid capacity
-expire unused. Headroom feeds the harness's reality *to the agent itself*, live — and an
+expire unused. Tokenroom feeds the harness's reality *to the agent itself*, live — and an
 agent that knows where it is behaves differently: it sizes work to fit, spends the window
 to the bottom in safe atomic pieces, checkpoints before the cliff, defers past resets
 with a plan, and resumes from ground truth instead of a lossy summary.
@@ -23,7 +23,7 @@ with a plan, and resumes from ground truth instead of a lossy summary.
 Claude Code retries 429s silently and compacts context mid-task; the model plans as if
 both budgets were infinite. Subscription windows are use-it-or-lose-it, and compaction
 breaks task continuity. Every existing tool (ccusage, dashboards, menu-bar apps) is
-**human-facing and retrospective** — nothing feeds either budget *to the agent*. Headroom
+**human-facing and retrospective** — nothing feeds either budget *to the agent*. Tokenroom
 is **model-facing, real-time, planning-oriented**: the model plans differently because it
 knows.
 
@@ -39,7 +39,7 @@ it does none of these — not because it's smarter, but because it can finally s
 ```
 collectors                state                      awareness connector → Claude Code
 ----------                -----                      ---------------------------------
-statusline tap  ──▶  ~/.headroom/state.json  ──▶  push   prompt stamps + MID-TURN updates (band
+statusline tap  ──▶  ~/.tokenroom/state.json  ──▶  push   prompt stamps + MID-TURN updates (band
  (rate_limits +       + velocity engine                    crossings, cost receipts) + post-compaction
   context_window)       (learned tokens/%,                 re-injection (facts → checkpoint → pins)
                          flow, burn bands)         pull   MCP: resource_state · estimate_remaining ·
@@ -55,17 +55,18 @@ MCP). Event-driven — no daemon, no polling. Full detail: [`docs/ARCHITECTURE.m
 ## Install
 
 ```bash
-git clone https://github.com/tyejcoleman/headroom && cd headroom
-node bin/headroom.mjs install        # --dry-run to preview · uninstall to remove cleanly
+npm i -g tokenroom && tokenroom install   # once published to npm — publish pending; until then:
+git clone https://github.com/tyejcoleman/tokenroom && cd tokenroom
+node bin/tokenroom.mjs install        # --dry-run to preview · uninstall to remove cleanly
 ```
 
 One idempotent command wires up (and `uninstall` reverts, restoring any statusline you had):
 
 1. **Statusline tap** — collects `rate_limits` + `context_window` from the payload Claude
-   Code already pipes to statuslines; atomically maintains `~/.headroom/state.json`.
+   Code already pipes to statuslines; atomically maintains `~/.tokenroom/state.json`.
 2. **Prompt stamp** — ~30 tokens of live budget context with each prompt:
-   `[headroom] 5h: 58% left, resets 14:00 · 7d: 85% left · ctx: ~38k tokens before compaction`.
-   Age-disclosed when stale; silent rather than wrong; `HEADROOM_DISABLE=1` to mute.
+   `[tokenroom] 5h: 58% left, resets 14:00 · 7d: 85% left · ctx: ~38k tokens before compaction`.
+   Age-disclosed when stale; silent rather than wrong; `TOKENROOM_DISABLE=1` to mute.
 3. **MCP tools** — `resource_state`, `estimate_remaining`, `fit_check({est_tokens})` →
    `fits | tight | exceeds | defer`, `plan_resume` for deferred work, `checkpoint` (the
    agent's own pre-compaction survival note), and `pin_fact` (facts that must survive
@@ -75,7 +76,7 @@ One idempotent command wires up (and `uninstall` reverts, restoring any statusli
 5. **Compaction hooks** — PreCompact snapshot + SessionStart re-injection (below).
 
 Requires Claude Code ≥ 2.1.92 with a Pro/Max subscription for rate-limit data; on API-key
-auth Headroom degrades gracefully to context-only awareness.
+auth Tokenroom degrades gracefully to context-only awareness.
 
 ### Reading the HUD
 
@@ -87,7 +88,7 @@ auth Headroom degrades gracefully to context-only awareness.
 | `week 22% left` | only when the weekly window is the binding constraint (<30%) |
 | `ctx 56% (560k)` | always | room before auto-compaction (`⚠compact soon` under 10%) |
 | `⚠ empty ~18:40–19:55` | only when the burn band lands **before** the reset | confidence band, not a twitchy point; suppressed entirely while idle |
-| `✓ deferred work ready` | only when actionable | a waiting plan is hidden (see `headroom resume`) |
+| `✓ deferred work ready` | only when actionable | a waiting plan is hidden (see `tokenroom resume`) |
 | `$26.03` | when ≥ $0.01 | this session at API prices |
 
 A segment's *appearance* is itself the signal — healthy sessions stay terse.
@@ -97,11 +98,11 @@ activity (that's Claude Code's schedule), so it shows absolute clock times that 
 stale. For a truly **live** view, open a second pane:
 
 ```bash
-headroom watch        # 1-second ticks: live countdowns, live data age, instant updates
+tokenroom watch        # 1-second ticks: live countdowns, live data age, instant updates
 ```
 
 ```
-HEADROOM · live · 22:52 · data 0s old
+TOKENROOM · live · 22:52 · data 0s old
 
 5h window   ███████████████████████░   95% left   resets 03:30 (in 4h 38m)
 7d window   ██████████████████████░░   91% left   resets in 1d 6h
@@ -109,9 +110,9 @@ context     ██████████████░░░░░░░░�
 burn        7.3%/h · no exhaustion risk before reset
 ```
 
-### Live everywhere else: `headroom line`
+### Live everywhere else: `tokenroom line`
 
-`headroom line` prints one compact line with **countdowns computed at call time** —
+`tokenroom line` prints one compact line with **countdowns computed at call time** —
 poll it every second and the display is genuinely live, anywhere:
 
 ```
@@ -122,24 +123,24 @@ poll it every second and the display is genuinely live, anywhere:
 
 ```tmux
 set -g status-interval 1
-set -g status-right '#(headroom line) '
+set -g status-right '#(tokenroom line) '
 set -g status-right-length 80
 ```
 
 **macOS menu bar** via [SwiftBar](https://swiftbar.app)/xbar: copy
-[`integrations/xbar/headroom.1s.sh`](integrations/xbar/headroom.1s.sh) into your plugin
+[`integrations/xbar/tokenroom.1s.sh`](integrations/xbar/tokenroom.1s.sh) into your plugin
 folder — budgets in the menu bar, refreshed every second, with a detail dropdown.
-Linux bars (waybar, polybar) work the same way: exec `headroom line` on an interval.
+Linux bars (waybar, polybar) work the same way: exec `tokenroom line` on an interval.
 
 ## Your agent's work survives compaction
 
 Compaction summarizes the conversation — and garbles exactly the facts an in-flight task
-depends on. Headroom's **PreCompact** hook snapshots ground truth the instant before
+depends on. Tokenroom's **PreCompact** hook snapshots ground truth the instant before
 compaction (branch, uncommitted files, recent commits, budget state), and the
 **SessionStart** hook re-injects it right after:
 
 ```
-[headroom] post-compaction ground truth (snapshot taken 20:41, just before compaction):
+[tokenroom] post-compaction ground truth (snapshot taken 20:41, just before compaction):
 - branch: main
 - uncommitted changes (2):  M src/auth/middleware.js,  M test/auth.test.js
 - recent commits: e508784 baseline · 1f201d4 migrate token.js
@@ -156,11 +157,11 @@ Three more layers ride the same loop:
 - **`checkpoint`** — when a mid-turn update warns context is low, the *agent* saves its
   own survival note (task, decisions + why, ruled-out approaches, exact next steps);
   re-injected after compaction. Facts from hooks, judgment from models.
-- **`pin_fact` / `headroom pin`** — constraints whose exact wording must never be
+- **`pin_fact` / `tokenroom pin`** — constraints whose exact wording must never be
   paraphrased away ("no deploys before June 16") are re-injected verbatim after every
   compaction until unpinned or expired.
 - **Silent-trim detection** — Claude Code's microcompaction clears old tool results with
-  *no hook and no UI signal*; headroom's tap notices the context cliff and the next stamp
+  *no hook and no UI signal*; tokenroom's tap notices the context cliff and the next stamp
   discloses it once, with the transcript path as the recovery route.
 
 Continuity eval results (including the honest nulls): [`eval/REPORT.md`](eval/REPORT.md).
@@ -170,7 +171,7 @@ Continuity eval results (including the honest nulls): [`eval/REPORT.md`](eval/RE
 When `fit_check` says work won't fit the current window, the model records a plan with
 `plan_resume`. The moment the window resets, prompt stamps, new sessions, and the HUD
 (`✓ deferred work ready`) announce it. Capacity that used to expire silently now has a
-queue (`headroom resume` to inspect, `--clear` when picked up).
+queue (`tokenroom resume` to inspect, `--clear` when picked up).
 
 ## It flies the window like a descent profile — never wasting the tail, never crashing
 
@@ -193,7 +194,7 @@ blunt about the failure mode this replaces: *pausing at 15–30% with 100k+ toke
 isn't prudence, it's waste.*
 
 **And the same control loop runs at week scale.** The 7-day window is paced like a
-flight plan: headroom compares the fraction of the week elapsed against the fraction of
+flight plan: tokenroom compares the fraction of the week elapsed against the fraction of
 budget used. Running **hot** (on track to exhaust the week early — the worst failure,
 because every session goes dark until the weekly reset), the stamp says so with the
 numbers that matter: *"weekly pace is HOT (1.3x sustainable): on track to exhaust the
@@ -213,24 +214,24 @@ its reset with nothing wasted and nothing dark. Cruise, don't crash — at both 
   against the window's %-steps, *learning* your account's tokens-per-percent. That's how
   the HUD earns `≈tokens left`, exhaustion becomes a confidence band, and the warning
   disappears entirely while you're idle.
-- **Governor modes:** `mode: performance | ondemand | powersave` shifts *when* headroom
+- **Governor modes:** `mode: performance | ondemand | powersave` shifts *when* tokenroom
   speaks (bands, receipt floors, throttle) — never what it says. Applies without restart.
 - **Opt-in guards:** `compact_guard_min` blocks *auto*-compaction minutes before a reset
   (a post-reset `/clear` beats compacting into a dying window — never blocks your manual
   `/compact`); `launch_gate` denies expensive subagent/workflow launches when the window
   verdict is defer. Both fail open, always.
 
-## Audit the loop: `headroom audit` · diagnose it: `headroom doctor`
+## Audit the loop: `tokenroom audit` · diagnose it: `tokenroom doctor`
 
-`headroom audit` renders the awareness loop as a timeline — every stamp injected (and why
+`tokenroom audit` renders the awareness loop as a timeline — every stamp injected (and why
 skipped), band crossings even when silent by design, every MCP consult with its verdict,
 the compaction lifecycle — closing with steering-signal counts. You can *see* whether
 your agent actually consulted its budgets.
 
-`headroom doctor` answers "why isn't it working?" before you file an issue: wiring,
+`tokenroom doctor` answers "why isn't it working?" before you file an issue: wiring,
 stale paths, data freshness, calibration state — and it flags *other* hooks sharing your
 events, because Claude Code doesn't attribute hook errors per-hook and their failures
-will look like headroom's.
+will look like tokenroom's.
 
 ## Does it actually change behavior? We tested it.
 
@@ -248,7 +249,7 @@ The full comparison table — regenerated by `npm run eval`, which fails if any 
 evidence file is missing — lives in [`eval/REPORT.md`](eval/REPORT.md), honest nulls
 included. Methodology rules in [ADR-9](docs/DECISIONS.md).
 
-And one more kind of evidence: **headroom was built under its own supervision.** Every
+And one more kind of evidence: **tokenroom was built under its own supervision.** Every
 feature shipped with the tool running live on its own author — receipts billed the
 commits that created receipts, mid-task updates called the clean boundaries during its
 own development, and
@@ -258,7 +259,7 @@ the recurrence). The repo history is the field journal.
 
 ## This repo is an agent harness
 
-Headroom is built to be maintained **by coding agents, consistently** — the repo itself
+Tokenroom is built to be maintained **by coding agents, consistently** — the repo itself
 carries the discipline:
 
 - **Context:** [`CLAUDE.md`](CLAUDE.md)/[`AGENTS.md`](AGENTS.md) route any agent through
@@ -273,7 +274,7 @@ carries the discipline:
 
 Point your agent at the repo and tell it what to change; the harness does the rest.
 Details in [`CONTRIBUTING.md`](CONTRIBUTING.md). Most wanted: payload samples from other
-plans/models/OSes (`headroom tap --capture` → [donate a fixture](.github/ISSUE_TEMPLATE)),
+plans/models/OSes (`tokenroom tap --capture` → [donate a fixture](.github/ISSUE_TEMPLATE)),
 Windows testing, the Codex adapter.
 
 ## The spec
@@ -284,7 +285,7 @@ everything downstream (HUD, stamps, MCP, audit) works unchanged.
 
 ## Compliance posture
 
-Headroom uses only surfaces vendors expose on purpose: statusline stdin JSON, hooks, MCP,
+Tokenroom uses only surfaces vendors expose on purpose: statusline stdin JSON, hooks, MCP,
 and your own local files. It **never** reuses subscription OAuth tokens outside official
 clients, calls undocumented endpoints, spoofs harness identity, makes network requests,
 or burns interactive quota headlessly — enforced by automated gates, not just policy.

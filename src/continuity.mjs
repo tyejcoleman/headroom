@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { headroomDir, ensureDir, atomicWrite, atomicWriteJSON, readJSON, fmtClock } from './util.mjs';
+import { tokenroomDir, ensureDir, atomicWrite, atomicWriteJSON, readJSON, fmtClock } from './util.mjs';
 import { readState } from './state.mjs';
 
 // Continuity handoff document (T2.29 / ADR-18). `checkpoint` (ADR-15) is the model's
@@ -12,7 +12,7 @@ import { readState } from './state.mjs';
 // process can survive REPEATED auto-compactions at full velocity — context-pressure
 // becomes a write-the-handoff ritual, not a stop sign.
 //
-// Stored as real markdown under ~/.headroom/continuity/<session>.md (+ .meta.json for the
+// Stored as real markdown under ~/.tokenroom/continuity/<session>.md (+ .meta.json for the
 // re-injection digest). Session-scoped with the same tag-and-guard rule as checkpoint
 // (MCP carries no session id, so we tag with the latest tap session and the injection
 // guard accepts a match or an untagged doc). Latest-wins, capped per section, stale after
@@ -20,7 +20,7 @@ import { readState } from './state.mjs';
 // digest (ADR-11: the doc lives on disk; compaction just freed the context — point, don't
 // dump).
 
-const contDir = () => join(headroomDir(), 'continuity');
+const contDir = () => join(tokenroomDir(), 'continuity');
 const docPathFor = (key) => join(contDir(), `${key}.md`);
 const metaPathFor = (key) => join(contDir(), `${key}.meta.json`);
 // filesystem-safe key from a session id; anything odd collapses to a single shared doc
@@ -42,7 +42,7 @@ const mdList = (items, ordered) => items.map((s, i) => `${ordered ? `${i + 1}.` 
 function renderDoc(d) {
   const title = d.mission ? d.mission.split('\n')[0].slice(0, 80) : 'session';
   const L = [
-    `# Headroom handoff — ${title}`,
+    `# Tokenroom handoff — ${title}`,
     '',
     `_Canonical working-doc, updated ${fmtClock(d.at)}${d.session_id ? ` (session ${d.session_id})` : ''}. A fresh instance of you reads this to resume fully — trust it over the compacted summary, and continue without slowing down._`,
   ];
@@ -126,7 +126,7 @@ export function takeContinuity(session_id, nowSec = Date.now() / 1000) {
 
 export function renderContinuityInjection(m) {
   const L = [
-    `[headroom] your canonical handoff doc (you wrote this; updated ${fmtClock(m.at)}) survived compaction — READ IT FIRST to resume at full speed:`,
+    `[tokenroom] your canonical handoff doc (you wrote this; updated ${fmtClock(m.at)}) survived compaction — READ IT FIRST to resume at full speed:`,
     `  ${m.path}`,
   ];
   if (m.digest?.mission) L.push(`- mission: ${m.digest.mission}`);
@@ -137,7 +137,7 @@ export function renderContinuityInjection(m) {
   return L.join('\n');
 }
 
-/** Most recently updated handoff doc across sessions (for `headroom handoff`). */
+/** Most recently updated handoff doc across sessions (for `tokenroom handoff`). */
 export function latestContinuity() {
   try {
     const metas = readdirSync(contDir())

@@ -7,9 +7,9 @@ reference producer is `src/state.mjs` (Claude Code statusline payloads).*
 
 ## What it is
 
-One JSON document at `~/.headroom/state.json` (override dir with `HEADROOM_DIR`)
+One JSON document at `~/.tokenroom/state.json` (override dir with `TOKENROOM_DIR`)
 describing an account's **budget state right now**: rate-limit windows, session context
-headroom, burn/velocity, session cost. Producers (adapters) write it; consumers (HUD,
+tokenroom, burn/velocity, session cost. Producers (adapters) write it; consumers (HUD,
 stamps, MCP tools, dashboards) read it. The consumers in this repo work unchanged with
 any producer that honors this contract.
 
@@ -69,7 +69,7 @@ any producer that honors this contract.
 
 - `windows` are **account-level**: true for every session OF THE SAME ACCOUNT. Safe to show
   to any same-account session; when concurrent sessions span DIFFERENT accounts the state is
-  isolated per account under `~/.headroom/accounts/<key>/` and a session reads only its own
+  isolated per account under `~/.tokenroom/accounts/<key>/` and a session reads only its own
   (ADR-21) — the payload has no account id, so they cannot otherwise be told apart.
 - `context`, `session`, and `session_id` are **session-level**. The file is
   last-writer-wins across concurrent sessions, so consumers MUST compare the reader's
@@ -79,7 +79,7 @@ any producer that honors this contract.
 
 ## Consumer contract
 
-- Staleness-guard on `updated_at`: headroom's surfaces go silent past 30 minutes and
+- Staleness-guard on `updated_at`: tokenroom's surfaces go silent past 30 minutes and
   disclose age past 2 (silence beats a stale number presented as live).
 - Warn on exhaustion ONLY when the projection lands before `resets_at`.
 - Treat `burn.*` as heuristic; `context.tokens_to_ceiling` as real.
@@ -98,9 +98,9 @@ validator.
    `anthropic-ratelimit-*` response headers for direct API use).
 2. Map to the shape above; apply the write contract (atomic, clamped, nulls over guesses).
 3. Set `provider`/`auth` truthfully; omit what you don't have.
-4. Validate: `node --input-type=module -e "import('./src/schema.mjs').then(async m => console.log(m.validateResourceState(JSON.parse(require('fs').readFileSync(process.env.HOME+'/.headroom/state.json','utf8')))))"` → `[]`.
-5. Everything downstream — HUD, `headroom watch`/`line`, stamps, MCP tools, audit —
+4. Validate: `node --input-type=module -e "import('./src/schema.mjs').then(async m => console.log(m.validateResourceState(JSON.parse(require('fs').readFileSync(process.env.HOME+'/.tokenroom/state.json','utf8')))))"` → `[]`.
+5. Everything downstream — HUD, `tokenroom watch`/`line`, stamps, MCP tools, audit —
    works without modification. That's the point.
 
 Fixture donations from other providers/plans are the most valuable contribution:
-`headroom tap --capture` (sanitize!) → issue template `payload_sample`.
+`tokenroom tap --capture` (sanitize!) → issue template `payload_sample`.

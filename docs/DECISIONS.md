@@ -267,3 +267,31 @@ is deferred to the harden round of the current build. *Why:* a scheduler whose e
 inverted from "salvage expiring capacity" to "spend new metered credits unattended" is
 the exact pattern this project exists to refuse. **Enforced by:** the code no longer
 exists; grep gate in the removal commit; this ADR.
+
+## ADR-23 — Rename: headroom → tokenroom
+The package, bin, state dir, env vars, stamp prefix, MCP server, skill, and repo are
+renamed **tokenroom** (package `tokenroom`, bin `tokenroom`, `~/.tokenroom`,
+`TOKENROOM_DIR`/`TOKENROOM_DISABLE`, `[tokenroom]` stamps,
+`github.com/tyejcoleman/tokenroom`). *Why:* the name "headroom" is owned in practice by
+headroomlabs-ai/headroom (55k★ — and its CLI binary is literally `headroom`, a direct bin
+conflict on any machine with both installed), plus a commercial extraheadroom.com operates
+in the same niche; `tokenroom` was verified free on npm 2026-07-01. Semantics of the
+rename: (a) **state migrates by COPY, never move** — on install, if `~/.tokenroom` does
+not exist and `~/.headroom` does, the installer copies it recursively (skipping in-flight
+`*.tmp` atomic-write files); the old dir is left in place because other live sessions'
+hooks keep writing it until their next event picks up the rewritten settings, and `doctor`
+hints while the stale dir remains. (b) **Install replaces, never duplicates, pre-rename
+artifacts** — old `headroom.mjs` statusline/hook commands, the `headroom` MCP
+registration, `~/.claude/skills/headroom`, and the installer-managed CLAUDE.md block are
+detected and replaced in place (nothing outside the managed block is touched); uninstall
+removes both old- and new-named artifacts symmetrically. (c) The `[headroom]` →
+`[tokenroom]` stamp-prefix change is mechanical branding, not a wording change — the
+ADR-9 eval for it is batched with the other pending wording items into the current
+build's harden round. (d) Append-only history keeps the old name: past CHANGELOG entries,
+prior ADR bodies (including still-standing ones — read their `headroom`/`~/.headroom`
+references under this rename), and eval fixtures/results are unmodified; the `eval/`
+simulation rig keeps its on-disk `headroom` fixture naming for reproducibility.
+**Enforced by:** `migrateStateDir` + old-artifact replacement in `src/install.mjs`, the
+stale-dir hint in `src/doctor.mjs`, replace-not-duplicate and migration tests in
+`test/cli.test.mjs`, and the rename-commit grep gate (`grep -rni headroom src bin test
+schema` → only justified survivors, all referring to pre-rename artifacts).

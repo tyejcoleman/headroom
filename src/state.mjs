@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { headroomDir, ensureDir, atomicWriteJSON, readJSON, clampPct, epochSec, readConfig } from './util.mjs';
+import { tokenroomDir, ensureDir, atomicWriteJSON, readJSON, clampPct, epochSec, readConfig } from './util.mjs';
 
 /** Build a ResourceState v0 from one statusline stdin payload. Every field is optional. */
 export function parsePayload(payload, nowMs = Date.now()) {
@@ -63,7 +63,7 @@ const median = (arr) => {
  * rate_limits populates) and interleaved stale values from concurrent sessions, and a
  * single bad endpoint must not produce a 180%/h hallucination.
  */
-export function updateBurn(state, dir = headroomDir()) {
+export function updateBurn(state, dir = tokenroomDir()) {
   const fh = state.windows.five_hour;
   if (fh?.used_pct == null) return state;
 
@@ -151,11 +151,11 @@ export function enrichWeekly(state, nowSec = Date.now() / 1000) {
   return state;
 }
 
-export function writeState(state, dir = headroomDir()) {
+export function writeState(state, dir = tokenroomDir()) {
   ensureDir(dir);
   atomicWriteJSON(join(dir, 'state.json'), state);
 }
 
-export function readState(dir = headroomDir()) {
+export function readState(dir = tokenroomDir()) {
   return readJSON(join(dir, 'state.json'));
 }

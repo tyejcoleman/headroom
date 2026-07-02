@@ -14,8 +14,8 @@ import { logEvent } from './events.mjs';
 const pkg = JSON.parse(readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'package.json'), 'utf8'));
 
 // Minimal stdio MCP server (newline-delimited JSON-RPC 2.0). No network, no
-// dependencies. Read-only over ~/.headroom/state.json, with one deliberate write
-// surface: plan_resume records a deferred-work plan to ~/.headroom/resume.json.
+// dependencies. Read-only over ~/.tokenroom/state.json, with one deliberate write
+// surface: plan_resume records a deferred-work plan to ~/.tokenroom/resume.json.
 
 const TOOLS = [
   {
@@ -46,7 +46,7 @@ const TOOLS = [
   {
     name: 'plan_resume',
     description:
-      'Record a resume plan for work deferred past the rate-limit reset (use after fit_check says defer). Headroom shows a countdown in the HUD and flags the work as ready in prompt stamps once the window resets.',
+      'Record a resume plan for work deferred past the rate-limit reset (use after fit_check says defer). Tokenroom shows a countdown in the HUD and flags the work as ready in prompt stamps once the window resets.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -59,7 +59,7 @@ const TOOLS = [
   {
     name: 'checkpoint',
     description:
-      'Save YOUR OWN survival note before context compaction: what you are doing, where you are, decisions made (with why), approaches already ruled out, exact next steps, key values. Re-injected to you after compaction. Call when a [headroom] update says context is running low, or before starting work that will not fit. Latest call wins.',
+      'Save YOUR OWN survival note before context compaction: what you are doing, where you are, decisions made (with why), approaches already ruled out, exact next steps, key values. Re-injected to you after compaction. Call when a [tokenroom] update says context is running low, or before starting work that will not fit. Latest call wins.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -76,7 +76,7 @@ const TOOLS = [
   {
     name: 'handoff',
     description:
-      "Update YOUR canonical handoff document — the living markdown working-doc a fresh instance of you would read to resume this work fully. Richer and more durable than `checkpoint`: write it AS YOU WORK and ALWAYS refresh it when context runs low, then keep working at full speed. When context is filling up, this is what you do INSTEAD of slowing down or stopping — headroom re-injects the doc's path + a digest to you after compaction so a long-running task continues seamlessly across as many auto-compactions as it takes. Latest call wins (pass the full current picture each time).",
+      "Update YOUR canonical handoff document — the living markdown working-doc a fresh instance of you would read to resume this work fully. Richer and more durable than `checkpoint`: write it AS YOU WORK and ALWAYS refresh it when context runs low, then keep working at full speed. When context is filling up, this is what you do INSTEAD of slowing down or stopping — tokenroom re-injects the doc's path + a digest to you after compaction so a long-running task continues seamlessly across as many auto-compactions as it takes. Latest call wins (pass the full current picture each time).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -131,7 +131,7 @@ export function mcpServe() {
         result: {
           protocolVersion: params?.protocolVersion ?? '2025-06-18',
           capabilities: { tools: {} },
-          serverInfo: { name: 'headroom', version: pkg.version },
+          serverInfo: { name: 'tokenroom', version: pkg.version },
         },
       });
     } else if (method === 'tools/list') {
@@ -168,7 +168,7 @@ export function mcpServe() {
           ? { pinned: true, id: pin.id, text: pin.text, expires_at: pin.expires_at }
           : { pinned: false, error: 'text (non-empty string) is required' };
       } else if (!state) {
-        result = { error: 'no ResourceState collected yet — install the statusline tap (headroom install) and use Claude Code once' };
+        result = { error: 'no ResourceState collected yet — install the statusline tap (tokenroom install) and use Claude Code once' };
       } else if (name === 'resource_state') {
         result = { ...state, age_seconds: Math.max(0, Math.round(Date.now() / 1000 - state.updated_at)) };
       } else if (name === 'estimate_remaining') {
@@ -178,7 +178,7 @@ export function mcpServe() {
       } else {
         result = fitCheck(state, args);
       }
-      // every consult is a steering signal — audit it (headroom audit)
+      // every consult is a steering signal — audit it (tokenroom audit)
       logEvent({
         type: 'mcp_call',
         tool: name,

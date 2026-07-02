@@ -8,16 +8,16 @@ import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const bin = join(root, 'bin', 'headroom.mjs');
+const bin = join(root, 'bin', 'tokenroom.mjs');
 
 test('mcp: initialize → tools/list → fit_check round-trip', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-mcp-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-mcp-'));
   spawnSync(process.execPath, [bin, 'tap'], {
     input: readFileSync(join(root, 'test', 'fixtures', 'statusline-full.json'), 'utf8'),
-    env: { ...process.env, HEADROOM_DIR: dir },
+    env: { ...process.env, TOKENROOM_DIR: dir },
   });
 
-  const child = spawn(process.execPath, [bin, 'mcp'], { env: { ...process.env, HEADROOM_DIR: dir } });
+  const child = spawn(process.execPath, [bin, 'mcp'], { env: { ...process.env, TOKENROOM_DIR: dir } });
   const lines = createInterface({ input: child.stdout });
   const pending = [];
   const waiters = [];
@@ -38,7 +38,7 @@ test('mcp: initialize → tools/list → fit_check round-trip', async () => {
   try {
     send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } });
     const init = await next();
-    assert.equal(init.result.serverInfo.name, 'headroom');
+    assert.equal(init.result.serverInfo.name, 'tokenroom');
 
     send({ jsonrpc: '2.0', method: 'notifications/initialized' });
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });

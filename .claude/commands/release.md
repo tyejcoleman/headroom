@@ -1,5 +1,5 @@
 ---
-description: Cut a headroom release — preflight script, version, CHANGELOG, tag, publish, registry verification
+description: Cut a tokenroom release — preflight script, version, CHANGELOG, tag, publish, registry verification
 ---
 
 Cut a release. Follow exactly; stop and report at any failed gate. Everything below is
@@ -38,9 +38,9 @@ agent-executable EXCEPT the one human ceremony in step 0.
    **If it fails at the publish step with E403:** that is the token type (step 0) — fix
    the secret, then `gh run rerun <run-id>`. The tag is fine; never delete/move it.
 6. **Registry verification (the release is not done until this passes):**
-   - `npm view headroom-harness version` → the new version;
-   - in a temp prefix: `npm install -g --prefix $(mktemp -d) headroom-harness` and run
-     the installed `headroom` binary: `line` (degrades to "no data"), `tap` with a
+   - `npm view tokenroom version` → the new version;
+   - in a temp prefix: `npm install -g --prefix $(mktemp -d) tokenroom` and run
+     the installed `tokenroom` binary: `line` (degrades to "no data"), `tap` with a
      fixture payload (renders HUD), `doctor --config-dir $(mktemp -d)` (reports, exits 1
      on the empty sandbox — expected);
    - npm page shows the provenance badge ("built and signed on GitHub Actions").

@@ -56,7 +56,7 @@ export function fitCheck(state, { est_tokens, est_calls } = {}, nowSec = Date.no
     out.overall = verdicts.sort((a, b) => RANK[b] - RANK[a])[0];
     if (!out.advice.length) out.advice.push(out.overall === 'fits' ? 'Proceed normally.' : 'Proceed carefully; finish at a clean boundary.');
   } else {
-    out.advice.push('No budget data collected yet — is the headroom statusline tap installed?');
+    out.advice.push('No budget data collected yet — is the tokenroom statusline tap installed?');
   }
   if (typeof est_calls === 'number') out.est_calls = est_calls;
   return out;

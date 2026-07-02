@@ -7,7 +7,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const bin = join(root, 'bin', 'headroom.mjs');
+const bin = join(root, 'bin', 'tokenroom.mjs');
 const fixture = (n) => readFileSync(join(root, 'test', 'fixtures', n), 'utf8');
 
 const run = (args, { input = '', env = {} } = {}) =>
@@ -24,7 +24,7 @@ const saveDoc = (args, env) =>
   }).stdout.trim();
 
 function makeGitRepo() {
-  const repo = mkdtempSync(join(tmpdir(), 'headroom-repo-'));
+  const repo = mkdtempSync(join(tmpdir(), 'tokenroom-repo-'));
   sh(repo, 'git', ['init', '-q']);
   writeFileSync(join(repo, 'a.txt'), 'hello\n');
   sh(repo, 'git', ['add', '-A']);
@@ -34,9 +34,9 @@ function makeGitRepo() {
 }
 
 test('pre-compact snapshots git ground truth; session-start(compact) re-injects it', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-cont-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-cont-'));
   const repo = makeGitRepo();
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
 
   const pre = run(['hook', 'pre-compact'], {
     input: JSON.stringify({ session_id: 'sess-1', cwd: repo, trigger: 'auto' }),
@@ -61,9 +61,9 @@ test('pre-compact snapshots git ground truth; session-start(compact) re-injects 
 });
 
 test('session-start: silent for normal startup, wrong session, or stale snapshot', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-cont2-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-cont2-'));
   const repo = makeGitRepo();
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   run(['hook', 'pre-compact'], { input: JSON.stringify({ session_id: 'sess-1', cwd: repo }), env });
 
   // normal startup → nothing
@@ -79,18 +79,18 @@ test('session-start: silent for normal startup, wrong session, or stale snapshot
 });
 
 test('pre-compact never crashes on garbage input or non-git cwd', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-cont3-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-cont3-'));
+  const env = { TOKENROOM_DIR: dir };
   assert.equal(run(['hook', 'pre-compact'], { input: 'not json', env }).status, 0);
-  const plain = mkdtempSync(join(tmpdir(), 'headroom-plain-'));
+  const plain = mkdtempSync(join(tmpdir(), 'tokenroom-plain-'));
   assert.equal(run(['hook', 'pre-compact'], { input: JSON.stringify({ session_id: 's', cwd: plain }), env }).status, 0);
   const snap = JSON.parse(readFileSync(join(dir, 'handoffs', 's.json'), 'utf8'));
   assert.equal(snap.git, null);
 });
 
 test('handoff doc: saveContinuity writes a canonical markdown doc; missing fields rejected', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-h1-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-h1-'));
+  const env = { TOKENROOM_DIR: dir };
 
   assert.equal(saveDoc({ state: 'no mission, no next steps' }, env), 'null');
 
@@ -108,7 +108,7 @@ test('handoff doc: saveContinuity writes a canonical markdown doc; missing field
   );
   assert.ok(out.path);
   const md = readFileSync(out.path, 'utf8');
-  assert.match(md, /# Headroom handoff/);
+  assert.match(md, /# Tokenroom handoff/);
   assert.match(md, /ship the continuity handoff feature/);
   assert.match(md, /wire the MCP tool/);
   assert.match(md, /let it burn to the ground/);
@@ -116,8 +116,8 @@ test('handoff doc: saveContinuity writes a canonical markdown doc; missing field
 });
 
 test('handoff doc: session-start(compact) re-injects pointer+digest; startup is silent', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-h2-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-h2-'));
+  const env = { TOKENROOM_DIR: dir };
   saveDoc({ mission: 'long-running migration', next_steps: ['resume at step 4'] }, env);
 
   const ctx = JSON.parse(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-1', source: 'compact' }), env }).stdout)
@@ -132,8 +132,8 @@ test('handoff doc: session-start(compact) re-injects pointer+digest; startup is 
 
 test('handoff doc: stale doc and wrong-session doc are not re-injected', () => {
   // stale
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-h3-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-h3-'));
+  const env = { TOKENROOM_DIR: dir };
   saveDoc({ mission: 'x', next_steps: ['y'] }, env);
   const metaP = join(dir, 'continuity', 'session.meta.json');
   const m = JSON.parse(readFileSync(metaP, 'utf8'));
@@ -142,8 +142,8 @@ test('handoff doc: stale doc and wrong-session doc are not re-injected', () => {
   assert.equal(run(['hook', 'session-start'], { input: JSON.stringify({ session_id: 'sess-1', source: 'compact' }), env }).stdout, '');
 
   // wrong session: a doc tagged sess-A must not surface for sess-B
-  const dir2 = mkdtempSync(join(tmpdir(), 'headroom-h4-'));
-  const env2 = { HEADROOM_DIR: dir2 };
+  const dir2 = mkdtempSync(join(tmpdir(), 'tokenroom-h4-'));
+  const env2 = { TOKENROOM_DIR: dir2 };
   const now = Math.round(Date.now() / 1000);
   mkdirSync(join(dir2, 'continuity'), { recursive: true });
   writeFileSync(join(dir2, 'continuity', 'sess-A.meta.json'), JSON.stringify({ session_id: 'sess-A', at: now, digest: { mission: 'x', next: 'y' } }));
@@ -152,8 +152,8 @@ test('handoff doc: stale doc and wrong-session doc are not re-injected', () => {
 });
 
 test('ctx mid-turn: super-close fires exactly once (velocity-timed, not redundant)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-sc-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-sc-'));
+  const env = { TOKENROOM_DIR: dir };
   const now = () => Math.round(Date.now() / 1000);
   const writeState = (tok) =>
     writeFileSync(
@@ -178,8 +178,8 @@ test('ctx mid-turn: super-close fires exactly once (velocity-timed, not redundan
 });
 
 test('ctx mid-turn: a recent handoff suppresses the super-close nag (no redundant re-save)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-sc2-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-sc2-'));
+  const env = { TOKENROOM_DIR: dir };
   const now = () => Math.round(Date.now() / 1000);
   const writeState = (tok) =>
     writeFileSync(
@@ -204,8 +204,8 @@ test('ctx mid-turn: a recent handoff suppresses the super-close nag (no redundan
 });
 
 test('resume lifecycle: plan via MCP-layer fn → HUD countdown → ready in stamp/session-start → clear', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'headroom-res-'));
-  const env = { HEADROOM_DIR: dir };
+  const dir = mkdtempSync(join(tmpdir(), 'tokenroom-res-'));
+  const env = { TOKENROOM_DIR: dir };
   run(['tap'], { input: fixture('statusline-full.json'), env }); // resets_at = 4102444800 (far future)
 
   // record a plan through the same code path the MCP tool uses

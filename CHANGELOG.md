@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Changed
+- **Renamed: headroom → tokenroom (ADR-23).** The practical owner of the name "headroom"
+  is headroomlabs-ai/headroom (55k★, whose CLI binary is literally `headroom` — a direct
+  bin conflict), with a commercial extraheadroom.com in the same niche; `tokenroom` was
+  verified free on npm 2026-07-01. Everything user-visible renames with it: package
+  `tokenroom`, bin `tokenroom`, state dir `~/.tokenroom` (installer COPIES `~/.headroom`
+  across once, never moves/deletes it), env `TOKENROOM_DIR`/`TOKENROOM_DISABLE` (clean
+  break), `[tokenroom]` stamp prefix (mechanical branding; ADR-9 eval batched to the
+  harden round), MCP server `tokenroom`, skill `tokenroom`, repo
+  `github.com/tyejcoleman/tokenroom`. Install now REPLACES any pre-rename headroom
+  statusline/hooks/skill/MCP/CLAUDE.md-block artifacts in place — never duplicates them —
+  and uninstall removes both namings; `doctor` hints while a stale `~/.headroom` remains.
+  Historical records (past CHANGELOG entries, prior ADR bodies, eval results/fixtures)
+  keep the old name.
+
 ### Removed
 - **ARM mode (armed resume, the autonomous headless executor) — removed entirely
   (ADR-22, supersedes ADR-16).** `src/arm.mjs`, the launchd plist machinery, headless

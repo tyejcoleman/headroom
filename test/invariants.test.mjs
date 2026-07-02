@@ -14,8 +14,8 @@ test('invariant gates pass on the shipped package', () => {
 
 test('installer refuses ephemeral (npx-cache) package locations', async () => {
   const { isEphemeralInstall } = await import('../src/install.mjs');
-  assert.equal(isEphemeralInstall('/Users/x/.npm/_npx/abc123/node_modules/headroom-harness'), true);
-  assert.equal(isEphemeralInstall('C:\\Users\\x\\AppData\\npm-cache\\_npx\\ab\\node_modules\\headroom-harness'), true);
-  assert.equal(isEphemeralInstall('/usr/local/lib/node_modules/headroom-harness'), false);
-  assert.equal(isEphemeralInstall('/Users/x/Development/headroom'), false);
+  assert.equal(isEphemeralInstall('/Users/x/.npm/_npx/abc123/node_modules/tokenroom'), true);
+  assert.equal(isEphemeralInstall('C:\\Users\\x\\AppData\\npm-cache\\_npx\\ab\\node_modules\\tokenroom'), true);
+  assert.equal(isEphemeralInstall('/usr/local/lib/node_modules/tokenroom'), false);
+  assert.equal(isEphemeralInstall('/Users/x/Development/tokenroom'), false);
 });

@@ -1,6 +1,6 @@
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { headroomDir, ensureDir, accountKey, accountDir, recordSessionAccount, gcAccounts } from './util.mjs';
+import { tokenroomDir, ensureDir, accountKey, accountDir, recordSessionAccount, gcAccounts } from './util.mjs';
 import { parsePayload, updateBurn, writeState, readState, enrichWeekly } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
@@ -21,11 +21,11 @@ export async function tap(argv = []) {
     // fall through with whatever we have
   }
 
-  let hud = '⛶ headroom: no data';
+  let hud = '⛶ tokenroom: no data';
   try {
     if (argv.includes('--capture')) {
-      ensureDir(headroomDir());
-      appendFileSync(join(headroomDir(), 'raw-sample.jsonl'), raw.trim() + '\n');
+      ensureDir(tokenroomDir());
+      appendFileSync(join(tokenroomDir(), 'raw-sample.jsonl'), raw.trim() + '\n');
     }
     const payload = JSON.parse(raw);
     const fresh = parsePayload(payload);
@@ -48,7 +48,7 @@ export async function tap(argv = []) {
     writeState(state, dir);
     // Top-level pointer = the most-recently-active account, for the human CLIs (watch/line/
     // doctor/mcp) that have no session context. The agent-facing hook reads per-account.
-    if (key) writeState(state, headroomDir());
+    if (key) writeState(state, tokenroomDir());
     gcAccounts(now);
     hud = renderHUD(state, readResume());
   } catch {

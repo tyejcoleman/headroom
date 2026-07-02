@@ -6,7 +6,7 @@ body:
     id: payload
     attributes:
       label: Sanitized payload
-      description: From `headroom tap --capture` → `~/.headroom/raw-sample.jsonl`. Replace `session_id` and any paths; keep the structure byte-faithful.
+      description: From `tokenroom tap --capture` → `~/.tokenroom/raw-sample.jsonl`. Replace `session_id` and any paths; keep the structure byte-faithful.
       render: json
     validations:
       required: true

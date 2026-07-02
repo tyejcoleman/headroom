@@ -3,13 +3,13 @@
 *2026-06-12 · strategy doc, not a commitment.*
 
 > **RESOLVED 2026-06-12, after reading Keyoku's actual code/specs:** the self-evolving
-> harness **is Keyoku** — not a headroom north star. Keyoku v1.6.0 ships memory +
+> harness **is Keyoku** — not a tokenroom north star. Keyoku v1.6.0 ships memory +
 > heartbeat + observe/suggest/**act** autonomy; Keyoku v2 (ADR-0007) is a per-user
 > 11-layer harness with a two-brain (Haiku/Sonnet), reflexion, constitutional checks, and
 > a slow-brain that **proposes harness updates queued for user review** — exactly the
-> propose-not-apply evolution loop this doc designed. **headroom does NOT build this.**
-> headroom's role narrowed to two things: (1) the **resource-hygiene advisor**
-> (`headroom suggest` — budget/context/pacing/cost/install frictions only, never skill or
+> propose-not-apply evolution loop this doc designed. **tokenroom does NOT build this.**
+> tokenroom's role narrowed to two things: (1) the **resource-hygiene advisor**
+> (`tokenroom suggest` — budget/context/pacing/cost/install frictions only, never skill or
 > workflow generation), and (2) the **resource sensor / friction feed** Keyoku consumes.
 > The vision below stands — as **Keyoku's** charter. Kept here only as the reasoning record.
 
@@ -26,19 +26,19 @@ exactly the right things to the agent.
 
 ## The thesis, stated plainly
 
-Headroom proved a specific claim: **an agent that is aware of its harness behaves better**
+Tokenroom proved a specific claim: **an agent that is aware of its harness behaves better**
 (it plans to fit, defers, survives compaction, paces the week). The self-evolving harness
 is the **general form of that same thesis** — it is the **bridge between the LLM and its
 harness**, carrying two kinds of awareness both ways:
 
 - **Harness-awareness** (harness → agent): budgets, context ceiling, compaction, the
-  installed capabilities — headroom already does this for resources.
+  installed capabilities — tokenroom already does this for resources.
 - **Meta-awareness** (harness → agent, about the harness itself): "here is what you can
   do here, what's been added for your patterns, what you keep struggling with." The agent
   sees not just its *resources* but its *own operating environment* — and can ask the
   layer to change it.
 
-Harness-awareness + meta-awareness is the optimization surface. Headroom is the proof of
+Harness-awareness + meta-awareness is the optimization surface. Tokenroom is the proof of
 concept for the first; this is the whole surface.
 
 ## The beautiful truth: we have already run this loop by hand, all week
@@ -66,9 +66,9 @@ ADR-9 gate (validate before behavior changes, artifact-graded), a human or stand
 approves, and it lands **versioned and reversible**. Evolution as a stream of small,
 audited, revertable commits — exactly how this repo evolved.
 
-## Three faculties of one thin meta-layer (on top of headroom)
+## Three faculties of one thin meta-layer (on top of tokenroom)
 
-- **Sensors — already shipped (headroom).** `events.jsonl`, velocity engine, `audit`,
+- **Sensors — already shipped (tokenroom).** `events.jsonl`, velocity engine, `audit`,
   `doctor`, painpoint detection (conflations, timidity, cliffs). The loop's eyes exist.
 - **Actuator — the new part (the proposal engine).** Reads the sensors, spots recurring
   friction, drafts a candidate evolution + its validation, queues it for approval.
@@ -77,17 +77,17 @@ audited, revertable commits — exactly how this repo evolved.
   twin: evolution changes what *exists*, arbitration changes what's *injected now*.
 
 All three are MCP-exposed so the agent participates: it can ask "what can I do here?",
-"why did you add this?", "this skill is stale, retire it." All three stand on headroom
+"why did you add this?", "this skill is stale, retire it." All three stand on tokenroom
 because each is a **budget-allocation** decision — what's worth observing, adding, injecting.
 
 ## Thinness is the fitness function (the hard part, not the adding)
 
-Every learning system bloats. The discipline nobody does — and the one headroom is
+Every learning system bloats. The discipline nobody does — and the one tokenroom is
 uniquely equipped for — is treating **context cost as the constraint the harness optimizes
 against.** The engine must propose **removals as aggressively as additions**: every skill,
 tool, and context node must keep earning its token cost or be garbage-collected.
 "Self-evolving" without "self-pruning" is rot. The GC is the real research problem, and
-headroom already measures what context costs.
+tokenroom already measures what context costs.
 
 ## Honest risks
 
@@ -106,23 +106,23 @@ headroom already measures what context costs.
 
 ## Verdict
 
-**Yes — as headroom's north star, built in exactly one safe direction: propose, never
+**Yes — as tokenroom's north star, built in exactly one safe direction: propose, never
 auto-apply, until auto-evaluation is independently proven.** It is the synthesis the whole
 project points at, and the MCP/meta-awareness framing is what makes it a *layer the agent
 participates in* rather than a black box. But it is strictly gated and far out: it needs
-headroom adoption (sensors with real signal), the Conductor coordination layer, AND a
+tokenroom adoption (sensors with real signal), the Conductor coordination layer, AND a
 proven auto-eval capability before any rung above "propose to a human" is contemplated.
 
 ## Validation gates (cheap, in order; honor the kills)
 
-- **V1 — `headroom suggest` (the seed; safe; dogfoodable now).** Reads its own
+- **V1 — `tokenroom suggest` (the seed; safe; dogfoodable now).** Reads its own
   `events.jsonl`/audit, finds the top recurring friction, emits a **proposed** evolution
   as a markdown artifact (skill snippet / workflow / pin / pruning) with its motivating
   evidence. Applies nothing. Test it on THIS week's history — it should propose roughly
   what we shipped by hand. **Kill:** proposals are noise or obvious-only → sensors aren't
   rich enough; stop and improve them first.
 - **V2 — Reversible apply with approval.** suggest → review → apply, versioned under
-  `~/.headroom/evolution/`, one-command revert. **Kill:** approved evolutions don't help
+  `~/.tokenroom/evolution/`, one-command revert. **Kill:** approved evolutions don't help
   in an eval → the loop is theater.
 - **V3 — The pruner.** Propose *removals* by context-cost-vs-usage. **Kill:** can't keep
   the layer net-thin over weeks → the fitness function is wrong, and thinness was the point.
@@ -134,7 +134,7 @@ proven auto-eval capability before any rung above "propose to a human" is contem
 The safe-apply model is a ladder, and git is the gate — self-evolution flows *through*
 review, never around it:
 
-1. **Propose** — `headroom suggest` (resource friction) or Keyoku's slow-brain (harness
+1. **Propose** — `tokenroom suggest` (resource friction) or Keyoku's slow-brain (harness
    intelligence) emits a read-only, evidence-cited artifact. No mutation (ADR-17).
 2. **Apply locally, reversible** — the user tests the evolution on their own machine;
    one-command revert. This is the "test it locally" rung (Keyoku's apply for harness
@@ -146,38 +146,38 @@ review, never around it:
 
 Two destinations — don't conflate:
 - **User-harness evolutions** (your own skills/workflows/config) promote to the USER's
-  dotfiles/config repo — Keyoku's actuator domain, not the headroom project.
-- **Tool improvements** (a new headroom detector, a better heuristic, a wording fix that
-  `suggest`'s own friction implies) promote as PRs to the headroom/Keyoku project itself —
+  dotfiles/config repo — Keyoku's actuator domain, not the tokenroom project.
+- **Tool improvements** (a new tokenroom detector, a better heuristic, a wording fix that
+  `suggest`'s own friction implies) promote as PRs to the tokenroom/Keyoku project itself —
   the **contribution flywheel**: real user friction becomes upstream improvements, gated by
-  the repo-as-harness. This is the part genuinely in headroom's domain.
+  the repo-as-harness. This is the part genuinely in tokenroom's domain.
 
-## Where this lives: the headroom ↔ Keyoku seam (decision, 2026-06-12)
+## Where this lives: the tokenroom ↔ Keyoku seam (decision, 2026-06-12)
 
 The defining test is **awareness vs. action**:
 
-- **headroom = awareness.** Observe, measure, report. Thin, zero-dep, no-network, OSS.
-  It owns the **sensors** and the **friction miner** (`headroom suggest`, read-only — the
+- **tokenroom = awareness.** Observe, measure, report. Thin, zero-dep, no-network, OSS.
+  It owns the **sensors** and the **friction miner** (`tokenroom suggest`, read-only — the
   same category as `doctor`/`audit`). Its output `suggest --json` is the **friction feed**:
   a provider-neutral signal, exactly like ResourceState.
 - **Keyoku (or the framework product) = action.** Consume the friction feed and *evolve
   the harness*: synthesis (draft skills/workflows), the ledger, apply/revert, the pruner
   policy, workflow authoring, any marketplace. Opinionated and feature-rich — the things
-  that would wreck headroom's focused, auditable identity if bolted on.
+  that would wreck tokenroom's focused, auditable identity if bolted on.
 
-So the evolution **framework** is NOT headroom's to build. headroom emits friction +
+So the evolution **framework** is NOT tokenroom's to build. tokenroom emits friction +
 context-cost; Keyoku acts on it. One observer, one actuator, a documented contract
 (`suggest --json`) between them — the same discipline that kept RESOURCE-STATE clean and
 that this doc's own warning demands ("don't fork the loop into two tools that both observe
-and both mutate"). The miner shipped in headroom (T2.22) is correctly scoped as read-only
+and both mutate"). The miner shipped in tokenroom (T2.22) is correctly scoped as read-only
 awareness; phases T2.23–T2.27 (synthesis → apply → pruner → auto-eval) belong to Keyoku's
-roadmap, reading headroom's feed. Caveat: this hinges on Keyoku being the framework play —
+roadmap, reading tokenroom's feed. Caveat: this hinges on Keyoku being the framework play —
 confirm against Keyoku's actual charter before building the actuator anywhere.
 
 ## On Keyoku (capabilities map)
 
 The capabilities map cleanly — Keyoku could be the actuator/workflow-authoring surface,
-headroom stays the sensors + budget substrate + thinness GC, the proposal engine bridges
+tokenroom stays the sensors + budget substrate + thinness GC, the proposal engine bridges
 them, and the whole thing is one MCP the agent talks to. The thing to NOT do is fork the
 loop into two tools that both observe and both mutate — one set of sensors, one evolution
 ledger, or it double-counts and bloats (the trap PRO.md and the Conductor section flagged).
@@ -185,7 +185,7 @@ Decide the seam — who observes, who proposes, who applies — before writing c
 
 ## Recommendation
 
-Don't build the self-evolving harness. Build **`headroom suggest`** — the propose-only
+Don't build the self-evolving harness. Build **`tokenroom suggest`** — the propose-only
 seed — and point it at this repo's own history as the first test. If it would have proposed
 what we shipped by hand this week, the north star is real and earns its next rung; if not,
 we learned it cheaply. Everything above V1 waits on adoption and auto-evaluation, which we
@@ -198,8 +198,8 @@ have not earned. Thin first, evolving later.
 An earlier framing was a standalone "harness master" that bundles/switches harnesses.
 Verdict on that: the **bundle + install + switch** half is already the official Claude Code
 **plugin system** (plugins bundle commands/subagents/MCP/hooks via marketplaces) — don't
-rebuild it; make headroom a well-formed plugin instead. The **runtime coordination** half
+rebuild it; make tokenroom a well-formed plugin instead. The **runtime coordination** half
 (budget-aware arbitration of which harness speaks when context is scarce) is unowned and
-becomes the **Arbiter** faculty above. `headroom doctor` already enumerates installed
-harnesses and event collisions — the seed of the inventory (`headroom harnesses`) that
+becomes the **Arbiter** faculty above. `tokenroom doctor` already enumerates installed
+harnesses and event collisions — the seed of the inventory (`tokenroom harnesses`) that
 precedes any arbitration.

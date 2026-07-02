@@ -1,4 +1,4 @@
-# `headroom suggest` — architecture & algorithm
+# `tokenroom suggest` — architecture & algorithm
 
 > **DEFERRED 2026-06-13 — design kept, code removed.** Built after the 0.3.2 tag and
 > pulled before its first release (never published): with zero users there is no real telemetry to mine, its concept
@@ -8,7 +8,7 @@
 > produces varied friction worth mining. The miner was correct and tested — only its
 > timing was early.
 
-*2026-06-12 · headroom's **resource-hygiene advisor** + the **friction-feed contract**
+*2026-06-12 · tokenroom's **resource-hygiene advisor** + the **friction-feed contract**
 Keyoku consumes. NOT the self-evolving harness (that is Keyoku — see EVOLVING-HARNESS.md).*
 
 **Scope (hard line).** `suggest` proposes only **resource-domain** evolutions — context
@@ -17,7 +17,7 @@ uniquely positioned to see. It NEVER generates skills, workflows, memory, or con
 graphs; that is Keyoku's harness intelligence. Every detector below is resource-domain by
 construction. `suggest --json` is the seam: Keyoku's slow-brain reads it as one input to
 its broader evolution, and replaces its own crude `session-budget.ts` estimate by
-consuming headroom's ResourceState.
+consuming tokenroom's ResourceState.
 
 ## The shape (respects every hard constraint)
 
@@ -26,7 +26,7 @@ right architecture anyway:
 
 ```
   MINER (deterministic, zero-dep)        SYNTHESIS (the agent IS the LLM)        LEDGER
-  reads events/history/transcript   →    headroom suggest emits friction    →   ~/.headroom/
+  reads events/history/transcript   →    tokenroom suggest emits friction    →   ~/.tokenroom/
   finds + ranks FRICTION SIGNALS         signals + a drafting protocol;          evolution/
   (no model, runs anywhere)              the agent drafts the evolution          (versioned,
                                          artifact in its own turn                 reversible)
@@ -88,7 +88,7 @@ event-friction miner ships first and is valuable alone.
 
 Adding is easy; every learning system bloats. The pruner closes the loop: each applied
 evolution is tracked for **benefit** (friction-events prevented since adoption) vs **cost**
-(tokens it adds × sessions). Negative ROI → propose *removal*. headroom is uniquely able to
+(tokens it adds × sessions). Negative ROI → propose *removal*. tokenroom is uniquely able to
 run this because it already measures context cost. "Self-evolving" without self-pruning is
 rot; the GC is what keeps the layer thin, which was the whole point.
 
@@ -105,7 +105,7 @@ rot; the GC is what keeps the layer thin, which was the whole point.
 
 ## Phasing (ship value early, gate the risk)
 
-- **v0 (now): the miner + `headroom suggest`.** Deterministic friction report from
+- **v0 (now): the miner + `tokenroom suggest`.** Deterministic friction report from
   `events.jsonl`/`history.jsonl`. Read-only. Tested against this repo's own history — must
   surface roughly what we fixed by hand this week.
 - **v1: synthesis protocol** — structured signal + drafting template the agent fills.

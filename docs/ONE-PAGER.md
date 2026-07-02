@@ -1,4 +1,4 @@
-# Headroom — Resource-Aware Agent Layer
+# Tokenroom — Resource-Aware Agent Layer
 
 **One-pager · v0.2 · June 2026 · Core license: Apache-2.0**
 
@@ -14,7 +14,7 @@
 collectors                 state                     awareness connector → Claude Code
 ----------                 -----                     ---------------------------------
 statusline tap   ─┐                                  push  UserPromptSubmit hook:
-  rate_limits +   ├─▶ ~/.headroom/state.json ─▶            ~40-token headroom stamp/prompt
+  rate_limits +   ├─▶ ~/.tokenroom/state.json ─▶            ~40-token tokenroom stamp/prompt
   context_window  │   + burn rates,                        SessionStart(source=compact):
 OTel receiver    ─┤     projections                        re-inject handoff after compaction
 JSONL scanner    ─┘                                  pull  MCP: resource_state, fit_check
@@ -22,7 +22,7 @@ JSONL scanner    ─┘                                  pull  MCP: resource_sta
                                                      human statusline HUD
 ```
 
-`headroom-tap` is the registered statusline command: one stdin JSON carries **both budgets** (`rate_limits` and `context_window`) — it renders the HUD and atomically writes the state file. The **awareness connector** closes the loop into the harness itself: every prompt arrives pre-stamped with current headroom via hook-injected context, the model pulls detail or runs `fit_check` through MCP, and the skill defines how to act on it. Zero extra API calls, no polling cost.
+`tokenroom-tap` is the registered statusline command: one stdin JSON carries **both budgets** (`rate_limits` and `context_window`) — it renders the HUD and atomically writes the state file. The **awareness connector** closes the loop into the harness itself: every prompt arrives pre-stamped with current tokenroom via hook-injected context, the model pulls detail or runs `fit_check` through MCP, and the skill defines how to act on it. Zero extra API calls, no polling cost.
 
 ## Data sources and compliance
 
@@ -77,9 +77,9 @@ Open-source the core (spec, collectors, MCP server, hooks, skill) under Apache-2
 ## Bootstrap (for Claude Code)
 
 ```bash
-mkdir headroom && cd headroom && git init && mkdir docs
-cp ~/Downloads/headroom-one-pager.md docs/ONE-PAGER.md
-cp ~/Downloads/headroom-plan.md docs/PLAN.md
+mkdir tokenroom && cd tokenroom && git init && mkdir docs
+cp ~/Downloads/tokenroom-one-pager.md docs/ONE-PAGER.md
+cp ~/Downloads/tokenroom-plan.md docs/PLAN.md
 printf 'Read docs/ONE-PAGER.md then docs/PLAN.md fully before any work.\n' > CLAUDE.md
 claude
 # first prompt: "Execute Phase 0 of docs/PLAN.md. TypeScript monorepo.

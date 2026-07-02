@@ -45,7 +45,7 @@ export async function hookPreCompact() {
         process.stdout.write(
           JSON.stringify({
             decision: 'block',
-            reason: `headroom compact guard: the 5h window resets in ${Math.round(left / 60)}m — after the reset, /clear gives fresh context AND a fresh window, which beats compacting now. Run /compact to compact anyway, or unset compact_guard_min in ~/.headroom/config.json.`,
+            reason: `tokenroom compact guard: the 5h window resets in ${Math.round(left / 60)}m — after the reset, /clear gives fresh context AND a fresh window, which beats compacting now. Run /compact to compact anyway, or unset compact_guard_min in ~/.tokenroom/config.json.`,
           })
         );
         return;
@@ -69,7 +69,7 @@ export async function hookPreCompact() {
 // re-stamps ONLY when a budget crosses a WORSENING band — first sight silent (the
 // turn-start stamp covered it), improvements silent, throttled between re-stamps.
 // Band thresholds, receipt floors, and the throttle come from the governor profile
-// (T2.4): the mode shifts when headroom speaks, never what it says.
+// (T2.4): the mode shifts when tokenroom speaks, never what it says.
 const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
 
 export async function hookPostToolUse() {
@@ -78,7 +78,7 @@ export async function hookPostToolUse() {
     const dir = dirForSession(p.session_id); // this session's account subtree (ADR-21)
     sampleFlow(p.transcript_path, p.session_id, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
     const cfg = readConfig();
-    if (process.env.HEADROOM_DISABLE === '1' || !cfg.stamp_enabled) return;
+    if (process.env.TOKENROOM_DISABLE === '1' || !cfg.stamp_enabled) return;
     const prof = modeProfile(cfg.mode);
     const s = readState(dir);
     const now = Date.now() / 1000;
@@ -132,7 +132,7 @@ export async function hookPostToolUse() {
     const emit = (lines) =>
       process.stdout.write(
         JSON.stringify({
-          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: `[headroom] mid-task update: ${lines.join(' · ')}` },
+          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: `[tokenroom] mid-task update: ${lines.join(' · ')}` },
         })
       );
 
@@ -160,7 +160,7 @@ export async function hookPostToolUse() {
     const eta = callsLeft != null ? `, ≈${callsLeft} tool call${callsLeft === 1 ? '' : 's'} at this pace` : '';
     const scMsg =
       superClose && !prev.sc && !savedRecently
-        ? `SUPER CLOSE to auto-compaction (~${fmtTokens(tok)} tokens before the ceiling${eta} — still safe to write once): make your handoff current NOW via the headroom \`handoff\` tool, then POWER THROUGH — keep issuing tool calls until it fires. MECHANISM (agents get this wrong): auto-compaction triggers at the START of your NEXT turn, and only if you take one — your next tool call IS the trigger. Ending your turn — even to announce "I'll let it compact" — goes idle and BLOCKS compaction until the user manually sends a message; that announce-and-stop is the stall, not the fix. So don't narrate waiting: if work remains, your next output is a tool call, not a sign-off.${savedNote}`
+        ? `SUPER CLOSE to auto-compaction (~${fmtTokens(tok)} tokens before the ceiling${eta} — still safe to write once): make your handoff current NOW via the tokenroom \`handoff\` tool, then POWER THROUGH — keep issuing tool calls until it fires. MECHANISM (agents get this wrong): auto-compaction triggers at the START of your NEXT turn, and only if you take one — your next tool call IS the trigger. Ending your turn — even to announce "I'll let it compact" — goes idle and BLOCKS compaction until the user manually sends a message; that announce-and-stop is the stall, not the fix. So don't narrate waiting: if work remains, your next output is a tool call, not a sign-off.${savedNote}`
         : null;
     const scLatched = superClose ? prev.sc || scMsg != null : false;
 
@@ -216,7 +216,7 @@ export async function hookPostToolUse() {
     }
     if (ctxLeft != null && ctxBand > prev.ctx && !savedRecently && !superClose) {
       parts.push(
-        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — BURN IT, don't conserve it. Low context is NEVER a reason to slow, stop, hand back control, wrap up, or get cautious — that only strands the task and blocks the auto-compaction that refreshes you. MECHANISM: compaction fires at the START of your next turn and ONLY if you take one, so ending your turn to "let it compact" goes idle and blocks it until the user nudges — your next tool call is what triggers it. The one thing it asks: keep your handoff current (refresh at your NEXT task boundary via the headroom \`handoff\` tool — no need to re-save before then), then keep working at full speed until auto-compaction fires; the session resumes seamlessly from your handoff. This is CONTEXT — quota/rate-limit is the OTHER budget: THAT one you stay wary of and pace/defer at the reset, never the reverse.${savedNote}`
+        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — BURN IT, don't conserve it. Low context is NEVER a reason to slow, stop, hand back control, wrap up, or get cautious — that only strands the task and blocks the auto-compaction that refreshes you. MECHANISM: compaction fires at the START of your next turn and ONLY if you take one, so ending your turn to "let it compact" goes idle and blocks it until the user nudges — your next tool call is what triggers it. The one thing it asks: keep your handoff current (refresh at your NEXT task boundary via the tokenroom \`handoff\` tool — no need to re-save before then), then keep working at full speed until auto-compaction fires; the session resumes seamlessly from your handoff. This is CONTEXT — quota/rate-limit is the OTHER budget: THAT one you stay wary of and pace/defer at the reset, never the reverse.${savedNote}`
       );
     }
 
@@ -266,7 +266,7 @@ export async function hookPreToolUse() {
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
           permissionDecision: 'deny',
-          permissionDecisionReason: `headroom launch gate: the 5h window is nearly empty${resets ? ` (resets ${fmtClock(resets)})` : ''} — an expensive ${p.tool_name} launch now risks dying mid-work. Record the work with plan_resume and defer past the reset, or do a small piece inline. Disable: launch_gate in ~/.headroom/config.json.`,
+          permissionDecisionReason: `tokenroom launch gate: the 5h window is nearly empty${resets ? ` (resets ${fmtClock(resets)})` : ''} — an expensive ${p.tool_name} launch now risks dying mid-work. Record the work with plan_resume and defer past the reset, or do a small piece inline. Disable: launch_gate in ~/.tokenroom/config.json.`,
         },
       })
     );
@@ -305,7 +305,7 @@ export async function hookSessionStart() {
   const plan = readResume();
   if (plan?.resume_at && Date.now() / 1000 >= plan.resume_at) {
     parts.push(
-      `[headroom] deferred work is now ready (its window has reset): "${plan.summary}". Surface this to the user, and run \`headroom resume --clear\` once it is picked up.`
+      `[tokenroom] deferred work is now ready (its window has reset): "${plan.summary}". Surface this to the user, and run \`tokenroom resume --clear\` once it is picked up.`
     );
   }
   if (!parts.length) return;
@@ -317,7 +317,7 @@ export async function hookSessionStart() {
 }
 
 /**
- * UserPromptSubmit hook: emit a tiny headroom stamp as additionalContext.
+ * UserPromptSubmit hook: emit a tiny tokenroom stamp as additionalContext.
  * Wording rule (validated in eval v0/v1): always REMAINING-first, with absolute
  * tokens where known. Silent when disabled, missing, or stale — never inject a lie.
  */
@@ -331,7 +331,7 @@ export async function hookUserPromptSubmit() {
   const { dir, show: showQuota } = quotaScope(mySession);
   sampleFlow(payload.transcript_path, mySession, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
 
-  if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) {
+  if (process.env.TOKENROOM_DISABLE === '1' || !readConfig().stamp_enabled) {
     logEvent({ type: 'stamp_skipped', session_id: mySession, reason: 'disabled' });
     return;
   }
@@ -463,7 +463,7 @@ export async function hookUserPromptSubmit() {
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'UserPromptSubmit',
-        additionalContext: `[headroom] ${parts.join(' · ')}${ageMark}`,
+        additionalContext: `[tokenroom] ${parts.join(' · ')}${ageMark}`,
       },
     })
   );

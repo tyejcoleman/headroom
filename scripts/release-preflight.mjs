@@ -31,8 +31,8 @@ console.log(`release preflight — ${pkg.name}@${version}\n`);
 // 1. tree + tests + gates
 sh('git status --porcelain') === '' ? ok('working tree clean') : bad('working tree dirty', 'commit or stash before releasing');
 try {
-  // HEADROOM_PREFLIGHT lets the suite's own preflight test skip itself (no recursion)
-  sh('npm test', { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, HEADROOM_PREFLIGHT: '1' } });
+  // TOKENROOM_PREFLIGHT lets the suite's own preflight test skip itself (no recursion)
+  sh('npm test', { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, TOKENROOM_PREFLIGHT: '1' } });
   ok('test suite green');
 } catch {
   bad('tests failing', 'fix before releasing');

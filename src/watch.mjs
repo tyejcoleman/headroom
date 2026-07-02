@@ -1,9 +1,9 @@
 import { watch as fsWatch } from 'node:fs';
-import { headroomDir, fmtClock, fmtTokens, fmtDelta } from './util.mjs';
+import { tokenroomDir, fmtClock, fmtTokens, fmtDelta } from './util.mjs';
 import { readState } from './state.mjs';
 import { readResume } from './resume.mjs';
 
-// `headroom watch` — a LIVE dashboard for a second terminal pane. The statusline's
+// `tokenroom watch` — a LIVE dashboard for a second terminal pane. The statusline's
 // render schedule belongs to Claude Code (it re-runs the command on conversation
 // activity only), so the statusline shows absolute clock times that never go stale.
 // This view is the opposite trade: it ticks every second (live countdowns, live data
@@ -20,11 +20,11 @@ const bar = (pctLeft) => {
 export function buildDashboard(state, resume, nowSec) {
   const lines = [];
   if (!state) {
-    return ['HEADROOM · live', '', 'no state yet — is the statusline tap installed and a session active?', '', 'watching ~/.headroom · Ctrl-C to exit'];
+    return ['TOKENROOM · live', '', 'no state yet — is the statusline tap installed and a session active?', '', 'watching ~/.tokenroom · Ctrl-C to exit'];
   }
   const age = Math.max(0, Math.round(nowSec - state.updated_at));
   const frozen = age > 30 * 60;
-  lines.push(`HEADROOM · live · ${fmtClock(nowSec)} · data ${age < 90 ? `${age}s` : `${Math.round(age / 60)}m`} old${frozen ? ' — NO ACTIVE SESSION RENDERING (frozen)' : ''}`);
+  lines.push(`TOKENROOM · live · ${fmtClock(nowSec)} · data ${age < 90 ? `${age}s` : `${Math.round(age / 60)}m`} old${frozen ? ' — NO ACTIVE SESSION RENDERING (frozen)' : ''}`);
   lines.push('');
 
   const fh = state.windows?.five_hour;
@@ -61,7 +61,7 @@ export function buildDashboard(state, resume, nowSec) {
   if (state.session?.cost_usd >= 0.01) lines.push(`session     $${state.session.cost_usd.toFixed(2)} (API-price gauge, last-rendering session)`);
 
   lines.push('');
-  lines.push('watching ~/.headroom · updates live · Ctrl-C to exit');
+  lines.push('watching ~/.tokenroom · updates live · Ctrl-C to exit');
   return lines;
 }
 
@@ -73,7 +73,7 @@ export function watchDashboard() {
   render();
   const timer = setInterval(render, 1000);
   try {
-    fsWatch(headroomDir(), render);
+    fsWatch(tokenroomDir(), render);
   } catch {
     // dir may not exist yet; the 1s timer still covers it
   }

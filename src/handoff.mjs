@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { headroomDir, ensureDir, readJSON, fmtClock } from './util.mjs';
+import { tokenroomDir, ensureDir, readJSON, fmtClock } from './util.mjs';
 import { readState } from './state.mjs';
 
 // Compaction survival, part 1: at PreCompact we cannot summarize the conversation
@@ -11,7 +11,7 @@ import { readState } from './state.mjs';
 // anchors to it — path plus deterministic verbatim extracts in a sidecar file. The
 // injection carries pointers, never bulk content: compaction just freed the context.
 
-const handoffDir = () => join(headroomDir(), 'handoffs');
+const handoffDir = () => join(tokenroomDir(), 'handoffs');
 const pathFor = (sessionId) => join(handoffDir(), `${sessionId}.json`);
 const extractsPathFor = (sessionId) => join(handoffDir(), `${sessionId}.extracts.json`);
 const MAX_AGE_SEC = 6 * 3600;
@@ -146,7 +146,7 @@ export function takeHandoff(session_id, nowSec = Date.now() / 1000) {
 }
 
 export function renderHandoff(snap) {
-  const lines = [`[headroom] post-compaction ground truth (snapshot taken ${fmtClock(snap.at)}, just before compaction):`];
+  const lines = [`[tokenroom] post-compaction ground truth (snapshot taken ${fmtClock(snap.at)}, just before compaction):`];
   if (snap.cwd) lines.push(`- cwd: ${snap.cwd}`);
   if (snap.git) {
     lines.push(`- branch: ${snap.git.branch}`);

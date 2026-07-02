@@ -1,4 +1,4 @@
-# Headroom — Validation harness
+# Tokenroom — Validation harness
 
 **v0.1 · the "should we build the whole thing?" gate**
 
@@ -21,20 +21,20 @@ Pro/Max after the first API response. **This must be confirmed empirically on a 
 account — it cannot be assumed from docs**, because it's gated by plan, version, and timing.
 
 **Test: Spike S0.** `spikes/s0-dump-statusline.mjs` is a throwaway statusline command that
-appends the raw stdin payload to `~/.headroom/raw-sample.json` and prints a one-line HUD
+appends the raw stdin payload to `~/.tokenroom/raw-sample.json` and prints a one-line HUD
 showing whether each field is present. Register it temporarily, use Claude Code normally
 for a few prompts across a session, then inspect the captured samples.
 
 ```bash
 # 1. Register (or use /statusline and point it at this file):
-#    "statusLine": { "type": "command", "command": "node /Users/taikicoleman/Development/headroom/spikes/s0-dump-statusline.mjs" }
+#    "statusLine": { "type": "command", "command": "node /Users/taikicoleman/Development/tokenroom/spikes/s0-dump-statusline.mjs" }
 # 2. Use Claude Code normally for ~5 prompts.
 # 3. Inspect:
-cat ~/.headroom/raw-sample.json | tail -3
+cat ~/.tokenroom/raw-sample.json | tail -3
 ```
 
 **Status (2026-06-09): ✅ CONFIRMED on a live Max account, Claude Code v2.1.170.** The
-shipped tap (which subsumed this spike via `headroom tap --capture`) produced a valid
+shipped tap (which subsumed this spike via `tokenroom tap --capture`) produced a valid
 ResourceState from real statusline payloads on first render: both `rate_limits` windows
 with sane percentages and future `resets_at`, `auth: subscription`, and `context_window`
 reporting a 1M window. Gate **G0 passes**; note `context_window_size` varies by model
@@ -46,17 +46,17 @@ reporting a 1M window. Gate **G0 passes**; note `context_window_size` varies by 
 `used_percentage`; `rate_limits` missing entirely (API-key auth).
 **Kill/pivot:** if `rate_limits` never appears → rate-limit awareness degrades to
 JSONL-based *estimation* only (still useful, but reframe the pitch around context
-headroom + estimated burn, not authoritative window %). If `context_window` is also
+tokenroom + estimated burn, not authoritative window %). If `context_window` is also
 absent → stop; the thesis doesn't stand on official surfaces.
 
-### A2 — Feeding headroom to the model actually improves its planning
+### A2 — Feeding tokenroom to the model actually improves its planning
 
-> Injecting a ~40-token headroom stamp (and exposing `fit_check` via MCP) measurably
+> Injecting a ~40-token tokenroom stamp (and exposing `fit_check` via MCP) measurably
 > changes the agent's behavior for the better — it scopes/sequences work to fit — and the
 > awareness layer costs less context than it saves.
 
 This is the real bet. A stamp the model ignores, or one that makes it timid, is a net
-loss. There's also irony to watch for: a context-headroom tool that itself eats context.
+loss. There's also irony to watch for: a context-tokenroom tool that itself eats context.
 
 **Test: S1-sim (no account data needed — run before S0).** Simulate the ResourceState and
 test the behavioral reaction in isolation. Two stages, both built in `eval/`:
@@ -89,7 +89,7 @@ S0/S1 pass, but it is not a go/no-go gate for the project — it's the headline 
 
 **G2 real-world exercise (2026-06-09, live Max account, `/compact` mid-session): PASS.**
 Probe protocol: plant an untracked `COMPACTION-PROBE.md` (distinctive dirty-tree
-fingerprint), confirm `~/.headroom/handoffs/` absent, then compact and verify both halves.
+fingerprint), confirm `~/.tokenroom/handoffs/` absent, then compact and verify both halves.
 
 - PreCompact fired and wrote `handoffs/<session>.json` — `trigger: "manual"` (correctly
   distinguishes user `/compact` from auto-compaction), correct `cwd`, `branch: main`,
@@ -101,7 +101,7 @@ fingerprint), confirm `~/.headroom/handoffs/` absent, then compact and verify bo
 - Notable: the hooks were registered **mid-session** and still fired at compaction —
   Claude Code reads hook config live, not snapshotted at session start.
 - One field gotcha: the UI showed "SessionStart:compact hook error", which was a
-  *different* (third-party) SessionStart hook failing with command-not-found; headroom's
+  *different* (third-party) SessionStart hook failing with command-not-found; tokenroom's
   hook exited 0 with valid JSON. Lesson for docs/FAQ: hook errors in the UI are not
   attributed per-hook — users with multiple SessionStart hooks may misattribute failures.
 

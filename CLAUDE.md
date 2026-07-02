@@ -1,6 +1,6 @@
-# Headroom — agent working context
+# Tokenroom — agent working context
 
-Headroom is a **resource-aware layer for coding agents**. It makes the agent aware of
+Tokenroom is a **resource-aware layer for coding agents**. It makes the agent aware of
 its two scarcest resources — account **rate-limit headroom** (5h / 7d windows) and
 session **context headroom** (tokens before compaction) — so it can plan work to fit,
 spend efficiently, and use capacity that would otherwise expire.
@@ -62,10 +62,10 @@ If a task seems to require crossing one of these lines, stop and surface it — 
 
 ## Stack
 
-Single **zero-dependency** npm package (`headroom-harness`): plain ESM under `bin/` + `src/`,
+Single **zero-dependency** npm package (`tokenroom`): plain ESM under `bin/` + `src/`,
 `node:test` suites, skill in `skill/`, JSON Schema in `schema/`. No build step — this is
 deliberate (auditability + npx-ability); don't add dependencies without strong cause.
-State lives at `~/.headroom/state.json` (atomic temp-file + rename writes only).
+State lives at `~/.tokenroom/state.json` (atomic temp-file + rename writes only).
 
 ## Current status
 
@@ -82,7 +82,7 @@ stamps + mid-turn band updates + cost receipts · compaction survival (fact snap
 transcript anchor + model-authored `checkpoint` + verbatim `pin_fact` pins + silent-trim
 detection) · reset scheduler (plan_resume + HUD countdown + readiness stamps; the ARM
 executor was removed per ADR-22) · governor modes · opt-in compact guard + launch gate ·
-`headroom watch/line/audit/doctor` · ADR log · eval report generator.
+`tokenroom watch/line/audit/doctor` · ADR log · eval report generator.
 
 **Remaining, in order:** soak week (dogfood; fixture any oddity) → rotate the npm token →
 launch day: `/release` (tag v0.3.0 → CI publishes with provenance) + `launch/` kit →

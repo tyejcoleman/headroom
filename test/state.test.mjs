@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-state-'));
+process.env.TOKENROOM_DIR = mkdtempSync(join(tmpdir(), 'tokenroom-state-'));
 const { parsePayload, updateBurn, enrichWeekly, writeState, readState } = await import('../src/state.mjs');
 const { accountKey, accountDir, recordSessionAccount, quotaScope, listAccountKeys } = await import('../src/util.mjs');
 const { validateResourceState } = await import('../src/schema.mjs');
@@ -42,7 +42,7 @@ test('epoch-leak and out-of-range percentages become null, resets_at ms tolerate
 });
 
 test('burn model derives rate and exhaustion from history', () => {
-  process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-burn1-'));
+  process.env.TOKENROOM_DIR = mkdtempSync(join(tmpdir(), 'tokenroom-burn1-'));
   const t0 = 1781300000;
   let s;
   for (let i = 0; i <= 10; i++) {
@@ -59,7 +59,7 @@ test('burn model derives rate and exhaustion from history', () => {
 test('regression: poisoned first sample + interleaved stale sessions do not hallucinate burn', () => {
   // Field data 2026-06-09: a placeholder 1% landed as the first sample and a concurrent
   // session interleaved stale 36s among fresh 38s; first-vs-last said ~180%/h.
-  process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-burn2-'));
+  process.env.TOKENROOM_DIR = mkdtempSync(join(tmpdir(), 'tokenroom-burn2-'));
   const t0 = 1781300000;
   const seq = [[0, 1], [1, 35], [2, 35], [60, 35], [240, 35], [300, 36], [480, 36], [600, 36], [660, 37], [700, 38], [710, 36], [720, 38], [730, 36]];
   let s;
@@ -72,7 +72,7 @@ test('regression: poisoned first sample + interleaved stale sessions do not hall
 });
 
 test('burn stays null until a 10-minute baseline accumulates', () => {
-  process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-burn3-'));
+  process.env.TOKENROOM_DIR = mkdtempSync(join(tmpdir(), 'tokenroom-burn3-'));
   const t0 = 1781300000;
   let s;
   for (const [dt, u] of [[0, 35], [60, 36], [120, 36], [300, 38]]) {
@@ -117,8 +117,8 @@ test('accountKey: stable across resets within an account, distinct between accou
 });
 
 test('per-account isolation: a session reads its OWN account, never a concurrent account (ADR-21)', () => {
-  const root = mkdtempSync(join(tmpdir(), 'headroom-iso-'));
-  process.env.HEADROOM_DIR = root;
+  const root = mkdtempSync(join(tmpdir(), 'tokenroom-iso-'));
+  process.env.TOKENROOM_DIR = root;
 
   // Account A (98% weekly left) and Account B (7% weekly left), each routed to its own dir.
   const A = parsePayload(fix('statusline-full.json'));
@@ -149,8 +149,8 @@ test('per-account isolation: a session reads its OWN account, never a concurrent
 });
 
 test('quotaScope: single-account and legacy layouts keep showing quota (no regression)', () => {
-  const root = mkdtempSync(join(tmpdir(), 'headroom-single-'));
-  process.env.HEADROOM_DIR = root;
+  const root = mkdtempSync(join(tmpdir(), 'tokenroom-single-'));
+  process.env.TOKENROOM_DIR = root;
   // legacy / pre-account: no accounts/ subtree at all → global dir, quota shown
   assert.deepEqual(quotaScope('whoever'), { dir: root, show: true });
   // exactly one account, session unmapped → still resolves to that one account, quota shown

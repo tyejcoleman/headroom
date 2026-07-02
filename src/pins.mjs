@@ -1,13 +1,13 @@
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { headroomDir, ensureDir, atomicWriteJSON, readJSON } from './util.mjs';
+import { tokenroomDir, ensureDir, atomicWriteJSON, readJSON } from './util.mjs';
 
 // Pins: facts the agent (or user) marks as must-survive-VERBATIM. Compaction
 // paraphrases, and paraphrase drift of hard constraints is a top failure mode; pins
 // are re-injected word-for-word at SessionStart(source=compact). Capped and TTL'd so
 // stale constraints don't haunt future sessions (ADR-12).
 
-const pinsPath = () => join(headroomDir(), 'pins.json');
+const pinsPath = () => join(tokenroomDir(), 'pins.json');
 const MAX_PINS = 50;
 const MAX_TEXT = 500;
 const DEFAULT_TTL_HOURS = 7 * 24;
@@ -29,7 +29,7 @@ export function addPin(text, { ttl_hours, session_id } = {}, nowSec = Date.now()
     session_id: session_id ?? null,
   };
   const pins = [...listPins(nowSec), pin].slice(-MAX_PINS);
-  ensureDir(headroomDir());
+  ensureDir(tokenroomDir());
   atomicWriteJSON(pinsPath(), pins);
   return pin;
 }
@@ -38,7 +38,7 @@ export function addPin(text, { ttl_hours, session_id } = {}, nowSec = Date.now()
 export function removePins(idOrAll, nowSec = Date.now() / 1000) {
   const pins = listPins(nowSec);
   const keep = idOrAll === '--all' ? [] : pins.filter((p) => p.id !== idOrAll);
-  ensureDir(headroomDir());
+  ensureDir(tokenroomDir());
   atomicWriteJSON(pinsPath(), keep);
   return pins.length - keep.length;
 }
@@ -46,8 +46,8 @@ export function removePins(idOrAll, nowSec = Date.now() / 1000) {
 export function renderPins(pins) {
   const shown = pins.slice(-20);
   return [
-    `[headroom] pinned facts (${shown.length}) — re-injected verbatim; do not paraphrase or drop these:`,
+    `[tokenroom] pinned facts (${shown.length}) — re-injected verbatim; do not paraphrase or drop these:`,
     ...shown.map((p) => `- ${p.text}  (pin ${p.id})`),
-    'When a pin is satisfied or obsolete, tell the user and run `headroom unpin <id>`.',
+    'When a pin is satisfied or obsolete, tell the user and run `tokenroom unpin <id>`.',
   ].join('\n');
 }

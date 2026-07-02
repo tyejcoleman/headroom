@@ -1,10 +1,10 @@
 {
-  "name": "headroom-harness",
+  "name": "tokenroom",
   "version": "0.5.2",
   "description": "Resource-aware layer for Claude Code: feeds rate-limit and context headroom to the agent itself, so it plans work that fits the budget.",
   "type": "module",
   "bin": {
-    "headroom": "bin/headroom.mjs"
+    "tokenroom": "bin/tokenroom.mjs"
   },
   "files": [
     "bin",
@@ -24,18 +24,21 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tyejcoleman/headroom.git"
+    "url": "git+https://github.com/tyejcoleman/tokenroom.git"
   },
-  "homepage": "https://github.com/tyejcoleman/headroom#readme",
+  "homepage": "https://github.com/tyejcoleman/tokenroom#readme",
   "bugs": {
-    "url": "https://github.com/tyejcoleman/headroom/issues"
+    "url": "https://github.com/tyejcoleman/tokenroom/issues"
   },
   "keywords": [
+    "tokenroom",
     "claude-code",
     "claude",
     "agent",
     "rate-limit",
     "context-window",
+    "usage-limits",
+    "quota",
     "mcp",
     "statusline",
     "hooks",

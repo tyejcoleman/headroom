@@ -85,7 +85,7 @@ for (const file of new Set(sweep)) {
 }
 
 if (errors.length) {
-  console.error('headroom invariant gates FAILED:\n' + errors.map((e) => '  - ' + e).join('\n'));
+  console.error('tokenroom invariant gates FAILED:\n' + errors.map((e) => '  - ' + e).join('\n'));
   process.exit(2);
 }
 console.log(`invariant gates: OK (${new Set(sweep).size} files checked)`);

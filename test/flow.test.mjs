@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const dir = mkdtempSync(join(tmpdir(), 'hr-flow-'));
-process.env.HEADROOM_DIR = dir;
+process.env.TOKENROOM_DIR = dir;
 const { sampleFlow, flowStats, calibrate, enrichBurn, sessionFlowStats } = await import('../src/flow.mjs');
 
 const NOW = Math.round(Date.now() / 1000);

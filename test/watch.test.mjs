@@ -59,5 +59,5 @@ test('line: deferred countdown, ready flag, exhaustion warning, idle state', () 
   assert.match(renderLine(burning, null, now), /⚠exh 20m/);
 
   assert.match(renderLine(state, null, state.updated_at + 45 * 60), /idle 45m/);
-  assert.equal(renderLine(null), 'headroom: no data');
+  assert.equal(renderLine(null), 'tokenroom: no data');
 });

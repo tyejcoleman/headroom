@@ -8,13 +8,13 @@ import { readState } from './state.mjs';
 import { listPins } from './pins.mjs';
 import { readResume } from './resume.mjs';
 
-// `headroom doctor` — one command that answers "why isn't it working?" before anyone
+// `tokenroom doctor` — one command that answers "why isn't it working?" before anyone
 // has to file an issue. Born from field incidents: a THIRD-PARTY hook's failure being
-// misattributed to headroom (Claude Code's hook errors aren't attributed per-hook), an
+// misattributed to tokenroom (Claude Code's hook errors aren't attributed per-hook), an
 // npx-cache install whose absolute paths evaporated, and stale state read as live data.
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const MARK = 'headroom.mjs';
+const MARK = 'tokenroom.mjs';
 
 export function doctor(argv = []) {
   const ci = argv.indexOf('--config-dir');
@@ -30,39 +30,39 @@ export function doctor(argv = []) {
 
   // runtime
   const major = Number(process.versions.node.split('.')[0]);
-  major >= 18 ? ok(`node ${process.versions.node}`) : bad(`node ${process.versions.node} — headroom needs ≥18`);
+  major >= 18 ? ok(`node ${process.versions.node}`) : bad(`node ${process.versions.node} — tokenroom needs ≥18`);
   pkgRoot.includes('/_npx/') || pkgRoot.includes('\\_npx\\')
-    ? bad('running from the npx cache — installed paths will evaporate', 'npm install -g headroom-harness, or run from a clone')
+    ? bad('running from the npx cache — installed paths will evaporate', 'npm install -g tokenroom, or run from a clone')
     : ok(`install location is durable (${pkgRoot})`);
 
   // settings.json wiring
   const settings = readJSON(join(dir, 'settings.json')) ?? {};
   settings.statusLine?.command?.includes(MARK)
     ? ok('statusline tap registered')
-    : bad('statusline tap not registered', `node ${join(pkgRoot, 'bin', 'headroom.mjs')} install`);
+    : bad('statusline tap not registered', `node ${join(pkgRoot, 'bin', 'tokenroom.mjs')} install`);
   const HOOKS = ['UserPromptSubmit', 'PreCompact', 'SessionStart', 'PostCompact', 'PostToolUse', 'PreToolUse'];
   for (const event of HOOKS) {
     const matchers = settings.hooks?.[event] ?? [];
     const ours = matchers.flatMap((m) => m.hooks ?? []).filter((h) => h.command?.includes(MARK));
     if (!ours.length) {
-      bad(`hook ${event}: not registered`, 'headroom install');
+      bad(`hook ${event}: not registered`, 'tokenroom install');
       continue;
     }
     // the absolute path inside the quoted command must still exist
-    const path = ours[0].command.match(/"([^"]*headroom\.mjs)"/)?.[1];
-    path && !existsSync(path) ? bad(`hook ${event}: registered but ${path} no longer exists`, 'headroom install from the current location') : ok(`hook ${event} registered`);
+    const path = ours[0].command.match(/"([^"]*tokenroom\.mjs)"/)?.[1];
+    path && !existsSync(path) ? bad(`hook ${event}: registered but ${path} no longer exists`, 'tokenroom install from the current location') : ok(`hook ${event} registered`);
     const foreign = matchers.flatMap((m) => m.hooks ?? []).filter((h) => h.command && !h.command.includes(MARK));
     if (foreign.length)
-      info(`note: ${foreign.length} other ${event} hook(s) share this event — Claude Code does NOT attribute hook errors per-hook, so their failures can look like headroom's (check: \`${foreign[0].command.slice(0, 60)}…\`)`);
+      info(`note: ${foreign.length} other ${event} hook(s) share this event — Claude Code does NOT attribute hook errors per-hook, so their failures can look like tokenroom's (check: \`${foreign[0].command.slice(0, 60)}…\`)`);
   }
 
   // skill freshness
-  const skillFile = join(dir, 'skills', 'headroom', 'SKILL.md');
-  if (!existsSync(skillFile)) bad('skill not installed', 'headroom install');
+  const skillFile = join(dir, 'skills', 'tokenroom', 'SKILL.md');
+  if (!existsSync(skillFile)) bad('skill not installed', 'tokenroom install');
   else
     readFileSync(skillFile, 'utf8') === readFileSync(join(pkgRoot, 'skill', 'SKILL.md'), 'utf8')
       ? ok('skill installed and current')
-      : bad('skill installed but OUTDATED vs this version', 'headroom install (now content-compares and updates)');
+      : bad('skill installed but OUTDATED vs this version', 'tokenroom install (now content-compares and updates)');
 
   // claude CLI (needed for MCP registration)
   try {
@@ -80,7 +80,7 @@ export function doctor(argv = []) {
     age < 30 * 60 ? ok(`state.json fresh (${fmtDelta(age)} old)`) : info(`state.json is ${fmtDelta(age)} old — fine if no session is active`);
     s.windows?.five_hour
       ? ok('rate-limit windows present (subscription auth)')
-      : info('no rate_limits in payload — API-key auth? headroom degrades to context-only awareness');
+      : info('no rate_limits in payload — API-key auth? tokenroom degrades to context-only awareness');
     s.burn?.tokens_per_pct
       ? ok(`velocity calibrated: ≈${Math.round(s.burn.tokens_per_pct / 1000)}k tokens per window-% (improves with use)`)
       : info('velocity not yet calibrated — tokens-left estimates appear after some real usage');
@@ -88,10 +88,14 @@ export function doctor(argv = []) {
 
   // working state
   const pins = listPins();
-  if (pins.length) info(`${pins.length} pin(s) active (headroom pins)`);
+  if (pins.length) info(`${pins.length} pin(s) active (tokenroom pins)`);
   const plan = readResume();
   if (plan) info(`deferred plan recorded${plan.resume_at ? ` (resume ${fmtDelta(plan.resume_at - Date.now() / 1000)})` : ''}`);
 
-  console.log(`headroom doctor — ${dir}\n${lines.join('\n')}\n${problems ? `${problems} problem(s) found` : 'no problems found'}`);
+  // stale pre-rename state dir (ADR-23: install COPIES ~/.headroom → ~/.tokenroom, never deletes)
+  if (existsSync(join(homedir(), '.headroom')))
+    info('stale pre-rename ~/.headroom still exists — state was copied to ~/.tokenroom at install; safe to delete once no pre-rename sessions/hooks are still running');
+
+  console.log(`tokenroom doctor — ${dir}\n${lines.join('\n')}\n${problems ? `${problems} problem(s) found` : 'no problems found'}`);
   if (problems) process.exitCode = 1;
 }

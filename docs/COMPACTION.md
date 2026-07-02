@@ -1,8 +1,8 @@
-# Compaction: what Claude Code does, what survives, and where headroom builds
+# Compaction: what Claude Code does, what survives, and where tokenroom builds
 
 Research notes, 2026-06-09. Sources: official docs, the public changelog, GitHub issues,
 published behavioral analyses, an OSS-agent survey, and a live dissection of a real
-compaction of a headroom dev session (transcript-level evidence). Everything here is
+compaction of a tokenroom dev session (transcript-level evidence). Everything here is
 buildable on **official extension points only** — see the compliance note at the end.
 
 ## A live specimen (measured, not inferred)
@@ -21,11 +21,11 @@ A real `/compact` of a ~393k-token session, from the session's own transcript JS
 Two operationally useful field findings:
 
 1. **Hooks registered mid-session fire at compaction** — Claude Code reads hook config
-   live; no session restart needed after `headroom install`.
+   live; no session restart needed after `tokenroom install`.
 2. **Hook errors in the UI are not attributed per-hook.** A failing third-party
    SessionStart hook renders as a generic "SessionStart:compact hook error" and is easy
    to misattribute. The transcript JSONL (`hook_non_blocking_error` vs `hook_success`
-   attachments) is the ground truth. → candidate `headroom doctor` check.
+   attachments) is the ground truth. → candidate `tokenroom doctor` check.
 
 ## How Claude Code compaction works (current public understanding)
 
@@ -48,7 +48,7 @@ e.g. finisky.github.io/en/claude-code-context-compaction/):
 Auto-trigger is approximately `context_window − max_output_tokens − ~13k buffer`
 (≈83–84% of a 200k window; numbers are version- and flag-dependent — never hardcode,
 same rule as window size). `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` shifts it (semi-documented;
-headroom already honors it for ceiling math). A circuit breaker stops auto-compaction
+tokenroom already honors it for ceiling math). A circuit breaker stops auto-compaction
 after 3 consecutive failures.
 
 **What is rebuilt fresh rather than summarized** (recoverable state): system prompt,
@@ -65,7 +65,7 @@ user constraints (paraphrased into the summary).
   hook **can block compaction** (exit 2 / `{"decision":"block"}`). A `PostCompact` event
   also exists now.
 - `SessionStart` stdin includes `source: "compact"`; output supports
-  `hookSpecificOutput.additionalContext` — headroom's re-injection point.
+  `hookSpecificOutput.additionalContext` — tokenroom's re-injection point.
 - No hook can add to the summarization prompt itself. The only summary-shaping levers are
   `/compact <focus>` and a **"Compact Instructions" section in CLAUDE.md** (official).
 - Microcompaction (L1–L3) bypasses hooks entirely. The transcript JSONL at
@@ -87,13 +87,13 @@ Full per-repo notes live in the research transcript; the consensus and the stand
 
 **What nobody does:** snapshot ground truth *programmatically*. Every agent that wants
 git/filesystem state in the summary asks the LLM to *remember* it. None of the eight runs
-`git status` at compaction time. That is headroom's wedge, and it's why the handoff
+`git status` at compaction time. That is tokenroom's wedge, and it's why the handoff
 mechanism generalizes: Codex CLI ships PreCompact/PostCompact hooks with a near-identical
 input schema (`session_id`, `transcript_path`, `trigger`, `cwd`), so the adapter is thin.
 
 ## Gap analysis: shipped vs next
 
-| Continuity need | Claude Code native | headroom today | headroom next |
+| Continuity need | Claude Code native | tokenroom today | tokenroom next |
 |---|---|---|---|
 | Repo ground truth (branch/dirty/commits) | LLM recollection only | ✅ PreCompact snapshot → re-inject | — |
 | Budget state across compaction | none | ✅ in handoff | — |
@@ -116,7 +116,7 @@ Original ranking kept below for the reasoning record:
   *"Full pre-compaction transcript: `<path>` — search it for exact error text, file
   contents, and user wording instead of reconstructing from memory."* Extracts go in the
   handoff file, not the context (don't refill what compaction just freed — pointer, not payload).
-- **T2.7 — Pins.** `pin_fact` MCP tool + `headroom pin` CLI → `~/.headroom/pins/<session>.json`;
+- **T2.7 — Pins.** `pin_fact` MCP tool + `tokenroom pin` CLI → `~/.tokenroom/pins/<session>.json`;
   re-injected verbatim at SessionStart(compact). The skill teaches the agent to pin hard
   constraints when it sees them ("no promo until X", "never touch table Y"). This is the
   field-validated pattern (state outside the message list) applied to the one thing only
@@ -125,7 +125,7 @@ Original ranking kept below for the reasoning record:
   optional install step: preserve exact paths, failing commands verbatim, remaining-first
   budget framing.
 - **T2.9 — Compaction observability.** Register PostCompact: log pre/post tokens to
-  `~/.headroom/history.jsonl`, verify the handoff was consumed. In the tap, detect a
+  `~/.tokenroom/history.jsonl`, verify the handoff was consumed. In the tap, detect a
   context-usage cliff without a PreCompact event → that was silent microcompaction;
   surface it in the HUD/stamp with the transcript pointer.
 - **T2.10 — Compaction governor (opt-in, default off).** With PreCompact blocking now
@@ -136,7 +136,7 @@ Original ranking kept below for the reasoning record:
 
 The March 2026 incident was real: `@anthropic-ai/claude-code` v2.1.88 shipped a source
 map that exposed proprietary TypeScript source, mirrored widely before DMCA takedowns.
-**Headroom does not use, reference, or derive from that source.** Two reasons beyond the
+**Tokenroom does not use, reference, or derive from that source.** Two reasons beyond the
 obvious legal one: (1) this project's existence depends on being the compliant,
 official-surfaces-only implementation (see CLAUDE.md hard rules); (2) within 24h of the
 leak, fake "leaked source" repos were carrying infostealer malware — do not fetch mirrors.

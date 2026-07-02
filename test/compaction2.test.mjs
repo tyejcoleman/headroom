@@ -7,7 +7,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const bin = join(root, 'bin', 'headroom.mjs');
+const bin = join(root, 'bin', 'tokenroom.mjs');
 
 const run = (args, { input = '', env = {} } = {}) =>
   spawnSync(process.execPath, [bin, ...args], { input, encoding: 'utf8', env: { ...process.env, ...env } });
@@ -30,7 +30,7 @@ function makeTranscript(dir) {
 
 test('T2.6: pre-compact extracts user messages + tool errors; injection carries pointers, not payload', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t26-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const tp = makeTranscript(dir);
 
   run(['hook', 'pre-compact'], {
@@ -55,7 +55,7 @@ test('T2.6: pre-compact extracts user messages + tool errors; injection carries 
 
 test('T2.6: pre-compact survives a missing/garbage transcript path', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t26b-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const r = run(['hook', 'pre-compact'], {
     input: JSON.stringify({ session_id: 's6b', cwd: dir, transcript_path: join(dir, 'nope.jsonl') }),
     env,
@@ -67,7 +67,7 @@ test('T2.6: pre-compact survives a missing/garbage transcript path', () => {
 
 test('T2.7: pin lifecycle — add/list, verbatim re-injection only at compact, unpin, TTL expiry', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t27-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
 
   const out = run(['pin', 'no promo until June 16'], { env }).stdout;
   const id = out.match(/pinned (\w+)/)[1];
@@ -89,7 +89,7 @@ test('T2.7: pin lifecycle — add/list, verbatim re-injection only at compact, u
 
 test('T2.9: silent context cliff → logged, disclosed once in next stamp, then quiet', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t29-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   const payload = (used) =>
     JSON.stringify({
@@ -112,7 +112,7 @@ test('T2.9: silent context cliff → logged, disclosed once in next stamp, then 
 
 test('T2.9: a cliff right after a real compaction is explained, not flagged', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t29b-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const payload = (used) =>
     JSON.stringify({ session_id: 'd2', context_window: { context_window_size: 200000, used_percentage: used } });
 
@@ -127,7 +127,7 @@ test('T2.9: a cliff right after a real compaction is explained, not flagged', ()
 
 test('T2.10: compact guard blocks auto near reset only — never manual, never far from reset', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t210-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   const state = (resetsIn) =>
     JSON.stringify({
@@ -179,7 +179,7 @@ test('T2.8: install adds removable Compact Instructions + PostCompact hook; unin
 
 test('T2.11: post-tool-use re-stamps on worsening band crossings only — throttled, improvements silent', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-t211-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = () => Math.round(Date.now() / 1000);
   const write = (usedPct) =>
     writeFileSync(
@@ -217,7 +217,7 @@ test('T2.11: post-tool-use re-stamps on worsening band crossings only — thrott
 
 test('ADR-19 descent ladder: full speed >5%, mindful 1–5%, finishing-moves ≤1%', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-descent-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = () => Math.round(Date.now() / 1000);
   const write = (usedPct) =>
     writeFileSync(
@@ -254,7 +254,7 @@ test('ADR-19 descent ladder: full speed >5%, mindful 1–5%, finishing-moves ≤
 
 test('audit: renders the awareness timeline with steering-signal counts', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-audit-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   const evs = [
     { at: now - 300, type: 'stamp', fh_left: 13, ctx_tokens: 600000 },
@@ -275,7 +275,7 @@ test('audit: renders the awareness timeline with steering-signal counts', () => 
 
 test('audit: stamps and MCP consults are logged automatically', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-audit2-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   writeFileSync(
     join(dir, 'state.json'),
@@ -299,7 +299,7 @@ test('audit: stamps and MCP consults are logged automatically', () => {
 
 test('pin_fact via the MCP server works without any ResourceState', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-mcp-pin-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const req = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
   const out = run(['mcp'], {
     input:
@@ -319,7 +319,7 @@ test('pin_fact via the MCP server works without any ResourceState', () => {
 
 test('T2.12: checkpoint lifecycle — save via MCP, re-inject after compact, staleness + wrong-session guards', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-ck-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const req = (id, name, args) =>
     JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } }) + '\n';
   const out = run(['mcp'], {
@@ -355,7 +355,7 @@ test('T2.12: checkpoint lifecycle — save via MCP, re-inject after compact, sta
 
 test('T2.13: receipt fires when one tool call visibly moves the budget; floors keep quiet otherwise', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-rcpt-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = () => Math.round(Date.now() / 1000);
   const write = (usedPct, cost) =>
     writeFileSync(
@@ -385,7 +385,7 @@ test('T2.13: receipt fires when one tool call visibly moves the budget; floors k
 
 test('T2.14: launch gate denies expensive launches only when window says defer — opt-in, fail-open', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-gate-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   const state = (usedPct) =>
     JSON.stringify({
@@ -417,9 +417,9 @@ test('T2.14: launch gate denies expensive launches only when window says defer �
   assert.equal(pre('Task'), '');
 });
 
-test('T2.4: governor mode shifts when headroom speaks — powersave early, performance late, no restart', () => {
+test('T2.4: governor mode shifts when tokenroom speaks — powersave early, performance late, no restart', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-gov-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = () => Math.round(Date.now() / 1000);
   const write = (usedPct) =>
     writeFileSync(
@@ -463,7 +463,7 @@ test('T2.4: governor mode shifts when headroom speaks — powersave early, perfo
 
 test('doctor: flags missing wiring in a sandbox, exits 1; clean after install', () => {
   const cfg = mkdtempSync(join(tmpdir(), 'hr-doc-'));
-  const env = { HEADROOM_DIR: mkdtempSync(join(tmpdir(), 'hr-docd-')) };
+  const env = { TOKENROOM_DIR: mkdtempSync(join(tmpdir(), 'hr-docd-')) };
   const broken = run(['doctor', '--config-dir', cfg], { env });
   assert.equal(broken.status, 1);
   assert.match(broken.stdout, /statusline tap not registered/);
@@ -478,7 +478,7 @@ test('doctor: flags missing wiring in a sandbox, exits 1; clean after install', 
 
 test('stamp: quota tokens are labeled "of quota" — never a bare token pool next to a reset clock', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-conf-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   writeFileSync(
     join(dir, 'state.json'),
@@ -498,7 +498,7 @@ test('stamp: quota tokens are labeled "of quota" — never a bare token pool nex
   assert.doesNotMatch(stamp, /tokens\), resets/); // the confusable shape must not exist
 });
 
-test('release preflight: offline checks run and validate this repo coherently', { skip: !!process.env.HEADROOM_PREFLIGHT }, () => {
+test('release preflight: offline checks run and validate this repo coherently', { skip: !!process.env.TOKENROOM_PREFLIGHT }, () => {
   const r = spawnSync(process.execPath, [join(root, 'scripts', 'release-preflight.mjs'), '--offline'], {
     cwd: root,
     encoding: 'utf8',
@@ -512,7 +512,7 @@ test('release preflight: offline checks run and validate this repo coherently', 
 
 test('stamp discloses concurrent sessions sharing the account window', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-multi-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   writeFileSync(
     join(dir, 'state.json'),
@@ -543,7 +543,7 @@ test('stamp discloses concurrent sessions sharing the account window', () => {
 
 test('reset crossing: dead-window data is reported as FRESH quota, never as dry', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-reset-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   // shape 2 (the worse one): state freshly written but resets_at already passed
   writeFileSync(
@@ -566,17 +566,17 @@ test('reset crossing: dead-window data is reported as FRESH quota, never as dry'
   run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'rx' }), env });
   assert.equal(run(['hook', 'post-tool-use'], { input: JSON.stringify({ session_id: 'rx' }), env }).stdout, '');
   // fit_check reports fresh, not defer
-  process.env.HEADROOM_DIR = dir;
+  process.env.TOKENROOM_DIR = dir;
   const { fitCheck } = await import('../src/fit.mjs');
   const fit = fitCheck(JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8')), { est_tokens: 50000 });
   assert.equal(fit.window.verdict, 'fits');
   assert.equal(fit.window.basis, 'window-reset');
-  delete process.env.HEADROOM_DIR;
+  delete process.env.TOKENROOM_DIR;
 });
 
 test('receipts: baseline from a previous window never produces a delta', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-xwin-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   writeFileSync(
     join(dir, 'state.json'),
@@ -620,7 +620,7 @@ test('weekly cruise: hot pace detected, allowance computed, cool pace stays quie
 
 test('weekly cruise: stamp coaches throttling when HOT; HUD flags it', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-week-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   writeFileSync(
     join(dir, 'state.json'),
@@ -646,7 +646,7 @@ test('weekly cruise: stamp coaches throttling when HOT; HUD flags it', () => {
 
 test('weekly: window is hidden from the LLM until <20% left (even when HOT)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-week-gate-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   const writeState = (sevenUsed) =>
     writeFileSync(
@@ -678,7 +678,7 @@ test('weekly: window is hidden from the LLM until <20% left (even when HOT)', ()
 
 test('5h: exhaustion clause surfaces the runway (when + how long from now)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-runway-'));
-  const env = { HEADROOM_DIR: dir };
+  const env = { TOKENROOM_DIR: dir };
   const now = Math.round(Date.now() / 1000);
   writeFileSync(
     join(dir, 'state.json'),
@@ -710,7 +710,7 @@ test('weekly cruise: full tap pipeline computes pace from a raw payload', () => 
         seven_day: { used_percentage: 90, resets_at: now + 2 * 86400 },
       },
     }),
-    env: { HEADROOM_DIR: dir },
+    env: { TOKENROOM_DIR: dir },
   }).stdout;
   assert.match(out, /week 10% left ⚠hot pace/);
   const st = JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8'));

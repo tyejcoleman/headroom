@@ -1,18 +1,18 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { headroomDir, ensureDir } from './util.mjs';
+import { tokenroomDir, ensureDir } from './util.mjs';
 
-// Compaction observability: a small append-only event log (~/.headroom/events.jsonl)
+// Compaction observability: a small append-only event log (~/.tokenroom/events.jsonl)
 // recording the compaction lifecycle (pre/post/blocked, session starts) and context
 // anomalies. Everything here is best-effort — observability must never break a hook
 // or the tap (ADR-5).
 
-const eventsPath = () => join(headroomDir(), 'events.jsonl');
+const eventsPath = () => join(tokenroomDir(), 'events.jsonl');
 const MAX_LINES = 400;
 
 export function logEvent(event, nowSec = Date.now() / 1000) {
   try {
-    ensureDir(headroomDir());
+    ensureDir(tokenroomDir());
     appendFileSync(eventsPath(), JSON.stringify({ at: Math.round(nowSec), ...event }) + '\n');
     const lines = readFileSync(eventsPath(), 'utf8').trim().split('\n');
     if (lines.length > MAX_LINES) writeFileSync(eventsPath(), lines.slice(-MAX_LINES / 2).join('\n') + '\n');
@@ -42,14 +42,14 @@ export function recentEvents(windowSec, nowSec = Date.now() / 1000) {
 }
 
 /**
- * `headroom audit` — render the awareness loop as a timeline: what headroom knew, what
+ * `tokenroom audit` — render the awareness loop as a timeline: what tokenroom knew, what
  * it injected (or why it stayed silent), and what the agent consulted. The audit shows
  * steering SIGNALS (consults, defers, pins); whether prose behavior changed is the
  * eval harness's job, and this output never pretends otherwise.
  */
 export function renderAudit(sinceSec = 6 * 3600, nowSec = Date.now() / 1000) {
   const evs = recentEvents(sinceSec, nowSec);
-  if (!evs.length) return 'no audit events in this window — use Claude Code with headroom installed, then re-run';
+  if (!evs.length) return 'no audit events in this window — use Claude Code with tokenroom installed, then re-run';
 
   const clock = (t) => {
     const d = new Date(t * 1000);

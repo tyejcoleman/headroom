@@ -1,4 +1,4 @@
-# Contributing to Headroom
+# Contributing to Tokenroom
 
 This repo is built to be worked on **with coding agents** — the repo itself is the
 harness. Context, procedures, and hard gates are wired in so that any agent (Claude Code
@@ -40,7 +40,7 @@ Errors degrade; entry points never throw. All user/model-facing percentages are
 
 ## What's most wanted
 
-- **Real-world payload samples** — `headroom tap --capture`, sanitize, `/add-fixture`.
+- **Real-world payload samples** — `tokenroom tap --capture`, sanitize, `/add-fixture`.
   Especially: Pro plans, 200k-window models, older Claude Code versions, Windows, WSL.
 - **Windows support** — currently untested; the installer warns.
 - **Codex adapter** (PLAN T3.2) — proves the ResourceState spec is provider-neutral.

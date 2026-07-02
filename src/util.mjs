@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 
-export const headroomDir = () => process.env.HEADROOM_DIR || join(homedir(), '.headroom');
+export const tokenroomDir = () => process.env.TOKENROOM_DIR || join(homedir(), '.tokenroom');
 
 export const ensureDir = (dir) => mkdirSync(dir, { recursive: true });
 
@@ -57,7 +57,7 @@ export function fmtDelta(sec) {
 }
 
 /**
- * Governor profiles (T2.4): the mode shifts WHEN headroom speaks up, never what it says.
+ * Governor profiles (T2.4): the mode shifts WHEN tokenroom speaks up, never what it says.
  * powersave = early and often (thrift); performance = only when nearly too late
  * (minimal interruptions); ondemand = the shipped defaults. Read per-event from config,
  * so a mode change applies without restarting anything.
@@ -99,7 +99,7 @@ export function crossedReset(state, nowSec = Date.now() / 1000) {
 // The statusline payload carries NO account identifier, so when concurrent sessions are
 // logged into DIFFERENT accounts they would otherwise clobber one global state.json
 // (last-writer-wins) and the agent-facing stamp would show whichever account rendered
-// last. We give each account its own subtree under ~/.headroom/accounts/<key>/ so a
+// last. We give each account its own subtree under ~/.tokenroom/accounts/<key>/ so a
 // session always reads back ITS OWN account's windows/burn. The account key is derived
 // from the windows' reset PHASE (resets_at mod window length): within an account the phase
 // is invariant across resets, but it differs between accounts. Returns null when there are
@@ -115,12 +115,12 @@ export function accountKey(windows) {
   return 'a' + createHash('sha1').update(phase).digest('hex').slice(0, 10);
 }
 
-export const accountsRoot = () => join(headroomDir(), 'accounts');
+export const accountsRoot = () => join(tokenroomDir(), 'accounts');
 /** Directory holding one account's state/history/calib/flow/bands. Null key → global dir
  *  (api-key users and pre-account fallbacks share the legacy top-level layout). */
-export const accountDir = (key) => (key ? join(accountsRoot(), key) : headroomDir());
+export const accountDir = (key) => (key ? join(accountsRoot(), key) : tokenroomDir());
 
-const sessionsPath = () => join(headroomDir(), 'sessions.json');
+const sessionsPath = () => join(tokenroomDir(), 'sessions.json');
 const SESSION_TTL = 30 * 60;
 
 /** Record which account a session is currently on, so hooks — which never receive
@@ -131,7 +131,7 @@ export function recordSessionAccount(sessionId, key, nowSec = Date.now() / 1000)
     const m = readJSON(sessionsPath()) ?? {};
     for (const k of Object.keys(m)) if (nowSec - (m[k]?.at ?? 0) > SESSION_TTL) delete m[k];
     m[sessionId] = { key, at: nowSec };
-    ensureDir(headroomDir());
+    ensureDir(tokenroomDir());
     atomicWriteJSON(sessionsPath(), m);
   } catch {
     // the map is a convenience cache; never block on it
@@ -178,8 +178,8 @@ export function quotaScope(sessionId, nowSec = Date.now() / 1000) {
   if (mapped) return { dir: accountDir(mapped), show: true };
   const keys = listAccountKeys();
   if (keys.length === 1) return { dir: accountDir(keys[0]), show: true };
-  if (keys.length === 0) return { dir: headroomDir(), show: true };
-  return { dir: headroomDir(), show: false };
+  if (keys.length === 0) return { dir: tokenroomDir(), show: true };
+  return { dir: tokenroomDir(), show: false };
 }
 
 export function readConfig() {
@@ -189,6 +189,6 @@ export function readConfig() {
     mode: 'ondemand',
     compact_guard_min: null, // minutes-to-reset under which AUTO compaction is blocked (ADR-13); null = off
     launch_gate: false, // deny expensive Task/Agent/Workflow launches when the window verdict is defer (T2.14); default OFF
-    ...(readJSON(join(headroomDir(), 'config.json')) ?? {}),
+    ...(readJSON(join(tokenroomDir(), 'config.json')) ?? {}),
   };
 }

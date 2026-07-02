@@ -1,12 +1,12 @@
 ---
-name: headroom
-description: Resource-aware planning. Use when a [headroom] stamp appears in context, before starting any sizable task, or when budgets feel tight — defines how to size work against the rate-limit windows and the context ceiling, when to defer, split, or checkpoint, and how to use the headroom MCP tools (resource_state, estimate_remaining, fit_check).
+name: tokenroom
+description: Resource-aware planning. Use when a [tokenroom] stamp appears in context, before starting any sizable task, or when budgets feel tight — defines how to size work against the rate-limit windows and the context ceiling, when to defer, split, or checkpoint, and how to use the tokenroom MCP tools (resource_state, estimate_remaining, fit_check).
 ---
 
-# Headroom: plan within your budgets
+# Tokenroom: plan within your budgets
 
-You have two scarce budgets, and a `[headroom]` stamp reporting both arrives with user
-prompts when the headroom collector is installed:
+You have two scarce budgets, and a `[tokenroom]` stamp reporting both arrives with user
+prompts when the tokenroom collector is installed:
 
 - **Rate-limit windows** (account-level): `5h: 34% left, resets 14:00 · 7d: 61% left`.
   Subscription windows are use-it-or-lose-it; work attempted past exhaustion fails (429s)
@@ -23,7 +23,7 @@ All percentages in stamps and tools are **remaining**, never used.
 - **Context** is this session's working memory. **No clock refills it — waiting does
   nothing.** It changes only when compaction fires (automatic, near the ceiling) or the
   user runs /clear. Low context → save a `checkpoint`, then KEEP WORKING: compaction is
-  automatic and survivable — headroom re-injects your checkpoint, repo ground truth, and
+  automatic and survivable — tokenroom re-injects your checkpoint, repo ground truth, and
   pins immediately after it.
 - Never stop to "wait for context to come back at the reset" — that waits for the wrong
   resource and wastes wall-clock. If a fresh context window would genuinely help the next
@@ -45,7 +45,7 @@ All percentages in stamps and tools are **remaining**, never used.
 
 ## Mid-task updates
 
-During long multi-step work a `[headroom] mid-task update` may arrive after a tool call
+During long multi-step work a `[tokenroom] mid-task update` may arrive after a tool call
 — it means a budget crossed a threshold *while you were working*. Treat it as a
 re-planning point: re-check fit, land at a clean boundary, or defer (`plan_resume`).
 
@@ -62,7 +62,7 @@ NOT context-tiredness (recoverable only via compaction); do not confuse the reme
 ## Weekly cruise control
 
 The 7-day window is **only surfaced once it drops below ~20% remaining** — above that a
-healthy weekly budget is not a binding constraint, so headroom deliberately omits it from
+healthy weekly budget is not a binding constraint, so tokenroom deliberately omits it from
 your stamp. Its absence therefore means "plenty left," never "unknown"; do not infer
 weekly pressure, and do not throttle for it, when the stamp shows no 7d figure.
 
@@ -81,7 +81,7 @@ at the reset with nothing wasted — the ideal.
 - Batch tool calls; prefer cache-friendly ordering (stable file set, no re-reads).
 - Heavy work that fits a fresh window: defer past the reset — call **`plan_resume`** with a
   one-to-two-sentence summary of what to resume and where to pick it up (plus `est_tokens`).
-  Headroom shows a countdown in the HUD and flags readiness in prompt stamps after the reset.
+  Tokenroom shows a countdown in the HUD and flags readiness in prompt stamps after the reset.
 - If the window resets while you're working, capacity is fresh — re-check and use it.
 - **Quota is shared across every open session on this account — and the numbers already
   include everyone.** The percentages and burn projections are account-level, so do NOT
@@ -92,19 +92,19 @@ at the reset with nothing wasted — the ideal.
 ## Deferred work lifecycle
 
 When a stamp or session start says **"deferred work now ready"**: tell the user, and once
-the work is actually picked up, clear the plan (`headroom resume --clear`). Never re-defer
+the work is actually picked up, clear the plan (`tokenroom resume --clear`). Never re-defer
 ready work without saying so.
 
 ## After compaction
 
-If a `[headroom] post-compaction ground truth` block appears at session start, it is a
+If a `[tokenroom] post-compaction ground truth` block appears at session start, it is a
 pre-compaction snapshot of hard repository facts (branch, uncommitted files, recent
 commits). **Trust it over the compacted summary** when they disagree. It names the file you
 were **most recently editing** — open that file first to see exactly where you left off,
 then check the other uncommitted files and resume the in-flight task. Do not redo work the
 snapshot shows as already done.
 
-If a `[headroom] your canonical handoff doc … survived compaction` block appears, **read
+If a `[tokenroom] your canonical handoff doc … survived compaction` block appears, **read
 that file first** — it is the doc you wrote for exactly this moment (mission, state, exact
 next steps, references, decisions, the user's directives, improvements). Resume straight
 from its next steps at full speed; don't reconstruct from the compacted summary, and don't
@@ -120,9 +120,9 @@ memory — a wrong guess costs more than a read.
 Compaction paraphrases; **pins survive verbatim**. When the user states a hard
 constraint, deadline, or exact value that a future compacted you must not garble ("no
 promo before June 16", "never run migrations on prod", a port, a budget), call
-**`pin_fact`** with that constraint in one sentence. Headroom re-injects every pin
+**`pin_fact`** with that constraint in one sentence. Tokenroom re-injects every pin
 word-for-word after each compaction. When a pin is satisfied or obsolete, say so and run
-`headroom unpin <id>`. Pin sparingly: pins are for sentences whose exact wording matters,
+`tokenroom unpin <id>`. Pin sparingly: pins are for sentences whose exact wording matters,
 not general context.
 
 ## Near the context ceiling: hand off, don't slow down
@@ -162,7 +162,7 @@ The handoff ritual — do this, then immediately keep working at full speed:
    references, decisions, the USER's own directives and corrections, improvements, open
    questions.
 2. **Do NOT re-save on every low-context nudge.** Once your handoff is current, keep
-   working — re-writing identical state wastes throughput, and headroom tracks when you
+   working — re-writing identical state wastes throughput, and tokenroom tracks when you
    last saved (it tells you in the mid-task update, so you know it's captured). It will give
    you exactly ONE "super close to auto-compaction" nudge when you are safely-but-imminently
    near the ceiling; make the doc current THEN, and only then. Between task boundaries and
@@ -175,7 +175,7 @@ The handoff ritual — do this, then immediately keep working at full speed:
    cannot press a compaction button, and ending your turn to "wait" only blocks it until the
    user nudges). So keep producing work — more tool calls, more edits — straight through the
    ceiling. Right after it fires,
-   headroom re-injects your handoff's path + digest and you resume in one read, at full
+   tokenroom re-injects your handoff's path + digest and you resume in one read, at full
    velocity, redoing nothing. Front-load the doc's next-steps for that post-compaction self,
    name the dead ends already ruled out, and `pin_fact` any exact value that must survive.
 

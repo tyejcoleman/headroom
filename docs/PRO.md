@@ -1,4 +1,4 @@
-# Headroom Pro — org thesis and validation gates
+# Tokenroom Pro — org thesis and validation gates
 
 *2026-06-10 · planning doc, not a commitment. Same method as VALIDATION.md: cheap gates
 with kill criteria before any machinery. The free tool stays free forever — Pro is a
@@ -10,7 +10,7 @@ One protocol, three tiers:
 
 | Tier | Buyer | Budget source | Status |
 |---|---|---|---|
-| **headroom** (OSS, free forever) | individual dev | statusline payload (seat quota) | shipped |
+| **tokenroom** (OSS, free forever) | individual dev | statusline payload (seat quota) | shipped |
 | **Fleet** | eng manager with Claude Code seats | aggregated opt-in client states | gated on launch signal |
 | **Pro** | platform/infra team, API keys | `anthropic-ratelimit-*` headers + usage/cost Admin APIs + org-assigned internal budgets | this doc |
 
@@ -25,7 +25,7 @@ policy push (governor modes, launch gates, compact guards per team).
 The strongest paid feature is the **fleet version of the self-evolving harness**
 (`docs/EVOLVING-HARNESS.md`), and the line is exact:
 
-- **Free, forever:** `headroom suggest` learns from **one dev, one machine** — proposes
+- **Free, forever:** `tokenroom suggest` learns from **one dev, one machine** — proposes
   evolutions from *your* friction. This is the viral core; it MUST be free, because the
   wow features (suggest, recap, the evolution proposals) are the distribution engine —
   they get screenshotted and shared. Paywalling your best demo strangles adoption before
@@ -54,8 +54,8 @@ A budgets dashboard is a feature of their products; building one is a losing rac
 when a team hits its cap, the gateway *throttles* and agents *fail mid-task*, burning
 the spend that got them halfway. Nothing in that stack can make the agent plan smaller,
 defer past a reset, checkpoint before dying, or survive compaction — that behavior lives
-in the harness, where headroom already is. The pitch in one line:
-**"Your gateway throttles your agents. Headroom makes them cooperate."**
+in the harness, where tokenroom already is. The pitch in one line:
+**"Your gateway throttles your agents. Tokenroom makes them cooperate."**
 
 **Moat honesty:** the seat-org wedge (Fleet) has a *data* moat — seat quota exists only
 client-side; no proxy can ever see it. Pro-for-API-keys has no data moat (gateways see
@@ -87,7 +87,7 @@ on-prem audit) likely survives — that's the defensible remainder.
   inbound; pre-sell a paid pilot. **Gate:** 2 paying pilots. **Kill:** zero after 10
   conversations → wrong buyer or wrong price; stop.
 
-Only after V1–V4: build `headroom-d` (aggregator binary), policy push, SSO/audit.
+Only after V1–V4: build `tokenroom-d` (aggregator binary), policy push, SSO/audit.
 Pricing instinct: per-seat $5–15/mo (Fleet), platform pricing for Pro pilots — price
 against one wasted engineer-hour, not against gateway licenses.
 

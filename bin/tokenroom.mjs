@@ -41,7 +41,7 @@ switch (cmd) {
       words.splice(ti, 2);
     }
     const pin = addPin(words.join(' '), { ttl_hours: ttl });
-    console.log(pin ? `pinned ${pin.id}: ${pin.text}` : 'usage: headroom pin "fact that must survive compaction" [--ttl-hours N]');
+    console.log(pin ? `pinned ${pin.id}: ${pin.text}` : 'usage: tokenroom pin "fact that must survive compaction" [--ttl-hours N]');
     break;
   }
   case 'pins': {
@@ -52,14 +52,14 @@ switch (cmd) {
   case 'handoff': {
     const { latestContinuity } = await import('../src/continuity.mjs');
     const h = latestContinuity();
-    if (!h) console.log('no handoff doc yet — the agent writes one via the headroom `handoff` MCP tool');
+    if (!h) console.log('no handoff doc yet — the agent writes one via the tokenroom `handoff` MCP tool');
     else if (argv[0] === '--path') console.log(h.path);
     else console.log(h.markdown ?? `handoff doc at ${h.path} (unreadable)`);
     break;
   }
   case 'unpin': {
     const n = removePins(argv[0] === '--all' ? '--all' : argv[0]);
-    console.log(n ? `removed ${n} pin${n > 1 ? 's' : ''}` : 'no matching pin (`headroom pins` to list)');
+    console.log(n ? `removed ${n} pin${n > 1 ? 's' : ''}` : 'no matching pin (`tokenroom pins` to list)');
     break;
   }
   case 'resume': {
@@ -92,25 +92,25 @@ switch (cmd) {
     break;
   case 'status': {
     const s = readState();
-    console.log(s ? JSON.stringify(s, null, 2) : 'no state yet — install the tap and use Claude Code once (headroom install)');
+    console.log(s ? JSON.stringify(s, null, 2) : 'no state yet — install the tap and use Claude Code once (tokenroom install)');
     break;
   }
   default:
-    console.log(`headroom — resource-aware layer for Claude Code
+    console.log(`tokenroom — resource-aware layer for Claude Code
 
 usage:
-  headroom install [--dry-run] [--no-mcp] [--config-dir <dir>]   wire up statusline + hooks + skill + MCP
-  headroom uninstall [--config-dir <dir>]                        remove everything install added
-  headroom status                                                print the current ResourceState
-  headroom watch                                                 LIVE dashboard (1s ticks) for a second pane
-  headroom line                                                  one live line (countdowns at call time) for tmux/xbar/waybar
-  headroom resume [--clear]                                      show or clear the deferred-work plan
-  headroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
-  headroom pins | unpin <id|--all>                               list / remove pins
-  headroom handoff [--path]                                      print the canonical handoff doc (the agent writes it via the MCP tool)
-  headroom audit [--since <hours>]                               timeline of the awareness loop (default 6h)
-  headroom doctor                                                diagnose the install (wiring, freshness, conflicts)
-  headroom tap [--capture]      (statusline command — wired by install)
-  headroom hook <user-prompt-submit|pre-compact|session-start|post-compact>   (hook commands — wired by install)
-  headroom mcp                                    (stdio MCP server — wired by install)`);
+  tokenroom install [--dry-run] [--no-mcp] [--config-dir <dir>]   wire up statusline + hooks + skill + MCP
+  tokenroom uninstall [--config-dir <dir>]                        remove everything install added
+  tokenroom status                                                print the current ResourceState
+  tokenroom watch                                                 LIVE dashboard (1s ticks) for a second pane
+  tokenroom line                                                  one live line (countdowns at call time) for tmux/xbar/waybar
+  tokenroom resume [--clear]                                      show or clear the deferred-work plan
+  tokenroom pin "<fact>" [--ttl-hours N]                          pin a fact to survive compaction verbatim
+  tokenroom pins | unpin <id|--all>                               list / remove pins
+  tokenroom handoff [--path]                                      print the canonical handoff doc (the agent writes it via the MCP tool)
+  tokenroom audit [--since <hours>]                               timeline of the awareness loop (default 6h)
+  tokenroom doctor                                                diagnose the install (wiring, freshness, conflicts)
+  tokenroom tap [--capture]      (statusline command — wired by install)
+  tokenroom hook <user-prompt-submit|pre-compact|session-start|post-compact>   (hook commands — wired by install)
+  tokenroom mcp                                    (stdio MCP server — wired by install)`);
 }
