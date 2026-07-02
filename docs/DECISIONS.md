@@ -295,3 +295,53 @@ simulation rig keeps its on-disk `headroom` fixture naming for reproducibility.
 stale-dir hint in `src/doctor.mjs`, replace-not-duplicate and migration tests in
 `test/cli.test.mjs`, and the rename-commit grep gate (`grep -rni headroom src bin test
 schema` → only justified survivors, all referring to pre-rename artifacts).
+
+## ADR-24 — Multi-account profiles: labels are identity, the payload wins, descent is pair-aware (amends ADR-21, ADR-19)
+ADR-21's phase-derived account keys give ISOLATION but not stable IDENTITY: an idle
+account starts its next 5h window at a new phase, so one physical account spreads across
+several key buckets (field 2026-07-01: 2 real accounts → 4+ buckets). And a `/login`
+switch mid-session left the stamp quoting the OLD account for ~20 minutes (field capture
+2026-07-01 21:10–21:30: "0% left" asserted as fresh while the switched-to account sat at
+98%). Five decisions, one boundary:
+
+(a) **Payload wins, instantly.** The statusline payload is ground truth for which account
+a session is on NOW. A render whose computed key differs from `sessions.json`'s mapping
+remaps in that same tap invocation, appends an `account_switch` event, and the next
+prompt stamp discloses the switch ONCE with the new account's numbers.
+(b) **Echo honesty.** After `/login` the payload keeps echoing `rate_limits` cached from
+the old account's last completed turn, and every re-render re-stamps the echo as 0m-fresh
+— the tap now records `values_changed_at` (when the window VALUES last moved), and a
+critical (<15% left) figure frozen >5 min while a sibling account holds values-newer data
+is disclosed as a possible pre-switch echo instead of being asserted as fresh ("never
+inject a lie", ADR-5 spirit).
+(c) **Named profiles are the identity layer** (`~/.tokenroom/profiles.json`: label →
+{keys[], config_dir?, last_seen, last_windows_snapshot}); `tokenroom account
+label/list/fold/config-dir`. Heuristic folding only ASSISTS — a new unlabeled bucket
+appearing right after a labeled profile's window expired, with no other profile active,
+yields a fold HINT in doctor/`account list`; tokenroom never auto-merges buckets. Zero
+profiles → every surface behaves exactly as pre-ADR-24.
+(d) **Pair-aware descent.** With a second fresh-enough profile known (snapshot age <6h —
+beyond a reset clock the data is history; age always disclosed), ADR-19's descent applies
+to the PAIR: active low (<15%) + other healthy (≥40% or a passed reset) → "finish this
+unit at full speed, then switch (/login or `tokenroom switch`) for zero downtime; defer
+only if BOTH profiles are thin" — the 1% floor becomes land-and-switch instead of
+plan_resume. Both thin → today's defer wording stands unchanged. Healthy active → at most
+a terse `alt '<label>' ≈X%` in the human HUD, NOTHING in the model stamp (the same noise
+discipline as the 7d <20% gate). The advisor tells the human/agent; the HUMAN switches.
+(e) **Compliance boundary — awareness + advice + launch-time selection only.** `tokenroom
+run [--profile X]` / `tokenroom switch` launch or recommend an interactive `claude` under
+a per-profile config dir via the official `CLAUDE_CONFIG_DIR` env var, chosen when the
+USER starts a session. Hard NO, unchanged from ADR-1: no reading/writing auth or
+credential files, no mid-session account hot-swap, no rotation daemon to defeat rate
+limits — the session's sign-in is bound at start and stays untouched.
+
+*Why:* a resource-awareness tool on a two-account machine must (1) never report the
+account you just left, and (2) stop an agent from throttling/deferring when a fresh
+window is one `/login` away — unspent-and-switchable quota is the same waste ADR-19
+exists to prevent. **Enforced by:** switch detection + `values_changed_at` in
+`src/tap.mjs`; profiles/advisor/echo logic in `src/accounts.mjs`; the pair-aware ladder
+in `src/hook.mjs`; the field-capture fixture suite in `test/accounts.test.mjs`; MCP
+ambiguity withholding in `src/mcp.mjs` + `test/mcp.test.mjs`. NOTE: the new stamp/advice
+WORDING (switch banner, echo honesty, pair advice) has not yet run the ADR-9 wording
+eval — it is batched with the other pending items into the harden round and gates the
+npm release.

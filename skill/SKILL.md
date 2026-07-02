@@ -89,6 +89,21 @@ at the reset with nothing wasted — the ideal.
   another session can spend a chunk suddenly. Response: re-check the stamp more often
   and keep individual work units atomic — not "stop earlier".
 
+## Two accounts (profiles)
+
+Some users run two subscription accounts and switch with /login. Read these signals:
+
+- **"account switched — now on '\<profile\>'"** in a stamp: your quota now comes from
+  that account. Every earlier quota figure in this conversation belongs to the previous
+  account — disregard them all.
+- **"profile '\<X\>' has ≈N% left … finish this unit at full speed, then switch"**: low
+  quota here is NOT a throttle or defer signal — a fresh window is one switch away. Keep
+  full speed to a clean boundary, then tell the user to switch (/login, or `tokenroom
+  switch` for the decision table). Defer past a reset only when BOTH profiles are thin.
+- A figure marked **"possibly a pre-switch echo"** is not trustworthy — the payload may
+  still be echoing the previous account; real numbers arrive after the next completed
+  turn. Don't plan around it, and don't panic-defer on it.
+
 ## Deferred work lifecycle
 
 When a stamp or session start says **"deferred work now ready"**: tell the user, and once

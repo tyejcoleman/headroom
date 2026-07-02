@@ -13,10 +13,13 @@ agent that knows where it is behaves differently: it sizes work to fit, spends t
 to the bottom in safe atomic pieces, checkpoints before the cliff, defers past resets
 with a plan, and resumes from ground truth instead of a lossy summary.
 
-> **Status: 0.3.0, ship-ready.** Working end-to-end and dogfooded hard by its author
-> (including surviving its own compactions); every
-> behavioral claim eval-tested (below); macOS/Linux; Windows untested. npm package lands
-> with the public launch — install from source today. [Report sharp edges](.github/ISSUE_TEMPLATE).
+> **Status: 0.5.x (unreleased) — renamed from *headroom* to **tokenroom** (ADR-23).**
+> Working end-to-end and dogfooded hard by its author (including surviving its own
+> compactions and its own account switches); every behavioral claim eval-tested (below);
+> 79 tests green on node 18/20/22 CI; macOS/Linux; Windows untested. The ARM headless
+> executor was removed (ADR-22) — autonomous continuation moves to a separate package;
+> all awareness surfaces stay. npm publish under the new name is pending — install from
+> source today. [Report sharp edges](.github/ISSUE_TEMPLATE).
 
 ## The problem
 
@@ -55,7 +58,7 @@ MCP). Event-driven — no daemon, no polling. Full detail: [`docs/ARCHITECTURE.m
 ## Install
 
 ```bash
-npm i -g tokenroom && tokenroom install   # once published to npm — publish pending; until then:
+npm i -g tokenroom && tokenroom install   # publish pending under the new name; until then, from source:
 git clone https://github.com/tyejcoleman/tokenroom && cd tokenroom
 node bin/tokenroom.mjs install        # --dry-run to preview · uninstall to remove cleanly
 ```
@@ -172,6 +175,20 @@ When `fit_check` says work won't fit the current window, the model records a pla
 `plan_resume`. The moment the window resets, prompt stamps, new sessions, and the HUD
 (`✓ deferred work ready`) announce it. Capacity that used to expire silently now has a
 queue (`tokenroom resume` to inspect, `--clear` when picked up).
+
+## Two accounts? It knows which one you're on
+
+Toggle subscription accounts with `/login` and tokenroom keeps up: each account's
+windows live in their own store (never cross-contaminated), a mid-session switch is
+detected on the very next statusline render (the stamp announces "account switched — now
+on '\<profile\>'" with the new numbers), and a pre-switch *echo* — the old account's dry
+figure frozen in the payload — is disclosed instead of asserted. Name your accounts
+(`tokenroom account label work`) and the pair becomes a planning unit: when the active
+window runs low but the other profile is fresh, the agent is told to *finish the unit at
+full speed, then switch — zero downtime* instead of deferring past a reset.
+`tokenroom switch` prints the decision table; `tokenroom run` launches `claude` on the
+profile with the most headroom (per-profile `CLAUDE_CONFIG_DIR` — launch-time selection
+only; tokenroom never touches auth files or swaps anything mid-session).
 
 ## It flies the window like a descent profile — never wasting the tail, never crashing
 

@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Added
+- **Multi-account profiles + smart switch advice (ADR-24).** For users toggling two
+  subscription accounts via `/login`:
+  - **Instant switch detection** — the payload is ground truth: a statusline render whose
+    account key differs from the session's mapping remaps in that same tap invocation
+    (payload wins, always), logs an `account_switch` event, and the next stamp announces
+    the switch once with the NEW account's numbers. Fixes the field capture 2026-07-01
+    where a session stamped "0% left" for ~20 minutes after switching to an account at 98%.
+  - **Echo honesty** — the tap tracks when window VALUES last moved
+    (`values_changed_at`); a critical figure frozen >5 min while a sibling account has
+    values-newer data is stamped as a possible pre-switch echo ("figures refresh on the
+    next completed turn"), never asserted as fresh.
+  - **Named profiles are identity** (ADR-21's phase keys give isolation, not identity):
+    `tokenroom account label <name>` / `list` / `fold <key> <name>` /
+    `config-dir <name> <path>`, stored in `~/.tokenroom/profiles.json`. Heuristic folding
+    only ever HINTS (doctor + `account list`); zero profiles → behavior unchanged.
+  - **Pair-aware descent** — low active window + a fresh other profile → stamps and
+    mid-turn bands say "finish this unit at full speed, then switch (/login or
+    `tokenroom switch`) for zero downtime; defer only if BOTH profiles are thin"; the 1%
+    floor becomes land-and-switch. Healthy active → HUD-only terse `alt '<label>' ≈X%`.
+  - **`tokenroom switch`** (profile decision table + recommended move) and
+    **`tokenroom run [--profile X]`** (launch `claude` under the best/named profile's
+    config dir via the official `CLAUDE_CONFIG_DIR` env var — launch-time selection only;
+    auth files are never read or written, nothing is swapped mid-session).
+  - New stamp/advice wording joins the batched ADR-9 eval before the npm release.
+
+### Fixed
+- **MCP tools no longer report whichever account rendered last (ADR-21 gap).** The server
+  now resolves quota via the tap's session map: one recently-active account → that
+  account's state; two or more active in the last 10 minutes → quota is withheld with an
+  explicit `attribution: "ambiguous — quota withheld …"` on
+  `resource_state`/`estimate_remaining`/`fit_check`/`plan_resume` instead of ever
+  returning the wrong account's numbers.
+
 ### Changed
 - **Renamed: headroom → tokenroom (ADR-23).** The practical owner of the name "headroom"
   is headroomlabs-ai/headroom (55k★, whose CLI binary is literally `headroom` — a direct
