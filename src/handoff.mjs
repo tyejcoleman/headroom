@@ -90,7 +90,8 @@ export function captureHandoff({ session_id, cwd, trigger, transcript_path, cust
       ensureDir(handoffDir());
       writeFileSync(
         extractsPathFor(session_id),
-        JSON.stringify({ session_id, at: snap.at, source_transcript: snap.transcript_path, ...extracts }, null, 2)
+        JSON.stringify({ session_id, at: snap.at, source_transcript: snap.transcript_path, ...extracts }, null, 2),
+        { mode: 0o600 }
       );
       snap.extracts_path = extractsPathFor(session_id);
     }
@@ -134,7 +135,7 @@ export function captureHandoff({ session_id, cwd, trigger, transcript_path, cust
     };
   }
   ensureDir(handoffDir());
-  writeFileSync(pathFor(session_id), JSON.stringify(snap, null, 2));
+  writeFileSync(pathFor(session_id), JSON.stringify(snap, null, 2), { mode: 0o600 });
   return snap;
 }
 

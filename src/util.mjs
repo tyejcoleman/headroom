@@ -1,15 +1,24 @@
-import { mkdirSync, writeFileSync, renameSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, chmodSync, writeFileSync, renameSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes, createHash } from 'node:crypto';
 
 export const tokenroomDir = () => process.env.TOKENROOM_DIR || join(homedir(), '.tokenroom');
 
-export const ensureDir = (dir) => mkdirSync(dir, { recursive: true });
+// State may hold verbatim user messages (extracts, continuity) — owner-only, always.
+// chmod converges dirs created before this hardening; best-effort (never crash a tap/hook).
+export const ensureDir = (dir) => {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try {
+    chmodSync(dir, 0o700);
+  } catch {
+    /* exotic FS without chmod — the mkdir mode already covered the created case */
+  }
+};
 
 export function atomicWrite(path, text) {
   const tmp = `${path}.${randomBytes(4).toString('hex')}.tmp`;
-  writeFileSync(tmp, text);
+  writeFileSync(tmp, text, { mode: 0o600 });
   renameSync(tmp, path);
 }
 
