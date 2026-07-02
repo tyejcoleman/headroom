@@ -61,6 +61,11 @@ NOT context-tiredness (recoverable only via compaction); do not confuse the reme
 
 ## Weekly cruise control
 
+The 7-day window is **only surfaced once it drops below ~20% remaining** — above that a
+healthy weekly budget is not a binding constraint, so headroom deliberately omits it from
+your stamp. Its absence therefore means "plenty left," never "unknown"; do not infer
+weekly pressure, and do not throttle for it, when the stamp shows no 7d figure.
+
 The 7-day window is paced, not just measured. When the stamp says **"weekly pace is
 HOT"**, the account is consuming the week faster than it can sustain: at that pace the
 weekly budget dies before its reset and EVERY session goes dark until it returns. The
@@ -128,11 +133,23 @@ capacity this layer exists to burn. Let the window fill all the way to the floor
 thing that changes near the ceiling: you keep an excellent handoff so the post-compaction
 you continues seamlessly — across as many compactions as the task takes.
 
-**Keep working until you are *super close* to the ceiling, and let auto-compaction fire on
-its own.** You cannot trigger compaction and you do not need to — never stop, wind down, or
-hand control back to "wait for" it; just keep going and it will fire automatically, after
-which your handoff doc + ground truth are re-injected and you continue. This is about
-**context only**. Rate-limit/quota exhaustion is the *different* budget — that one you DO
+**The mechanism agents get wrong — read this twice.** Auto-compaction is NOT a background
+timer and does NOT happen "while you wait." It fires at the *start of your next turn*, and
+only if you actually take one: the harness checks context size when you are about to act, and
+if you're over the threshold it compacts first, then lets you act. **Your next tool call is
+the trigger.** End your turn instead — emit a closing message with no tool call — and you go
+idle, no inference starts, and compaction does NOT fire until the *user* sends a message. That
+is the exact inefficient stall to avoid: the task hangs at ~9% waiting for a human to nudge a
+refresh you could have triggered yourself just by continuing.
+
+So **"let it auto-compact" means keep issuing tool calls — never "stop and wait."** Writing
+"I'm at the ceiling, so I'll let it compact" and then ending the turn is the bug, not the fix:
+that sentence *announces* the stall while *causing* it. Don't write it. If real work remains,
+your next output is a tool call. If nothing of value remains, the task is *done* — say so
+plainly; do not dress up "done" as "waiting for compaction." You cannot press a compaction
+button and don't need to — you trigger it by continuing; going idle is the one move that
+PREVENTS it. Keep acting and it fires at your next turn, after which your handoff doc + ground
+truth are re-injected and you continue. This is about **context only**. Rate-limit/quota exhaustion is the *different* budget — that one you DO
 pace and defer at its reset clock (the descent profile above). Do not apply quota caution to
 context, or context fearlessness to quota.
 
@@ -153,9 +170,11 @@ The handoff ritual — do this, then immediately keep working at full speed:
 3. **POWER THROUGH to auto-compaction — never stop near the ceiling.** This is the part
    agents get wrong: as context fills they get cautious and stop "to be safe." That is the
    exact opposite of correct — **stopping strands the task**, because the session can only
-   refresh and continue if you keep working until Claude Code auto-compacts (you cannot
-   trigger compaction; it fires on its own once context is full enough). So keep producing
-   work — more tool calls, more edits — straight through the ceiling. Right after it fires,
+   refresh and continue if you keep working until Claude Code auto-compacts — which fires at
+   the START of your NEXT turn, so the way to make it fire is to TAKE that next turn (you
+   cannot press a compaction button, and ending your turn to "wait" only blocks it until the
+   user nudges). So keep producing work — more tool calls, more edits — straight through the
+   ceiling. Right after it fires,
    headroom re-injects your handoff's path + digest and you resume in one read, at full
    velocity, redoing nothing. Front-load the doc's next-steps for that post-compaction self,
    name the dead ends already ruled out, and `pin_fact` any exact value that must survive.

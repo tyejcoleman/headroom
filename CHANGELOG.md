@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.5.2 — 2026-06-22
+
+### Added
+- **5h exhaustion clause now states the runway in relative time.** The "when will constant
+  work stop me" projection used to give only wall-clock times (`may run dry ~20:40–21:05`);
+  it now appends `— ≈Xm of work left at this pace` (the conservative/earliest edge of the
+  band, from now), so the answer reads instantly without mental math. Shows only when
+  projected exhaustion lands before the window reset (i.e., when constant work would
+  actually get cut off); silent when cruising. `src/hook.mjs`, locked by a new test.
+
+### Changed
+- **The 7-day window is now hidden from the LLM until <20% remains** (user directive). The
+  prompt stamp used to disclose `7d: NN% left` every turn — and the "weekly pace is HOT"
+  coaching even at 54% left — which read as noise and invited premature throttling on a
+  budget that wasn't yet binding. `src/hook.mjs` now gates the entire weekly segment
+  (figure *and* HOT/cruising coaching) behind `100 − seven_day.used_pct < 20`; above that
+  the model is told nothing about the weekly window. The human-facing HUD/`watch`/`line`
+  are unchanged. `skill/SKILL.md` "Weekly cruise control" now notes that the absence of a
+  7d figure means "plenty left," not "unknown," so the model won't infer pressure from
+  silence. New boundary test locks it (hidden at 54% even when HOT in state; shown at 19%).
+
+### Fixed
+- **Agent no longer stalls at the context ceiling waiting for the user to trigger
+  compaction.** The skill and the mid-turn context nudges framed auto-compaction as
+  something that "fires on its own" / "automatically" — which the model misread as
+  *passive*: it would write its handoff, announce "I'm at the ceiling, so I'll let it
+  compact," and then END ITS TURN, going idle. But auto-compaction fires only at the
+  **start of the agent's next turn**, and only if it takes one — so ending the turn blocks
+  compaction until the *user* manually sends a message (the inefficient ~9%-left hang the
+  user reported). All three surfaces now state the mechanism literally: your next tool call
+  IS the trigger; "let it auto-compact" means keep issuing tool calls, never "stop and
+  wait"; announcing the stall while ending the turn is the bug, not the fix.
+  - `skill/SKILL.md` "Near the context ceiling" — new mechanism paragraph ("read this
+    twice") replacing the misleading "let auto-compaction fire on its own," plus a reworded
+    point 3 (no more "it fires on its own once context is full enough").
+  - `src/hook.mjs` SUPER-CLOSE nudge and the context-low band message — each now carries
+    the "next turn is the trigger; ending your turn blocks compaction until the user nudges"
+    correction. SUPER-CLOSE keeps its `SUPER CLOSE to auto-compaction` prefix (continuity
+    test unchanged); 61/61 tests green.
+- **Switching accounts (or running two accounts at once) no longer shows the wrong
+  account's quota.** The statusline payload carries no account id, so concurrent Claude Code
+  sessions logged into different accounts were all clobbering one global
+  `~/.headroom/state.json` (last-writer-wins) — and the `[headroom]` stamp showed whichever
+  account rendered last. Field capture 2026-06-25 caught two accounts flip-flopping the 7-day
+  figure between 2% and 93% used on the same machine. Headroom now isolates every
+  account-scoped store under `~/.headroom/accounts/<key>/` (state, burn history, calibration,
+  flow, bands), keyed on the windows' reset phase (stable within an account, distinct between
+  accounts). Each session reads only its OWN account's windows; multi-session disclosure
+  ("N sessions sharing this quota" + combined burn) now counts same-account sessions only;
+  and when ≥2 accounts are active but a session can't yet be attributed, quota is withheld
+  rather than guessed. Single-account and api-key users are unaffected. New ADR-21 (amends
+  ADR-7); unit + end-to-end isolation tests; 67/67 green. `src/util.mjs`, `src/state.mjs`,
+  `src/flow.mjs`, `src/tap.mjs`, `src/hook.mjs`.
+
 ## 0.5.1 — 2026-06-20
 
 ### Fixed

@@ -12,9 +12,11 @@ import { headroomDir, ensureDir, atomicWriteJSON, readJSON } from './util.mjs';
 // denominator is undocumented, so we learn it instead of faking it. Single-session
 // calibration assumption documented in PLAN T2.1; concurrent sessions widen the error.
 
-const cursorsPath = () => join(headroomDir(), 'flow-cursors.json');
-const flowPath = () => join(headroomDir(), 'flow.jsonl');
-const calibPath = () => join(headroomDir(), 'calib.json');
+// Paths are per-account: the caller passes the account directory (accountDir(key)); the
+// default keeps the legacy global layout for api-key users and direct unit-test calls.
+const cursorsPath = (dir = headroomDir()) => join(dir, 'flow-cursors.json');
+const flowPath = (dir = headroomDir()) => join(dir, 'flow.jsonl');
+const calibPath = (dir = headroomDir()) => join(dir, 'calib.json');
 const FLOW_WINDOW_SEC = 90 * 60;
 const FLOW_MAX_LINES = 2000;
 const IDLE_OUT_TOKENS = 500; // fewer out-tokens than this in 10min = effectively idle
@@ -22,11 +24,11 @@ const CALIB_MAX_SAMPLES = 50;
 
 /** Incrementally read NEW bytes of the transcript and append usage samples. Cheap:
  *  one stat + one read from the stored offset per call. Never throws. */
-export function sampleFlow(transcriptPath, sessionId, nowSec = Date.now() / 1000) {
+export function sampleFlow(transcriptPath, sessionId, nowSec = Date.now() / 1000, dir = headroomDir()) {
   try {
     if (!transcriptPath || !existsSync(transcriptPath)) return;
-    ensureDir(headroomDir());
-    const cursors = readJSON(cursorsPath()) ?? {};
+    ensureDir(dir);
+    const cursors = readJSON(cursorsPath(dir)) ?? {};
     const key = sessionId ?? transcriptPath;
     let offset = cursors[key]?.path === transcriptPath ? cursors[key].offset : 0;
 
@@ -61,20 +63,20 @@ export function sampleFlow(transcriptPath, sessionId, nowSec = Date.now() / 1000
       const t = o.timestamp ? Math.round(Date.parse(o.timestamp) / 1000) : Math.round(nowSec);
       samples.push({ t, out: u.output_tokens ?? 0, inp: u.input_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0, s: sessionId ?? null });
     }
-    atomicWriteJSON(cursorsPath(), cursors);
+    atomicWriteJSON(cursorsPath(dir), cursors);
     if (!samples.length) return;
-    appendFileSync(flowPath(), samples.map((s) => JSON.stringify(s)).join('\n') + '\n');
-    const lines = readFileSync(flowPath(), 'utf8').trim().split('\n');
-    if (lines.length > FLOW_MAX_LINES) writeFileSync(flowPath(), lines.slice(-FLOW_MAX_LINES / 2).join('\n') + '\n');
+    appendFileSync(flowPath(dir), samples.map((s) => JSON.stringify(s)).join('\n') + '\n');
+    const lines = readFileSync(flowPath(dir), 'utf8').trim().split('\n');
+    if (lines.length > FLOW_MAX_LINES) writeFileSync(flowPath(dir), lines.slice(-FLOW_MAX_LINES / 2).join('\n') + '\n');
   } catch {
     // flow sampling is best-effort; hooks must never fail because of it
   }
 }
 
-const readFlow = (nowSec) => {
+const readFlow = (nowSec, dir = headroomDir()) => {
   try {
-    if (!existsSync(flowPath())) return [];
-    return readFileSync(flowPath(), 'utf8')
+    if (!existsSync(flowPath(dir))) return [];
+    return readFileSync(flowPath(dir), 'utf8')
       .trim()
       .split('\n')
       .filter(Boolean)
@@ -92,8 +94,8 @@ const readFlow = (nowSec) => {
 };
 
 /** Flow over the recent window: out-tokens/min for the last 10 min and last 90 min. */
-export function flowStats(nowSec = Date.now() / 1000) {
-  const samples = readFlow(nowSec);
+export function flowStats(nowSec = Date.now() / 1000, dir = headroomDir()) {
+  const samples = readFlow(nowSec, dir);
   if (!samples.length) return null;
   const sum = (arr) => arr.reduce((a, s) => a + s.out, 0);
   const recent = samples.filter((s) => nowSec - s.t <= 10 * 60);
@@ -117,8 +119,8 @@ export function flowStats(nowSec = Date.now() / 1000) {
  */
 const ANOMALY_RATIO = 3;
 const ANOMALY_FLOOR_PER_MIN = 200; // out-tokens/min below this is "not really burning"
-export function sessionFlowStats(nowSec = Date.now() / 1000, mySession = null) {
-  const recent = readFlow(nowSec).filter((s) => nowSec - s.t <= 10 * 60);
+export function sessionFlowStats(nowSec = Date.now() / 1000, mySession = null, dir = headroomDir()) {
+  const recent = readFlow(nowSec, dir).filter((s) => nowSec - s.t <= 10 * 60);
   if (!recent.length) return null;
   const bySession = new Map();
   for (const s of recent) {
@@ -153,11 +155,11 @@ export function sessionFlowStats(nowSec = Date.now() / 1000, mySession = null) {
  * - est_tokens_left: (100 − used%) × learned tokens-per-percent, always labeled ≈
  * - exhaustion_band: [fast-rate estimate, slow-rate estimate] instead of a twitchy point
  */
-export function enrichBurn(state, nowSec = Date.now() / 1000) {
+export function enrichBurn(state, nowSec = Date.now() / 1000, dir = headroomDir()) {
   try {
-    const stats = flowStats(nowSec);
+    const stats = flowStats(nowSec, dir);
     const used = state.windows?.five_hour?.used_pct;
-    const cal = calibrate(used, nowSec);
+    const cal = calibrate(used, nowSec, dir);
     if (stats) {
       state.burn.out_per_min_10m = stats.out_per_min_10m;
       if (stats.idle) {
@@ -188,11 +190,11 @@ export function enrichBurn(state, nowSec = Date.now() / 1000) {
  * flowed since the last step by the points moved → out-tokens-per-percent. Median of
  * samples is the learned denominator. A %-drop >5 means the window reset — re-anchor.
  */
-export function calibrate(usedPct, nowSec = Date.now() / 1000) {
+export function calibrate(usedPct, nowSec = Date.now() / 1000, dir = headroomDir()) {
   try {
     if (usedPct == null) return null;
-    const cal = readJSON(calibPath()) ?? { anchor_u: null, anchor_t: null, samples: [] };
-    const samples = readFlow(nowSec);
+    const cal = readJSON(calibPath(dir)) ?? { anchor_u: null, anchor_t: null, samples: [] };
+    const samples = readFlow(nowSec, dir);
     const outSince = (t0) => samples.filter((s) => s.t > t0).reduce((a, s) => a + s.out, 0);
 
     if (cal.anchor_u == null || usedPct < cal.anchor_u - 5) {
@@ -206,8 +208,8 @@ export function calibrate(usedPct, nowSec = Date.now() / 1000) {
       }
       Object.assign(cal, { anchor_u: usedPct, anchor_t: Math.round(nowSec) });
     }
-    ensureDir(headroomDir());
-    atomicWriteJSON(calibPath(), cal);
+    ensureDir(dir);
+    atomicWriteJSON(calibPath(dir), cal);
     if (!cal.samples.length) return null;
     const s = [...cal.samples].sort((a, b) => a - b);
     const m = s.length >> 1;

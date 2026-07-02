@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readState } from './state.mjs';
-import { readConfig, modeProfile, fmtClock, fmtTokens, fmtDelta, headroomDir, readJSON, atomicWriteJSON, ensureDir, crossedReset } from './util.mjs';
+import { readConfig, modeProfile, fmtClock, fmtTokens, fmtDelta, readJSON, atomicWriteJSON, ensureDir, crossedReset, quotaScope } from './util.mjs';
 import { captureHandoff, takeHandoff, renderHandoff } from './handoff.mjs';
 import { readResume } from './resume.mjs';
 import { logEvent, recentEvents } from './events.mjs';
@@ -10,6 +10,11 @@ import { takeContinuity, renderContinuityInjection } from './continuity.mjs';
 import { sampleFlow, sessionFlowStats } from './flow.mjs';
 
 const STALE_SEC = 30 * 60;
+
+// Hooks never receive `rate_limits`, so they resolve their session's account via the map the
+// tap maintains (ADR-21). Unknown → the global dir, and the quota stamp is suppressed there
+// because a top-level pointer may belong to a CONCURRENT session on a different account.
+const dirForSession = (sessionId) => quotaScope(sessionId).dir;
 
 async function readStdin() {
   let raw = '';
@@ -33,7 +38,7 @@ export async function hookPreCompact() {
   try {
     const guardMin = readConfig().compact_guard_min;
     if (typeof guardMin === 'number' && guardMin > 0 && p.trigger === 'auto') {
-      const resets = readState()?.windows?.five_hour?.resets_at;
+      const resets = readState(dirForSession(p.session_id))?.windows?.five_hour?.resets_at;
       const left = resets ? resets - Date.now() / 1000 : null;
       if (left !== null && left > 0 && left <= guardMin * 60) {
         logEvent({ type: 'compact_blocked', session_id: p.session_id ?? null, minutes_to_reset: Math.round(left / 60) });
@@ -70,11 +75,12 @@ const bandOf = (left, bands) => bands.filter((t) => left <= t).length;
 export async function hookPostToolUse() {
   const p = await readStdin();
   try {
-    sampleFlow(p.transcript_path, p.session_id); // velocity engine's FAST signal (T2.1)
+    const dir = dirForSession(p.session_id); // this session's account subtree (ADR-21)
+    sampleFlow(p.transcript_path, p.session_id, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
     const cfg = readConfig();
     if (process.env.HEADROOM_DISABLE === '1' || !cfg.stamp_enabled) return;
     const prof = modeProfile(cfg.mode);
-    const s = readState();
+    const s = readState(dir);
     const now = Date.now() / 1000;
     if (!s || now - s.updated_at > 5 * 60) return;
     const mySession = p.session_id ?? 'unknown';
@@ -89,7 +95,7 @@ export async function hookPostToolUse() {
     const ctxBand = ctxLeft != null ? bandOf(ctxLeft, prof.ctx_bands) : 0;
     const exh = !!(s.burn?.projected_exhaustion && s.windows?.five_hour?.resets_at && s.burn.projected_exhaustion < s.windows.five_hour.resets_at);
 
-    const bandsPath = join(headroomDir(), 'bands.json');
+    const bandsPath = join(dir, 'bands.json');
     const all = readJSON(bandsPath) ?? {};
     for (const k of Object.keys(all)) if (now - (all[k].t ?? 0) > 24 * 3600) delete all[k];
     const prev = all[mySession];
@@ -98,7 +104,7 @@ export async function hookPostToolUse() {
     const cost = !foreign && typeof s.session?.cost_usd === 'number' ? s.session.cost_usd : null;
     const save = (entry) => {
       all[mySession] = { ...entry, u: fhUsed, c: cost, cu: ctxUsed, t: now };
-      ensureDir(headroomDir());
+      ensureDir(dir);
       atomicWriteJSON(bandsPath, all);
     };
     if (!prev) return save({ fh: fhBand, ctx: ctxBand, exh, sc: false, at: 0 });
@@ -154,7 +160,7 @@ export async function hookPostToolUse() {
     const eta = callsLeft != null ? `, ≈${callsLeft} tool call${callsLeft === 1 ? '' : 's'} at this pace` : '';
     const scMsg =
       superClose && !prev.sc && !savedRecently
-        ? `SUPER CLOSE to auto-compaction (~${fmtTokens(tok)} tokens before the ceiling${eta} — still safe to write once): make your handoff current NOW via the headroom \`handoff\` tool, then POWER THROUGH — keep working until it auto-compacts. Do NOT stop "to be safe": stopping strands the task; the session resumes from your handoff right after compaction.${savedNote}`
+        ? `SUPER CLOSE to auto-compaction (~${fmtTokens(tok)} tokens before the ceiling${eta} — still safe to write once): make your handoff current NOW via the headroom \`handoff\` tool, then POWER THROUGH — keep issuing tool calls until it fires. MECHANISM (agents get this wrong): auto-compaction triggers at the START of your NEXT turn, and only if you take one — your next tool call IS the trigger. Ending your turn — even to announce "I'll let it compact" — goes idle and BLOCKS compaction until the user manually sends a message; that announce-and-stop is the stall, not the fix. So don't narrate waiting: if work remains, your next output is a tool call, not a sign-off.${savedNote}`
         : null;
     const scLatched = superClose ? prev.sc || scMsg != null : false;
 
@@ -210,7 +216,7 @@ export async function hookPostToolUse() {
     }
     if (ctxLeft != null && ctxBand > prev.ctx && !savedRecently && !superClose) {
       parts.push(
-        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — BURN IT, don't conserve it. Low context is NEVER a reason to slow, stop, hand back control, wrap up, or get cautious — that only strands the task and blocks the auto-compaction that refreshes you. The one thing it asks: keep your handoff current (refresh at your NEXT task boundary via the headroom \`handoff\` tool — no need to re-save before then), then keep working at full speed until auto-compaction fires; the session resumes seamlessly from your handoff. This is CONTEXT — quota/rate-limit is the OTHER budget: THAT one you stay wary of and pace/defer at the reset, never the reverse.${savedNote}`
+        `context getting low (~${tok != null ? `${fmtTokens(tok)} tokens` : `${Math.round(ctxLeft)}%`} before auto-compaction${eta}) — BURN IT, don't conserve it. Low context is NEVER a reason to slow, stop, hand back control, wrap up, or get cautious — that only strands the task and blocks the auto-compaction that refreshes you. MECHANISM: compaction fires at the START of your next turn and ONLY if you take one, so ending your turn to "let it compact" goes idle and blocks it until the user nudges — your next tool call is what triggers it. The one thing it asks: keep your handoff current (refresh at your NEXT task boundary via the headroom \`handoff\` tool — no need to re-save before then), then keep working at full speed until auto-compaction fires; the session resumes seamlessly from your handoff. This is CONTEXT — quota/rate-limit is the OTHER budget: THAT one you stay wary of and pace/defer at the reset, never the reverse.${savedNote}`
       );
     }
 
@@ -245,7 +251,7 @@ export async function hookPreToolUse() {
   try {
     if (!readConfig().launch_gate) return;
     if (!EXPENSIVE_TOOLS.includes(p.tool_name)) return;
-    const s = readState();
+    const s = readState(dirForSession(p.session_id));
     if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) return;
     const { fitCheck } = await import('./fit.mjs');
     const fit = fitCheck(s, { est_tokens: 40000 }); // conservative launch-sized estimate
@@ -318,7 +324,12 @@ export async function hookSessionStart() {
 export async function hookUserPromptSubmit() {
   const payload = await readStdin();
   const mySession = payload.session_id ?? null;
-  sampleFlow(payload.transcript_path, mySession); // velocity engine's FAST signal (T2.1)
+  // Resolve THIS session's account directory (ADR-21). showQuota is false only when ≥2
+  // accounts exist and this session isn't mapped to one yet — then we withhold quota rather
+  // than risk showing a concurrent account's numbers. Single-account/legacy users are
+  // unaffected (showQuota stays true).
+  const { dir, show: showQuota } = quotaScope(mySession);
+  sampleFlow(payload.transcript_path, mySession, Date.now() / 1000, dir); // velocity engine's FAST signal (T2.1)
 
   if (process.env.HEADROOM_DISABLE === '1' || !readConfig().stamp_enabled) {
     logEvent({ type: 'stamp_skipped', session_id: mySession, reason: 'disabled' });
@@ -331,7 +342,7 @@ export async function hookUserPromptSubmit() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
   const nowPart = `now ${nowD.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} ${tz}`;
 
-  const s = readState();
+  const s = readState(dir);
   if (!s || Date.now() / 1000 - s.updated_at > STALE_SEC) {
     logEvent({ type: 'stamp_skipped', session_id: mySession, reason: s ? 'stale_state' : 'no_state' });
     return;
@@ -351,29 +362,39 @@ export async function hookUserPromptSubmit() {
   // Explicit "quota —/context —" labels + the contrast clause, probe-validated
   // (eval/v3-wording results: both disambiguated cells cited the clause as decisive).
   const resetAt = crossedReset(s);
-  if (resetAt) {
+  if (showQuota && resetAt) {
     parts.push(
       `quota — the 5h window RESET at ${fmtClock(resetAt)}: quota is FRESH (effectively full). Earlier figures in this conversation and any "nearly dry" warnings predate the reset — disregard them; exact numbers arrive with the next statusline render`
     );
-  } else if (fh?.used_pct != null) {
+  } else if (showQuota && fh?.used_pct != null) {
     let seg = `quota — 5h: ${Math.round(100 - fh.used_pct)}% left`;
     if (s.burn?.est_tokens_left != null) seg += ` (≈${fmtTokens(s.burn.est_tokens_left)} tokens of quota)`;
     if (fh.resets_at) seg += `, resets ${fmtClock(fh.resets_at)}`;
     const band = s.burn?.exhaustion_band;
     const exh = s.burn?.projected_exhaustion;
+    const nowSec = Date.now() / 1000;
+    // surface the runway: WHEN constant work at this velocity stops you, AND how long that
+    // is from now (the conservative/earliest edge), so "when do I get cut off" reads instantly.
     if (band && fh.resets_at && band[0] < fh.resets_at) {
-      seg += ` (at current pace, may run dry ~${fmtClock(band[0])}–${fmtClock(band[1])})`;
+      const runway = band[0] > nowSec ? ` — ≈${fmtDelta(band[0] - nowSec)} of work left at this pace` : '';
+      seg += ` (at current pace, may run dry ~${fmtClock(band[0])}–${fmtClock(band[1])}${runway})`;
     } else if (exh && fh.resets_at && exh < fh.resets_at) {
-      seg += ` (at current burn, may exhaust ~${fmtClock(exh)})`;
+      const runway = exh > nowSec ? ` — ≈${fmtDelta(exh - nowSec)} of work left at this pace` : '';
+      seg += ` (at current burn, may exhaust ~${fmtClock(exh)}${runway})`;
     }
     parts.push(seg);
   }
-  if (sd?.used_pct != null) {
+  // The weekly window is hidden from the LLM until it is actually a binding constraint:
+  // surface it (and any HOT-pace coaching) ONLY once <20% remains (user directive
+  // 2026-06-22). Above that, a healthy 7d window is noise that invites premature
+  // throttling — so we don't even tell the model. The human-facing HUD/watch is unaffected.
+  const WEEKLY_DISCLOSE_PCT = 20;
+  if (showQuota && sd?.used_pct != null && 100 - sd.used_pct < WEEKLY_DISCLOSE_PCT) {
     let wkSeg = `7d: ${Math.round(100 - sd.used_pct)}% left`;
     const wk = s.burn?.weekly;
     if (wk?.hot && wk.projected_exhaustion && sd.resets_at) {
       wkSeg += ` — weekly pace is HOT (${wk.pace_ratio}x sustainable): on track to exhaust the WEEK in ~${fmtDelta(wk.projected_exhaustion - Date.now() / 1000)}, ${fmtDelta(sd.resets_at - wk.projected_exhaustion)} before its reset; ≈${wk.daily_allowance_pct}%/day sustains — prefer deferring bulk work and tighter batching until pace cools`;
-    } else if (wk && 100 - sd.used_pct < 40) {
+    } else if (wk) {
       wkSeg += ` (cruising: ≈${wk.daily_allowance_pct}%/day sustains to the weekly reset)`;
     }
     parts.push(wkSeg);
@@ -381,13 +402,16 @@ export async function hookUserPromptSubmit() {
   // the 5h window is ACCOUNT-level: other open sessions burn it too. Sessions whose
   // hooks touched bands.json recently are live burners — disclose them (field 2026-06-10:
   // a 29-point single-call "receipt" was a concurrent session's burn, co-attributed).
-  try {
-    const bands = readJSON(join(headroomDir(), 'bands.json')) ?? {};
+  if (showQuota) try {
+    // bands.json is per-account, so this count and the combined burn are SAME-account
+    // sessions only (ADR-20 refined by ADR-21) — a sibling on another account no longer
+    // inflates "sessions sharing this quota".
+    const bands = readJSON(join(dir, 'bands.json')) ?? {};
     const nowSec = Date.now() / 1000;
     const others = Object.entries(bands).filter(([k, v]) => k !== (mySession ?? 'unknown') && nowSec - (v.t ?? 0) < 30 * 60).length;
     if (others > 0) {
       let line = `${others + 1} sessions sharing this quota`;
-      const sf = sessionFlowStats(nowSec, mySession);
+      const sf = sessionFlowStats(nowSec, mySession, dir);
       if (sf && sf.combinedPerMin > 0) line += `, combined burn ≈${fmtTokens(sf.combinedPerMin)} tok/min across ${sf.burning} actively burning`;
       line += ` (their burn is already in these figures — do not re-discount; expect bursts, re-check often)`;
       if (sf?.anomaly) {

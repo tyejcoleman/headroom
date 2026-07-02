@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, mkdtempSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,12 +43,16 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   const out = JSON.parse(r.stdout);
   const stamp = out.hookSpecificOutput.additionalContext;
   assert.match(stamp, /^\[headroom\] now .+ · quota — 5h: 58% left/); // leads with the wall clock, then quota
-  assert.match(stamp, /7d: 85% left/);
+  assert.doesNotMatch(stamp, /7d:/); // healthy weekly (85% left) is hidden from the LLM until <20% remains
   assert.match(stamp, /tokens before compaction/);
   assert.ok(stamp.length < 260, `stamp too long: ${stamp.length}`);
 
+  // The hook reads THIS session's account subtree (ADR-21), not the top-level pointer, so
+  // mutations below target the per-account state file the tap created.
+  const accts = join(dir, 'accounts');
+  const statePath = existsSync(accts) ? join(accts, readdirSync(accts)[0], 'state.json') : join(dir, 'state.json');
+
   // stale state → no output
-  const statePath = join(dir, 'state.json');
   const state = JSON.parse(readFileSync(statePath, 'utf8'));
   state.updated_at -= 3600;
   writeFileSync(statePath, JSON.stringify(state));
@@ -71,6 +75,39 @@ test('hook: fresh state → stamp; stale → silent; disabled → silent', () =>
   writeFileSync(statePath, JSON.stringify(aging));
   const r3 = run(['hook', 'user-prompt-submit'], { input: '{}', env: { HEADROOM_DIR: dir } });
   assert.match(JSON.parse(r3.stdout).hookSpecificOutput.additionalContext, /\(5m old\)$/);
+});
+
+test('two accounts, two sessions: each session sees ITS OWN weekly, never the other (ADR-21)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'headroom-multi-'));
+  const base = JSON.parse(fixture('statusline-full.json'));
+  // Account A: 5h 58% left, 7d 15% left.  Account B: 5h 30% left, 7d 7% left.
+  const A = { ...base, session_id: 'sessA',
+    rate_limits: { five_hour: { used_percentage: 42, resets_at: 4102444800 }, seven_day: { used_percentage: 85, resets_at: 4103049600 } } };
+  const B = { ...base, session_id: 'sessB',
+    rate_limits: { five_hour: { used_percentage: 70, resets_at: 4102444800 + 137 * 60 }, seven_day: { used_percentage: 93, resets_at: 4103049600 - 3 * 86400 } } };
+
+  // Both sessions render their statuslines into the SHARED ~/.headroom (B writes last).
+  run(['tap'], { input: JSON.stringify(A), env: { HEADROOM_DIR: dir } });
+  run(['tap'], { input: JSON.stringify(B), env: { HEADROOM_DIR: dir } });
+
+  const stamp = (sid) =>
+    JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: sid }), env: { HEADROOM_DIR: dir } }).stdout)
+      .hookSpecificOutput.additionalContext;
+
+  const a = stamp('sessA');
+  assert.match(a, /5h: 58% left/);
+  assert.match(a, /7d: 15% left/);
+  assert.doesNotMatch(a, /7d: 7% left/); // B's weekly must NOT bleed into A's stamp
+
+  const b = stamp('sessB');
+  assert.match(b, /5h: 30% left/);
+  assert.match(b, /7d: 7% left/);
+  assert.doesNotMatch(b, /7d: 15% left/); // A's weekly must NOT bleed into B's stamp
+
+  // an unmapped session on this 2-account machine can't be attributed → quota withheld
+  const z = stamp('sessZ');
+  assert.doesNotMatch(z, /5h:/);
+  assert.doesNotMatch(z, /7d:/);
 });
 
 test('install: idempotent into sandbox config dir; uninstall leaves no trace', () => {

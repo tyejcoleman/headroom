@@ -67,7 +67,10 @@ any producer that honors this contract.
 
 ## Scoping (the rule that prevents lying across sessions)
 
-- `windows` are **account-level**: true for every session; safe to show anywhere.
+- `windows` are **account-level**: true for every session OF THE SAME ACCOUNT. Safe to show
+  to any same-account session; when concurrent sessions span DIFFERENT accounts the state is
+  isolated per account under `~/.headroom/accounts/<key>/` and a session reads only its own
+  (ADR-21) — the payload has no account id, so they cannot otherwise be told apart.
 - `context`, `session`, and `session_id` are **session-level**. The file is
   last-writer-wins across concurrent sessions, so consumers MUST compare the reader's
   session id against `session_id` before presenting session-scoped fields, and omit them

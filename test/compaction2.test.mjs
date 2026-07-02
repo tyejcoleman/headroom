@@ -661,6 +661,61 @@ test('weekly cruise: stamp coaches throttling when HOT; HUD flags it', () => {
   assert.match(stamp, /deferring bulk work/);
 });
 
+test('weekly: window is hidden from the LLM until <20% left (even when HOT)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-week-gate-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  const writeState = (sevenUsed) =>
+    writeFileSync(
+      join(dir, 'state.json'),
+      JSON.stringify({
+        schema: 'resource-state/v0',
+        updated_at: now,
+        session_id: 'wkg',
+        windows: {
+          five_hour: { used_pct: 30, resets_at: now + 3600 },
+          seven_day: { used_pct: sevenUsed, resets_at: now + 2 * 86400 },
+        },
+        context: null,
+        // HOT pace present in state — the gate must suppress it anyway above the threshold
+        burn: { weekly: { pace_ratio: 1.31, daily_allowance_pct: 12, projected_exhaustion: now + 86400, hot: true } },
+        session: {},
+      })
+    );
+  const stamp = () =>
+    JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'wkg' }), env }).stdout)
+      .hookSpecificOutput.additionalContext;
+
+  writeState(46); // 54% left, HOT in state → still hidden (the user's exact complaint)
+  assert.doesNotMatch(stamp(), /7d:|weekly pace is HOT/);
+  writeState(81); // 19% left → now disclosed
+  assert.match(stamp(), /7d: 19% left/);
+  assert.match(stamp(), /weekly pace is HOT/);
+});
+
+test('5h: exhaustion clause surfaces the runway (when + how long from now)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-runway-'));
+  const env = { HEADROOM_DIR: dir };
+  const now = Math.round(Date.now() / 1000);
+  writeFileSync(
+    join(dir, 'state.json'),
+    JSON.stringify({
+      schema: 'resource-state/v0',
+      updated_at: now,
+      session_id: 'rw',
+      // would run dry ~50m from now, well before the 2h reset → constant work DOES get stopped
+      windows: { five_hour: { used_pct: 60, resets_at: now + 7200 } },
+      context: null,
+      burn: { exhaustion_band: [now + 3000, now + 4200] },
+      session: {},
+    })
+  );
+  const stamp = JSON.parse(run(['hook', 'user-prompt-submit'], { input: JSON.stringify({ session_id: 'rw' }), env }).stdout)
+    .hookSpecificOutput.additionalContext;
+  assert.match(stamp, /at current pace, may run dry ~/);
+  assert.match(stamp, /≈50m of work left at this pace/);
+});
+
 test('weekly cruise: full tap pipeline computes pace from a raw payload', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hr-week2-'));
   const now = Math.round(Date.now() / 1000);

@@ -43,11 +43,13 @@ the resume plan to `~/.headroom/resume.json`. Any new write surface needs its ow
 this log.
 
 ## ADR-7 — Account-scoped vs session-scoped data are different things
-Rate-limit windows are true for every session; context and cost belong to ONE session.
-`state.json` is last-writer-wins across concurrent sessions, so consumers must check
-`session_id` before presenting session-scoped fields (the stamp omits foreign context).
+Rate-limit windows are true for every session OF THE SAME ACCOUNT; context and cost belong to
+ONE session. `state.json` is last-writer-wins across concurrent sessions, so consumers must
+check `session_id` before presenting session-scoped fields (the stamp omits foreign context).
 *Why:* field bug 2026-06-09 — a fresh session's $0.00 displayed in another session.
-**Enforced by:** tests.
+**Enforced by:** tests. **Amended by ADR-21:** "account-level" only holds within one account;
+when concurrent sessions span DIFFERENT accounts the windows are isolated per account, because
+the payload carries no account id to disambiguate them.
 
 ## ADR-8 — Handoffs carry ground truth, not prose
 Hooks have no model, so the PreCompact handoff records facts (branch, dirty files, recent
@@ -198,3 +200,41 @@ sibling — is the one burning hot. Stays within official extension points (tran
 `usage` + hook stdin); no per-session identity beyond the harness's own session id. **Enforced
 by:** `sessionFlowStats` in `src/flow.mjs`, the disclosure line in `src/hook.mjs`, and the
 anomaly test in `test/flow.test.mjs`; wording joins the eval queue (ADR-9).
+
+## ADR-21 — Per-account isolation of all account-scoped state (amends ADR-7)
+The statusline payload carries NO account identifier (only `session_id`, `workspace` dirs,
+`rate_limits`, `context_window`, `cost`). ADR-7 assumed the rate-limit windows are
+account-level and "safe to show anywhere" — but that breaks when concurrent sessions are
+logged into DIFFERENT accounts: they all write one global `~/.headroom/state.json`
+(last-writer-wins), so the agent-facing stamp shows whichever account rendered the statusline
+last. Field evidence 2026-06-25 (live `--capture`): two accounts writing the same `state.json`,
+the 7d figure flip-flopping 2%↔93% between renders — a session on the 98%-weekly-left account
+was being told it had 7% left.
+
+Fix: every account-SCOPED store gets its own subtree `~/.headroom/accounts/<key>/` —
+`state.json`, `history.jsonl`, `calib.json`, `flow.jsonl`, `flow-cursors.json`, `bands.json`.
+The account key is derived from the windows' reset PHASE (`resets_at mod window_length`),
+which is invariant across resets within an account but differs between accounts. The tap
+(which sees `rate_limits`) routes all reads/writes to `accountDir(key)`, records a
+`session_id → key` map in `sessions.json`, and mirrors the latest account's `state.json` to
+the top-level path as a POINTER for the human CLIs (`watch`/`line`/`doctor`/`mcp`) that have
+no session context. Hooks never receive `rate_limits`, so they resolve their account via
+`quotaScope(session_id)`: the mapped account, or — to avoid regressing single-account users —
+the sole account when only one exists, or the legacy global layout when none exist. Only when
+≥2 accounts exist AND the session is unmapped is quota WITHHELD (we can't attribute it; showing
+the wrong account is the bug). Multi-session disclosure (ADR-20) now reads per-account
+bands/flow, so "N sessions sharing this quota" and the combined-burn figure count SAME-account
+sessions only — a sibling on another account no longer inflates them.
+
+Key stability assumes a roughly fixed reset cadence (the same assumption ADR-7's reset
+handling already makes). If the phase ever drifts, the worst case is a same account splitting
+into a new bucket (history/calib rebuild in ~10 min) — never cross-account contamination, the
+only failure mode that matters. api-key users (no windows → null key) keep the legacy global
+layout unchanged. *Why:* a resource-awareness tool that reports another account's quota is
+worse than silent. **Enforced by:** `accountKey`/`accountDir`/`recordSessionAccount`/
+`accountForSession`/`quotaScope`/`gcAccounts` in `src/util.mjs`; per-account `dir` routing in
+`src/state.mjs`, `src/flow.mjs`, `src/tap.mjs`, `src/hook.mjs`; unit + end-to-end isolation
+tests in `test/state.test.mjs` and `test/cli.test.mjs`. Stays within official extension points
+(statusline stdin only); introduces no new identity source. Stamp WORDING is unchanged (the
+quota line text is identical; isolation only changes WHICH account's numbers fill it, and
+withholding is an omission per "never inject a lie") — so ADR-9's eval gate is not triggered.

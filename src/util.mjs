@@ -1,7 +1,7 @@
-import { mkdirSync, writeFileSync, renameSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, renameSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 
 export const headroomDir = () => process.env.HEADROOM_DIR || join(homedir(), '.headroom');
 
@@ -93,6 +93,93 @@ export function crossedReset(state, nowSec = Date.now() / 1000) {
   // true window was 95% — shape 2, caught live minutes after shape 1 was fixed).
   if (r && nowSec >= r) return r;
   return null;
+}
+
+// ── Per-account isolation (ADR-21, amends ADR-7) ─────────────────────────────
+// The statusline payload carries NO account identifier, so when concurrent sessions are
+// logged into DIFFERENT accounts they would otherwise clobber one global state.json
+// (last-writer-wins) and the agent-facing stamp would show whichever account rendered
+// last. We give each account its own subtree under ~/.headroom/accounts/<key>/ so a
+// session always reads back ITS OWN account's windows/burn. The account key is derived
+// from the windows' reset PHASE (resets_at mod window length): within an account the phase
+// is invariant across resets, but it differs between accounts. Returns null when there are
+// no windows (api-key / absent data) — those keep using the global dir.
+const FIVE_HOUR_SEC = 5 * 3600;
+const SEVEN_DAY_SEC = 7 * 86400;
+
+export function accountKey(windows) {
+  const fh = windows?.five_hour?.resets_at;
+  const sd = windows?.seven_day?.resets_at;
+  if (fh == null && sd == null) return null;
+  const phase = `${fh != null ? fh % FIVE_HOUR_SEC : '-'}:${sd != null ? sd % SEVEN_DAY_SEC : '-'}`;
+  return 'a' + createHash('sha1').update(phase).digest('hex').slice(0, 10);
+}
+
+export const accountsRoot = () => join(headroomDir(), 'accounts');
+/** Directory holding one account's state/history/calib/flow/bands. Null key → global dir
+ *  (api-key users and pre-account fallbacks share the legacy top-level layout). */
+export const accountDir = (key) => (key ? join(accountsRoot(), key) : headroomDir());
+
+const sessionsPath = () => join(headroomDir(), 'sessions.json');
+const SESSION_TTL = 30 * 60;
+
+/** Record which account a session is currently on, so hooks — which never receive
+ *  `rate_limits` — can resolve their own account's directory. Best-effort; self-prunes. */
+export function recordSessionAccount(sessionId, key, nowSec = Date.now() / 1000) {
+  if (!sessionId || !key) return;
+  try {
+    const m = readJSON(sessionsPath()) ?? {};
+    for (const k of Object.keys(m)) if (nowSec - (m[k]?.at ?? 0) > SESSION_TTL) delete m[k];
+    m[sessionId] = { key, at: nowSec };
+    ensureDir(headroomDir());
+    atomicWriteJSON(sessionsPath(), m);
+  } catch {
+    // the map is a convenience cache; never block on it
+  }
+}
+
+/** The account a session was last seen on, or null if unknown/stale (then the caller must
+ *  NOT present account-level quota — it can't attribute it). */
+export function accountForSession(sessionId, nowSec = Date.now() / 1000) {
+  if (!sessionId) return null;
+  const e = (readJSON(sessionsPath()) ?? {})[sessionId];
+  if (!e || nowSec - (e.at ?? 0) > SESSION_TTL) return null;
+  return e.key ?? null;
+}
+
+const ACCOUNT_TTL = 14 * 86400;
+/** Drop account subtrees untouched for two weeks (a logged-out account never returns). */
+export function gcAccounts(nowSec = Date.now() / 1000) {
+  try {
+    for (const name of readdirSync(accountsRoot())) {
+      const st = readJSON(join(accountsRoot(), name, 'state.json'));
+      if (nowSec - (st?.updated_at ?? 0) > ACCOUNT_TTL) rmSync(join(accountsRoot(), name), { recursive: true, force: true });
+    }
+  } catch {
+    // missing root or unreadable entry → nothing to collect
+  }
+}
+
+export function listAccountKeys() {
+  try {
+    return readdirSync(accountsRoot()).filter((n) => n.startsWith('a'));
+  } catch {
+    return [];
+  }
+}
+
+/** Resolve which account directory a session should read, and whether its quota is safe to
+ *  present. Mapped → that account. Unmapped but exactly ONE account exists → that one (a
+ *  single-account user keeps the stamp even before the map is written). No accounts yet →
+ *  the legacy global layout. ≥2 accounts and unmapped → the global dir but DON'T show quota:
+ *  we cannot tell which account is this session's, and showing the wrong one is the bug. */
+export function quotaScope(sessionId, nowSec = Date.now() / 1000) {
+  const mapped = accountForSession(sessionId, nowSec);
+  if (mapped) return { dir: accountDir(mapped), show: true };
+  const keys = listAccountKeys();
+  if (keys.length === 1) return { dir: accountDir(keys[0]), show: true };
+  if (keys.length === 0) return { dir: headroomDir(), show: true };
+  return { dir: headroomDir(), show: false };
 }
 
 export function readConfig() {

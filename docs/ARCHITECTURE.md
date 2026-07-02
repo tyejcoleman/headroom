@@ -44,7 +44,16 @@ network (ADR-1). Each invocation is a fresh short-lived node process.
 
 ## Runtime files (`~/.headroom/`)
 
-`state.json` (ResourceState v0, atomic) · `history.jsonl` (burn samples, self-pruning) ·
+**Account-scoped (ADR-21):** every account gets its own subtree `accounts/<key>/` holding
+`state.json`, `history.jsonl`, `calib.json`, `flow.jsonl`, `flow-cursors.json`, `bands.json`.
+The key is the windows' reset PHASE (`resets_at mod window_length`), stable within an account
+and distinct between accounts — so concurrent sessions on different accounts never clobber
+each other. The tap also keeps a top-level `state.json` POINTER (latest account, for the human
+CLIs) and a `sessions.json` map (`session_id → key`) so hooks, which never see `rate_limits`,
+resolve their own account via `quotaScope`. api-key users (no windows) keep the legacy flat
+layout. Dormant account subtrees are GC'd after 14 days.
+
+**Global / session-scoped:** the top-level `state.json` pointer (ResourceState v0, atomic) ·
 `handoffs/<session>.json` (pre-compaction snapshots) · `handoffs/<session>.extracts.json`
 (verbatim transcript extracts, ADR-11) · `resume.json` (deferred-work plan) · `pins.json`
 (must-survive facts, ADR-12) · `events.jsonl` (compaction lifecycle + context anomalies,

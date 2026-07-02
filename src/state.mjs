@@ -63,11 +63,10 @@ const median = (arr) => {
  * rate_limits populates) and interleaved stale values from concurrent sessions, and a
  * single bad endpoint must not produce a 180%/h hallucination.
  */
-export function updateBurn(state) {
+export function updateBurn(state, dir = headroomDir()) {
   const fh = state.windows.five_hour;
   if (fh?.used_pct == null) return state;
 
-  const dir = headroomDir();
   ensureDir(dir);
   const histPath = join(dir, 'history.jsonl');
 
@@ -152,12 +151,11 @@ export function enrichWeekly(state, nowSec = Date.now() / 1000) {
   return state;
 }
 
-export function writeState(state) {
-  const dir = headroomDir();
+export function writeState(state, dir = headroomDir()) {
   ensureDir(dir);
   atomicWriteJSON(join(dir, 'state.json'), state);
 }
 
-export function readState() {
-  return readJSON(join(headroomDir(), 'state.json'));
+export function readState(dir = headroomDir()) {
+  return readJSON(join(dir, 'state.json'));
 }

@@ -6,7 +6,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 process.env.HEADROOM_DIR = mkdtempSync(join(tmpdir(), 'headroom-state-'));
-const { parsePayload, updateBurn, enrichWeekly } = await import('../src/state.mjs');
+const { parsePayload, updateBurn, enrichWeekly, writeState, readState } = await import('../src/state.mjs');
+const { accountKey, accountDir, recordSessionAccount, quotaScope, listAccountKeys } = await import('../src/util.mjs');
 const { validateResourceState } = await import('../src/schema.mjs');
 const { fitCheck } = await import('../src/fit.mjs');
 
@@ -95,6 +96,69 @@ test('fit_check verdicts: context exceeds, window defer, healthy fits', () => {
   assert.equal(fitCheck(exhausted, { est_tokens: 1000 }).overall, 'defer');
 
   assert.equal(fitCheck(null, { est_tokens: 1000 }).overall, 'unknown');
+});
+
+test('accountKey: stable across resets within an account, distinct between accounts (ADR-21)', () => {
+  const FH = 5 * 3600, SD = 7 * 86400;
+  const w = (fhReset, sdReset) => ({ five_hour: { resets_at: fhReset }, seven_day: { resets_at: sdReset } });
+  const a = w(4102444800, 4103049600);
+
+  const keyA = accountKey(a);
+  assert.ok(typeof keyA === 'string' && keyA.startsWith('a'));
+  // a reset advances resets_at by exactly one window length → SAME key (phase is invariant)
+  assert.equal(accountKey(w(4102444800 + FH, 4103049600)), keyA);
+  assert.equal(accountKey(w(4102444800, 4103049600 + SD)), keyA);
+  assert.equal(accountKey(w(4102444800 + 3 * FH, 4103049600 + 2 * SD)), keyA);
+  // a different account has a different reset phase → DIFFERENT key
+  assert.notEqual(accountKey(w(4102444800 + 137 * 60, 4103049600 - 3 * 86400)), keyA);
+  // no windows (api-key / absent) → null → caller uses the global dir
+  assert.equal(accountKey({}), null);
+  assert.equal(accountKey({ five_hour: { resets_at: null }, seven_day: { resets_at: null } }), null);
+});
+
+test('per-account isolation: a session reads its OWN account, never a concurrent account (ADR-21)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'headroom-iso-'));
+  process.env.HEADROOM_DIR = root;
+
+  // Account A (98% weekly left) and Account B (7% weekly left), each routed to its own dir.
+  const A = parsePayload(fix('statusline-full.json'));
+  A.windows.five_hour.resets_at = 4102444800; A.windows.seven_day.resets_at = 4103049600;
+  A.windows.seven_day.used_pct = 2; A.session_id = 'sessA';
+  const B = parsePayload(fix('statusline-full.json'));
+  B.windows.five_hour.resets_at = 4102444800 + 137 * 60; B.windows.seven_day.resets_at = 4103049600 - 3 * 86400;
+  B.windows.seven_day.used_pct = 93; B.session_id = 'sessB';
+
+  const keyA = accountKey(A.windows), keyB = accountKey(B.windows);
+  assert.notEqual(keyA, keyB);
+  writeState(A, accountDir(keyA)); recordSessionAccount('sessA', keyA);
+  writeState(B, accountDir(keyB)); recordSessionAccount('sessB', keyB);
+  // last writer's top-level pointer is account B — exactly the contamination the hook avoids
+  writeState(B, root);
+
+  assert.equal(listAccountKeys().sort().join(','), [keyA, keyB].sort().join(','));
+
+  // each session resolves to ITS account and sees ITS weekly, regardless of who wrote last
+  const scA = quotaScope('sessA'), scB = quotaScope('sessB');
+  assert.equal(scA.show, true); assert.equal(scB.show, true);
+  assert.equal(readState(scA.dir).windows.seven_day.used_pct, 2, 'sessA sees A (98% weekly left)');
+  assert.equal(readState(scB.dir).windows.seven_day.used_pct, 93, 'sessB sees B (7% weekly left)');
+
+  // an UNMAPPED session on this 2-account machine cannot be attributed → quota withheld
+  const scUnknown = quotaScope('sessZ');
+  assert.equal(scUnknown.show, false);
+});
+
+test('quotaScope: single-account and legacy layouts keep showing quota (no regression)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'headroom-single-'));
+  process.env.HEADROOM_DIR = root;
+  // legacy / pre-account: no accounts/ subtree at all → global dir, quota shown
+  assert.deepEqual(quotaScope('whoever'), { dir: root, show: true });
+  // exactly one account, session unmapped → still resolves to that one account, quota shown
+  const k = accountKey({ five_hour: { resets_at: 4102444800 }, seven_day: { resets_at: 4103049600 } });
+  writeState(parsePayload(fix('statusline-full.json')), accountDir(k));
+  const sc = quotaScope('unmapped-but-only-one');
+  assert.equal(sc.show, true);
+  assert.equal(sc.dir, accountDir(k));
 });
 
 test('enrichWeekly: HOT requires material weekly usage, not just a high post-reset pace', () => {

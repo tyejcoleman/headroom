@@ -1,6 +1,6 @@
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { headroomDir, ensureDir } from './util.mjs';
+import { headroomDir, ensureDir, accountKey, accountDir, recordSessionAccount, gcAccounts } from './util.mjs';
 import { parsePayload, updateBurn, writeState, readState, enrichWeekly } from './state.mjs';
 import { renderHUD } from './hud.mjs';
 import { readResume } from './resume.mjs';
@@ -28,10 +28,28 @@ export async function tap(argv = []) {
       appendFileSync(join(headroomDir(), 'raw-sample.jsonl'), raw.trim() + '\n');
     }
     const payload = JSON.parse(raw);
-    const prev = readState();
-    const state = enrichWeekly(enrichBurn(updateBurn(parsePayload(payload))));
+    const fresh = parsePayload(payload);
+    // Per-account isolation (ADR-21): the payload carries no account id, so concurrent
+    // sessions on DIFFERENT accounts would clobber one global state.json (last-writer-wins)
+    // and the agent would see another account's quota. Route this account's state/burn/flow
+    // into its own subtree, keyed on the windows' reset phase. Null key (api-key / no
+    // windows) keeps the legacy global layout.
+    const now = Date.now() / 1000;
+    const key = accountKey(fresh.windows);
+    const dir = accountDir(key);
+    if (key) {
+      ensureDir(dir);
+      recordSessionAccount(fresh.session_id, key, now); // so hooks (no rate_limits) find us
+    }
+    fresh.account_key = key;
+    const prev = readState(dir);
+    const state = enrichWeekly(enrichBurn(updateBurn(fresh, dir), now, dir), now);
     detectContextDrop(prev, state); // silent microcompaction leaves no other trace
-    writeState(state);
+    writeState(state, dir);
+    // Top-level pointer = the most-recently-active account, for the human CLIs (watch/line/
+    // doctor/mcp) that have no session context. The agent-facing hook reads per-account.
+    if (key) writeState(state, headroomDir());
+    gcAccounts(now);
     hud = renderHUD(state, readResume());
   } catch {
     // malformed/missing payload: keep the line, skip the write
