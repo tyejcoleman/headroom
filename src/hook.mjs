@@ -8,7 +8,7 @@ import { listPins, renderPins } from './pins.mjs';
 import { takeCheckpoint, renderCheckpoint } from './checkpoint.mjs';
 import { takeContinuity, renderContinuityInjection } from './continuity.mjs';
 import { sampleFlow, sessionFlowStats } from './flow.mjs';
-import { pairAdvice, staleEcho, profileForKey, fmtAge } from './accounts.mjs';
+import { pairAdvice, staleEcho, profileForKey } from './accounts.mjs';
 
 const STALE_SEC = 30 * 60;
 
