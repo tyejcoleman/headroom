@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readState } from './state.mjs';
+import { accountDir, activeAccountKeys } from './util.mjs';
 import { fitCheck, estimateRemaining } from './fit.mjs';
 import { planResume } from './resume.mjs';
 import { addPin } from './pins.mjs';
@@ -109,6 +110,37 @@ const TOOLS = [
   },
 ];
 
+// Which account's quota does an MCP call see? MCP calls carry no session id, so the
+// server cannot attribute quota the way hooks do (ADR-21). Resolution (ADR-24): the
+// sessions map the tap maintains tells us which accounts were ACTIVE in the last ~10 min.
+// Exactly one → that account's state (not the top-level pointer, which a concurrent
+// account may have overwritten). None → the top-level pointer (single-account/legacy).
+// Two or more → attribution is genuinely ambiguous, so quota is WITHHELD: windows/burn
+// are stripped and an explicit `attribution` flag says why — returning the wrong
+// account's numbers is the bug this exists to prevent; the per-session prompt stamps
+// still carry correctly-attributed figures.
+const AMBIGUOUS =
+  'ambiguous — quota withheld (2 or more accounts were active in the last 10 minutes and MCP calls carry no session id; the [tokenroom] prompt stamps still show this session\'s correctly-attributed quota)';
+const QUOTA_TOOLS = new Set(['resource_state', 'estimate_remaining', 'fit_check', 'plan_resume']);
+
+function resolveMcpState(nowSec = Date.now() / 1000) {
+  try {
+    const active = activeAccountKeys(10 * 60, nowSec);
+    if (active.length >= 2) {
+      const s = readState();
+      if (!s) return { state: null };
+      return { state: { ...s, windows: {}, burn: { pct_per_hour: null, projected_exhaustion: null } }, attribution: AMBIGUOUS };
+    }
+    if (active.length === 1) {
+      const s = readState(accountDir(active[0]));
+      if (s) return { state: s };
+    }
+  } catch {
+    // resolution is best-effort; fall through to the top-level pointer
+  }
+  return { state: readState() };
+}
+
 export function mcpServe() {
   const send = (msg) => process.stdout.write(JSON.stringify(msg) + '\n');
   const rl = createInterface({ input: process.stdin });
@@ -143,7 +175,7 @@ export function mcpServe() {
         send({ jsonrpc: '2.0', id, error: { code: -32602, message: `unknown tool: ${name}` } });
         return;
       }
-      const state = readState();
+      const { state, attribution } = resolveMcpState(); // per-account routing + withhold rule (ADR-21/ADR-24)
       let result;
       if (name === 'checkpoint') {
         // works without state — saving judgment must never depend on the tap being live
@@ -178,6 +210,7 @@ export function mcpServe() {
       } else {
         result = fitCheck(state, args);
       }
+      if (attribution && QUOTA_TOOLS.has(name) && result && typeof result === 'object') result.attribution = attribution;
       // every consult is a steering signal — audit it (tokenroom audit)
       logEvent({
         type: 'mcp_call',
